@@ -35,13 +35,13 @@ async function main() {
       case "guard":
         return out("guard", runGuard(message));
       case "classify":
-        return out("classify", runClassifier(message));
+        return out("classify", await runClassifier(message));
       case "sentiment":
         return out("sentiment", runSentiment(message));
       case "decompose":
-        return out("decompose", runDecomposer(message, runClassifier(message)));
+        return out("decompose", runDecomposer(message, await runClassifier(message)));
       case "investigate": {
-        const subs = runDecomposer(message, runClassifier(message));
+        const subs = runDecomposer(message, await runClassifier(message));
         return out("investigate", await runOrchestrator(subs, message, []));
       }
       default:

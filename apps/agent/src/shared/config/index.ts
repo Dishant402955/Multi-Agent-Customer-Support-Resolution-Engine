@@ -46,6 +46,18 @@ export const config = {
   port: Number(process.env.PORT ?? "3000"),
 
   /**
+   * Top-level intent router (steps/classifier.ts) thresholds.
+   * - `classifierMultiThreshold`: a domain counts toward "multi-issue" only when
+   *   its confidence is at/above this. Kept at 0.6 to match the decomposer's own
+   *   0.6 filter, so a `mixed` classification always yields >=2 sub-problems.
+   * - `classifierFallbackThreshold`: when the top intent's confidence is below
+   *   this (and it isn't multi-issue), raise `fallback` and route to the safe
+   *   path instead of guessing a specialist.
+   */
+  classifierMultiThreshold: Number(process.env.CLASSIFIER_MULTI_THRESHOLD ?? "0.6"),
+  classifierFallbackThreshold: Number(process.env.CLASSIFIER_FALLBACK_THRESHOLD ?? "0.5"),
+
+  /**
    * KB retrieval (Tier-2 keyword). How many top-scoring sections to keep per
    * document. Sections are markdown headings; scoring is TF-IDF over the query.
    */

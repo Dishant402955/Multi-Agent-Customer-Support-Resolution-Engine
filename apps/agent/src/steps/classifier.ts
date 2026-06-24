@@ -1,24 +1,31 @@
-// Step 2 — Intent classifier.
-// Pure function. Deterministic keyword scoring → intents + confidence,
-// multi-issue flag, and a fallback flag for low-confidence cases.
-import type { Classification, IntentScore, IntentType } from "../contracts/types";
+// Step 2 — Intent classifier (Intent Router, build-plan component 1).
+//
+// Primary path: an LLM call through the shared gateway (the single LLM door —
+// no vendor SDK is imported here) judges which domains the message touches,
+// with a confidence each, and whether it's genuinely multi-issue.
+//
+// Safety net: if no provider is configured (offline / no API key) or the LLM
+// call fails after retries, we fall back to a deterministic keyword scorer so
+// the pipeline never hard-fails. Both paths funnel through `finalize()`, so the
+// resulting `Classification` behaves identically regardless of which ran — and
+// the contract shape is unchanged, so nothing downstream needs to change.
+import type { Classification, IntentScore, IntentType, Message } from "../contracts/types";
+import { callLLM, availableProviders } from "../shared/gateway/index";
+import { config } from "../shared/config/index";
+import { log } from "../shared/core/logger";
 
-const KEYWORDS: Record<string, string[]> = {
-  technical: ["crash", "error", "bug", "login", "log in", "loading", "broken", "not working", "freeze", "slow", "500", "page", "app"],
-  billing: ["charge", "charged", "refund", "invoice", "payment", "billed", "subscription", "card", "double", "twice", "$"],
-  policy: ["policy", "eligible", "eligibility", "terms", "allowed", "cancel", "warranty", "rules", "entitled"],
-};
+const DOMAINS = ["technical", "billing", "policy"] as const;
+type Domain = (typeof DOMAINS)[number];
 
-export function runClassifier(message: string): Classification {
-  const text = message.toLowerCase();
-  const scores: IntentScore[] = [];
-  for (const domain of ["technical", "billing", "policy"] as IntentType[]) {
-    const hits = KEYWORDS[domain as string].filter((k) => text.includes(k)).length;
-    if (hits > 0) {
-      scores.push({ type: domain, confidence: Math.min(0.5 + hits * 0.15, 0.97) });
-    }
-  }
-  scores.sort((a, b) => b.confidence - a.confidence);
+// ---------------------------------------------------------------------------
+// Shared finalization — turns raw per-domain scores into the contract object.
+// Keeps LLM and keyword paths consistent (same multi-issue + fallback rules).
+// ---------------------------------------------------------------------------
+function finalize(rawScores: IntentScore[]): Classification {
+  const scores = rawScores
+    .filter((s) => (DOMAINS as readonly string[]).includes(s.type) && Number.isFinite(s.confidence))
+    .map((s) => ({ type: s.type, confidence: Math.min(Math.max(s.confidence, 0), 1) }))
+    .sort((a, b) => b.confidence - a.confidence);
 
   if (scores.length === 0) {
     return {
@@ -29,11 +36,119 @@ export function runClassifier(message: string): Classification {
     };
   }
 
-  const isMulti = scores.filter((s) => s.confidence >= 0.6).length >= 2;
+  const isMulti = scores.filter((s) => s.confidence >= config.classifierMultiThreshold).length >= 2;
+  const top = scores[0];
+  const fallback = !isMulti && top.confidence < config.classifierFallbackThreshold;
+
   return {
-    primary_intent: isMulti ? "mixed" : scores[0].type,
+    // On fallback we deliberately surface `unknown` so the decomposer takes the
+    // safe (policy review) route rather than forcing a low-confidence guess.
+    primary_intent: isMulti ? "mixed" : fallback ? "unknown" : top.type,
     is_multi_issue: isMulti,
-    fallback: scores[0].confidence < 0.6,
+    fallback,
     intents: scores,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Deterministic fallback — keyword scoring (no LLM, no network).
+// ---------------------------------------------------------------------------
+const KEYWORDS: Record<Domain, string[]> = {
+  technical: ["crash", "error", "bug", "login", "log in", "loading", "broken", "not working", "freeze", "slow", "500", "page", "app"],
+  billing: ["charge", "charged", "refund", "invoice", "payment", "billed", "subscription", "card", "double", "twice", "$"],
+  policy: ["policy", "eligible", "eligibility", "terms", "allowed", "cancel", "warranty", "rules", "entitled"],
+};
+
+export function keywordClassify(message: string): Classification {
+  const text = message.toLowerCase();
+  const scores: IntentScore[] = [];
+  for (const domain of DOMAINS) {
+    const hits = KEYWORDS[domain].filter((k) => text.includes(k)).length;
+    if (hits > 0) {
+      scores.push({ type: domain, confidence: Math.min(0.5 + hits * 0.15, 0.97) });
+    }
+  }
+  return finalize(scores);
+}
+
+// ---------------------------------------------------------------------------
+// LLM-backed primary path.
+// ---------------------------------------------------------------------------
+interface RawClassification {
+  intents?: { type?: string; confidence?: number }[];
+}
+
+const SYSTEM = [
+  "You are the intent classifier (router) for a customer-support engine.",
+  "Classify the customer's message into the domains it actually touches:",
+  "- technical: crashes, errors, bugs, login/access problems, performance, outages",
+  "- billing: charges, refunds, invoices, payments, subscriptions, cards",
+  "- policy: rules, eligibility, terms, cancellation, warranty, entitlement",
+  "For each domain that genuinely applies, give a confidence between 0 and 1.",
+  "Only include a domain if the message really concerns it; omit the rest.",
+  "If the message is gibberish or fits no domain, return an empty intents array.",
+  "Respond with STRICT JSON only — no prose, no code fences.",
+  'Shape: { "intents": [ { "type": "technical|billing|policy", "confidence": number } ] }',
+].join(" ");
+
+function buildUserPrompt(message: string, history: Message[]): string {
+  const recent = history
+    .slice(-3)
+    .map((m) => `${m.role}: ${m.text}`)
+    .join("\n");
+  return [
+    recent ? `Conversation so far (oldest first):\n${recent}\n` : "",
+    `Customer message: """${message}"""`,
+    "Return the JSON object now.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/**
+ * Classify a customer message into intents + confidence, multi-issue flag, and
+ * a low-confidence fallback flag. LLM-backed with a deterministic fallback.
+ *
+ * @param history Prior messages on the same ticket — improves follow-up routing.
+ * @param traceId Correlation id (pipeline run_id) so the call shows in the audit log.
+ */
+export async function runClassifier(
+  message: string,
+  history: Message[] = [],
+  traceId = "classify"
+): Promise<Classification> {
+  // No provider configured → deterministic path (keeps the system runnable offline).
+  if (availableProviders().length === 0) {
+    log(traceId, "classifier", "no LLM provider configured, using keyword fallback");
+    return keywordClassify(message);
+  }
+
+  try {
+    const raw = await callLLM<RawClassification>({
+      system: SYSTEM,
+      user: buildUserPrompt(message, history),
+      json: true,
+      traceId,
+      options: { temperature: 0 }, // deterministic routing
+    });
+
+    const scores: IntentScore[] = (raw.intents ?? []).map((i) => ({
+      type: String(i.type) as IntentType,
+      confidence: Number(i.confidence),
+    }));
+    const classification = finalize(scores);
+
+    log(traceId, "classifier", "classified ticket", {
+      primary_intent: classification.primary_intent,
+      is_multi_issue: classification.is_multi_issue,
+      fallback: classification.fallback,
+      intents: classification.intents,
+    });
+    return classification;
+  } catch (err) {
+    log(traceId, "classifier", "LLM classify failed, using keyword fallback", {
+      error: String(err),
+    });
+    return keywordClassify(message);
+  }
 }
