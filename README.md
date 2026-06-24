@@ -107,6 +107,146 @@ const report = investigateBilling(
 
 ---
 
+## Build plan — 6 logical components
+
+The system is split into **6 logical components**. Each is ownable by one person,
+talks to the others only through the **shared pipeline-state JSON** (so nothing is
+imported across boundaries except types), and is testable in isolation with the
+`agent` / `step` / `pipeline` CLI. Build order is roughly top-to-bottom, but with
+mock state any component can be built in parallel.
+
+> **Golden rule:** a component only *reads* fields earlier steps added and only
+> *writes* its own fields onto the same state object. Never delete another
+> component's fields.
+
+---
+
+### 1. Intent Router
+
+**Job:** Read the raw message and decide what it is and where it goes. Detect
+intent (`technical | billing | policy | mixed | unknown`), attach a confidence
+per intent, set `is_multi_issue`, and raise `fallback: true` when confidence is
+low (route to a safe path instead of guessing). Also owns the hard-signal
+**guard** (explicit phrases like "talk to a manager", "chargeback" → set
+`force_escalation`, but never stop the pipeline).
+
+- **Owns:** `apps/agent/src/steps/classifier.ts`, `apps/agent/src/steps/guard.ts`
+- **Reads:** `message`
+- **Writes:** `classification`, `guard`
+- **Run alone:** `npm --workspace apps/agent run step -- classify "…"` /
+  `… run step -- guard "…"`
+- **Done when:** clear single-intent → high confidence; mixed message →
+  `is_multi_issue: true`; gibberish → `fallback: true`; manager/chargeback phrase
+  → `guard.force_escalation: true`.
+
+---
+
+### 2. Parallel Decomposer
+
+**Job:** Turn the classification into the work plan. Split a mixed ticket into
+independent **sub-problems** (one domain each, `SP-1`, `SP-2`, …); for a single
+issue, emit one sub-problem. This is what makes the parallel fan-out possible.
+
+- **Owns:** `apps/agent/src/steps/decomposer.ts` (+ the fan-out half of
+  `apps/agent/src/steps/orchestrator.ts`)
+- **Reads:** `message`, `classification`
+- **Writes:** `sub_problems[]`
+- **Run alone:** `npm --workspace apps/agent run step -- decompose "…"`
+- **Done when:** "crash on login and charged twice" → two sub-problems
+  (technical + billing); single issue → exactly one; unknown → one safe (policy)
+  sub-problem.
+
+---
+
+### 3. Specialized Agents
+
+**Job:** Investigate one sub-problem in one domain and return a structured report
+(`findings`, `actions`, `reasoning`, `evidence`, `status`, `confidence`). Each
+agent is a **pure function** `(sub, ctx) => AgentReport` — no DB/HTTP/LLM in the
+base. Today they're hard-coded; swap a body for real logic without changing the
+signature.
+
+- **Owns:** `apps/agent/src/agents/*` (`technical.ts`, `billing.ts`, `policy.ts`,
+  …) + `registry.ts`
+- **Reads:** a `SubProblem` + `{ message, history }`
+- **Writes:** one `AgentReport` (collected into `agent_reports[]`)
+- **Run alone:** `npm --workspace apps/agent run agent -- billing "…"`
+- **Add an agent:** new file implementing `SpecialistAgent`, then one line in
+  `registry.ts`.
+- **Done when:** each domain returns relevant findings + at least one evidence
+  ref where applicable, and sets an honest `status`.
+
+---
+
+### 4. Output Combiner
+
+**Job:** Take all the agent reports and produce the final answer. Merge findings,
+detect conflicts, compute an `overall_status`, and synthesize **one**
+customer-ready `resolution` that always includes reasoning + evidence (and the
+escalation note when present).
+
+- **Owns:** the merge half of `apps/agent/src/steps/orchestrator.ts` +
+  `apps/agent/src/steps/synthesizer.ts`
+- **Reads:** `agent_reports[]`, `escalation`
+- **Writes:** `investigation`, `resolution`
+- **Run alone:** `npm --workspace apps/agent run step -- investigate "…"` (merge),
+  full `pipeline` for the synthesized resolution
+- **Done when:** a mixed ticket yields one coherent answer covering both issues
+  with combined evidence; conflicting agent outcomes surface in
+  `investigation.conflicts`.
+
+---
+
+### 5. Severity & Escalation Engine
+
+**Job:** Decide how urgent this is and whether a human is needed. Detect
+**sentiment** (tone only), score **severity** from the agent *findings* (impact —
+not customer wording) and **priority** (severity + a capped sentiment nudge), then
+run the **escalation gate** (force-signal, high impact, unresolved, conflict, or
+frustration-with-repeat-contact) and build the handoff plan.
+
+- **Owns:** `apps/agent/src/steps/sentiment.ts`, `severity.ts`, `escalation.ts`
+- **Reads:** `message`, `agent_reports[]`, `investigation`, `guard`,
+  `message_count`
+- **Writes:** `sentiment`, `severity`, `escalation`
+- **Run alone:** `npm --workspace apps/agent run step -- sentiment "…"`
+- **Done when:** duplicate-charge → medium/P2; "locked out / all users" → high/P1;
+  manager/chargeback or unresolved+repeat → `escalation.escalate: true` with a
+  team + urgency; frustration alone on a solved issue does **not** escalate.
+
+---
+
+### 6. Orchestration & Audit Backbone
+
+**Job:** Wire everything together and make it traceable. Owns the LangGraph graph,
+the shared state object, the order of steps, the per-step **audit trail**, and the
+API-side persistence/context that lets follow-ups reuse a ticket's history.
+
+- **Owns:** `apps/agent/src/{nodes,graph,pipeline,run,server}.ts` +
+  `apps/api/src/{server,db,agentClient}.ts`
+- **Reads/Writes:** assembles the whole `PipelineState`; appends to
+  `audit_trail[]` on every step; persists runs + messages
+- **Run alone:** `npm run dev:agent` then `POST /run`, or
+  `npm --workspace apps/agent run pipeline -- "…"`
+- **Done when:** every step emits an audit event you can trace the final answer
+  back to; follow-ups on the same `ticket_id` carry prior history; a node error
+  falls back to the linear runner instead of crashing.
+
+---
+
+### Who reads / writes what (shared state)
+
+| Field added | Component |
+|-------------|-----------|
+| `guard`, `classification` | 1 · Intent Router |
+| `sub_problems` | 2 · Parallel Decomposer |
+| `agent_reports[]` | 3 · Specialized Agents |
+| `investigation`, `resolution` | 4 · Output Combiner |
+| `sentiment`, `severity`, `escalation` | 5 · Severity & Escalation Engine |
+| `audit_trail`, persistence, run order | 6 · Orchestration & Audit Backbone |
+
+---
+
 ## Project structure
 
 ```text
