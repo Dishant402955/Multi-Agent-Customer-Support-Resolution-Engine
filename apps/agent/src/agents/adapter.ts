@@ -30,6 +30,13 @@ export function adaptAgent(domain: AgentDomain, fw: FrameworkAgent): SpecialistA
         context: {},
       });
 
+      // The framework distinguishes "matched my domain but I'm unsure — ask the
+      // customer" (needs_clarification) from a generic needs_info. The pipeline
+      // status contract has no `needs_clarification`, so we keep status as
+      // needs_info but preserve the distinction (and the actual question) on
+      // dedicated fields the UI can surface back to the customer.
+      const needsClarification = report.status === "needs_clarification";
+
       return {
         agent: domain,
         sub_problem_id: report.sub_problem_id || sub.id,
@@ -39,6 +46,9 @@ export function adaptAgent(domain: AgentDomain, fw: FrameworkAgent): SpecialistA
         evidence: (report.evidence ?? []).map((e) => e.source),
         status: STATUS_MAP[report.status] ?? "needs_info",
         confidence: report.confidence ?? 0.5,
+        ...(needsClarification
+          ? { clarification_needed: true, clarification_question: report.findings }
+          : {}),
       };
     },
   };

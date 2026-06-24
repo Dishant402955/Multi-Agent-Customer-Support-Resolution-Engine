@@ -52,6 +52,14 @@ export interface AgentReport {
   evidence: string[];
   status: AgentStatus;
   confidence: number;
+
+  // Set when the agent matched its domain but was not confident enough to act
+  // and needs more detail from the customer (framework status
+  // "needs_clarification"). Distinct from a generic `needs_info`: this carries a
+  // specific question to put back to the customer. Optional + additive so the
+  // status contract and all downstream steps are unchanged.
+  clarification_needed?: boolean;
+  clarification_question?: string;
 }
 
 export interface Investigation {

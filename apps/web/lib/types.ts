@@ -23,6 +23,8 @@ export interface AgentReport {
   evidence: string[];
   status: string;
   confidence: number;
+  clarification_needed?: boolean;
+  clarification_question?: string;
 }
 export interface Investigation { overall_status: string; conflicts: string[]; }
 export interface Severity { level: string; priority: string; reasoning: string; }
