@@ -1,0 +1,61 @@
+/**
+ * config/index.ts
+ *
+ * One place that reads environment variables. Everything else imports `config`.
+ * Loads the monorepo root .env by walking up the tree, so keys resolve the same
+ * whether we're started from the HTTP server (cwd = apps/agent) or the CLI.
+ */
+import { config as loadEnv } from "dotenv";
+import { existsSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+(() => {
+  let dir = dirname(fileURLToPath(import.meta.url));
+  for (let i = 0; i < 8; i++) {
+    const candidate = resolve(dir, ".env");
+    if (existsSync(candidate)) return loadEnv({ path: candidate });
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  loadEnv();
+})();
+
+export const config = {
+  /** Which provider callLLM uses when none is specified per-call. */
+  defaultProvider: process.env.LLM_PROVIDER ?? "openai",
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
+  openaiApiKey: process.env.OPENAI_API_KEY ?? "",
+  groqApiKey: process.env.GROQ_API_KEY ?? "",
+  geminiApiKey: process.env.GEMINI_API_KEY ?? "",
+  openaiModel: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+  /** Optional custom base URL for an OpenAI-compatible endpoint (proxy/gateway). */
+  openaiBaseUrl: process.env.OPENAI_BASE_URL ?? "",
+  groqModel: process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile",
+  geminiModel: process.env.GEMINI_MODEL ?? "gemini-2.5-flash",
+  /**
+   * Two-tier routing gate:
+   * - Below `domainThreshold` (or no match) => the ticket isn't this agent's
+   *   domain at all => outcome "out_of_domain" (router sends it elsewhere).
+   * - Between the two => matched but uncertain => ask the customer to clarify.
+   * - At/above `confidenceThreshold` => proceed to run the handler.
+   */
+  domainThreshold: Number(process.env.DOMAIN_THRESHOLD ?? "0.3"),
+  confidenceThreshold: Number(process.env.CONFIDENCE_THRESHOLD ?? "0.6"),
+  port: Number(process.env.PORT ?? "3000"),
+
+  /**
+   * KB retrieval (Tier-2 keyword). How many top-scoring sections to keep per
+   * document. Sections are markdown headings; scoring is TF-IDF over the query.
+   */
+  kbTopSectionsPerFile: Number(process.env.KB_TOP_SECTIONS ?? "2"),
+
+  /**
+   * Durable audit log. Every trace entry is appended as one JSON line here, so
+   * the "all agent interactions must be logged" requirement survives a restart.
+   * Set AUDIT_LOG=off to disable file logging (console logging always stays on).
+   */
+  auditLogEnabled: (process.env.AUDIT_LOG ?? "on").toLowerCase() !== "off",
+  auditLogFile: process.env.AUDIT_LOG_FILE ?? "logs/audit.jsonl",
+};

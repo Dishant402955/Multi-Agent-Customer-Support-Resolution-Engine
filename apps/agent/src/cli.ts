@@ -55,7 +55,7 @@ async function main() {
     const domain = (rest[0] as AgentDomain) || "billing";
     const message = rest.slice(1).join(" ") || DEFAULT_MSG;
     const sub: SubProblem = { id: "SP-1", domain, description: message };
-    return out(`${domain} agent`, getAgent(domain).run(sub, { message, history: [] }));
+    return out(`${domain} agent`, await getAgent(domain).run(sub, { message, history: [] }));
   }
 
   // default: full pipeline

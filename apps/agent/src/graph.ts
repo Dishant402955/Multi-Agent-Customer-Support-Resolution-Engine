@@ -35,24 +35,27 @@ const StateAnnotation = Annotation.Root({
   }),
 });
 
+// Node names are suffixed so they never collide with a state channel name
+// (e.g. the `guard`/`sentiment`/`severity`/`escalation` channels). LangGraph 1.x
+// rejects a node whose name matches a channel; 0.x allowed it.
 const builder = new StateGraph(StateAnnotation)
-  .addNode("guard", guardNode)
-  .addNode("classify", classifyNode)
-  .addNode("sentiment", sentimentNode)
-  .addNode("decompose", decomposeNode)
-  .addNode("investigate", investigateNode)
-  .addNode("severity", severityNode)
-  .addNode("escalation", escalationNode)
-  .addNode("synthesize", synthesizeNode)
-  .addEdge(START, "guard")
-  .addEdge("guard", "classify")
-  .addEdge("classify", "sentiment")
-  .addEdge("sentiment", "decompose")
-  .addEdge("decompose", "investigate")
-  .addEdge("investigate", "severity")
-  .addEdge("severity", "escalation")
-  .addEdge("escalation", "synthesize")
-  .addEdge("synthesize", END);
+  .addNode("guard_step", guardNode)
+  .addNode("classify_step", classifyNode)
+  .addNode("sentiment_step", sentimentNode)
+  .addNode("decompose_step", decomposeNode)
+  .addNode("investigate_step", investigateNode)
+  .addNode("severity_step", severityNode)
+  .addNode("escalation_step", escalationNode)
+  .addNode("synthesize_step", synthesizeNode)
+  .addEdge(START, "guard_step")
+  .addEdge("guard_step", "classify_step")
+  .addEdge("classify_step", "sentiment_step")
+  .addEdge("sentiment_step", "decompose_step")
+  .addEdge("decompose_step", "investigate_step")
+  .addEdge("investigate_step", "severity_step")
+  .addEdge("severity_step", "escalation_step")
+  .addEdge("escalation_step", "synthesize_step")
+  .addEdge("synthesize_step", END);
 
 const compiled = builder.compile();
 

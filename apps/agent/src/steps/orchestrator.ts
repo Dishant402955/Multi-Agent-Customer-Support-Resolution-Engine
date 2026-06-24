@@ -15,7 +15,7 @@ export async function runOrchestrator(
   const reports = await Promise.all(
     subProblems.map(async (sub) => {
       try {
-        return getAgent(sub.domain).run(sub, ctx);
+        return await getAgent(sub.domain).run(sub, ctx);
       } catch (err) {
         return {
           agent: sub.domain,
