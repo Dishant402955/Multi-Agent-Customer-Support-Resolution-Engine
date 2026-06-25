@@ -27,7 +27,16 @@ export function adaptAgent(domain: AgentDomain, fw: FrameworkAgent): SpecialistA
         traceId: `${sub.id}-${randomUUID().slice(0, 8)}`,
         subProblemId: sub.id,
         text: ctx.message,
-        context: {},
+        // The selected customer id is structured context the agent already knows,
+        // so tools (dbQuery/paymentStatus/…) resolve without asking the customer.
+        context: ctx.customerId ? { customerId: ctx.customerId } : {},
+        // Prior turns let the agent reason about follow-ups; we keep them off the
+        // param-extraction path (separate field) so they don't become tool args.
+        history: ctx.history.map((m) => ({ role: m.role, text: m.text })),
+        // For a multi-issue split, point the agent at its specific sub-problem.
+        ...(sub.description && sub.description !== ctx.message
+          ? { focus: sub.description }
+          : {}),
       });
 
       // The framework distinguishes "matched my domain but I'm unsure — ask the

@@ -9,6 +9,8 @@
 // writes `sub_problems[]`. Boundary rule: only types are imported, never
 // another component's logic.
 import type { AgentDomain, Classification, SubProblem } from "../contracts/types";
+import { callLLM, availableProviders } from "../shared/gateway/index";
+import { log } from "../shared/core/logger";
 
 // Local keyword sets (kept independent of the classifier on purpose). Used only
 // to attribute a clause of the message to the right domain so each sub-problem
@@ -90,7 +92,10 @@ function singleSubProblem(message: string, classification: Classification): SubP
   ];
 }
 
-export function runDecomposer(message: string, classification: Classification): SubProblem[] {
+// ---------------------------------------------------------------------------
+// Deterministic decomposition — also the fallback when the LLM is unavailable.
+// ---------------------------------------------------------------------------
+export function heuristicDecompose(message: string, classification: Classification): SubProblem[] {
   // Single issue (or no multi-issue signal) → exactly one sub-problem.
   if (!classification.is_multi_issue) return singleSubProblem(message, classification);
 
@@ -112,4 +117,99 @@ export function runDecomposer(message: string, classification: Classification): 
     domain,
     description: describe(domain, clauses, message),
   }));
+}
+
+// ---------------------------------------------------------------------------
+// LLM-backed decomposition — better at separating genuinely distinct issues
+// (which drives the parallel fan-out) and at writing a focused description per
+// sub-problem. Falls back to the heuristic on any problem.
+// ---------------------------------------------------------------------------
+const VALID_DOMAINS: AgentDomain[] = ["technical", "billing", "policy"];
+
+interface RawDecomposition {
+  issues?: { domain?: string; description?: string }[];
+}
+
+const DECOMP_SYSTEM = [
+  "You split a customer's support message into INDEPENDENT sub-problems so they",
+  "can be handled by specialist agents in parallel.",
+  "Each sub-problem belongs to exactly one domain:",
+  "- technical: crashes, errors, bugs, login/access, performance, outages",
+  "- billing: charges, refunds, invoices, payments, subscriptions, cards",
+  "- policy: rules, eligibility, terms, cancellation, warranty, entitlement, data/GDPR/privacy",
+  "Split ONLY genuinely separate issues. If it's really one issue, return one.",
+  "Each description is a short, specific restatement of that issue (max ~200 chars).",
+  "Respond with STRICT JSON only, no prose, no code fences, shaped:",
+  '{ "issues": [ { "domain": "technical|billing|policy", "description": string } ] }',
+].join("\n");
+
+async function llmDecompose(
+  message: string,
+  classification: Classification,
+  traceId: string
+): Promise<SubProblem[] | null> {
+  const user = [
+    `CUSTOMER MESSAGE: """${message}"""`,
+    `Classifier hint — primary: ${classification.primary_intent}, multiIssue: ${classification.is_multi_issue}, intents: ${classification.intents
+      .map((i) => `${i.type} ${i.confidence.toFixed(2)}`)
+      .join(", ")}`,
+    "Return the JSON object now.",
+  ].join("\n");
+
+  try {
+    const raw = await callLLM<RawDecomposition>({
+      system: DECOMP_SYSTEM,
+      user,
+      json: true,
+      traceId,
+      options: { temperature: 0 },
+    });
+    const issues = (raw.issues ?? [])
+      .map((it) => ({
+        domain: String(it.domain ?? "").toLowerCase(),
+        description: String(it.description ?? "").trim(),
+      }))
+      .filter((it) => (VALID_DOMAINS as string[]).includes(it.domain) && it.description.length > 0)
+      .slice(0, 4); // guard against runaway splits
+
+    if (issues.length === 0) return null;
+    return issues.map((it, idx) => ({
+      id: `SP-${idx + 1}`,
+      domain: it.domain as AgentDomain,
+      description: cap(it.description),
+    }));
+  } catch (err) {
+    log(traceId, "decompose", "LLM decompose failed, heuristic fallback", { error: String(err) });
+    return null;
+  }
+}
+
+/**
+ * Decompose the ticket into sub-problems. LLM-backed when a provider exists and
+ * the ticket looks multi/ambiguous (that's where good splitting matters and
+ * drives parallelism); otherwise the deterministic heuristic. Returns the
+ * chosen `method` so the audit trail can show LLM vs rule honestly.
+ */
+export async function runDecomposer(
+  message: string,
+  classification: Classification,
+  traceId = "decompose"
+): Promise<{ subProblems: SubProblem[]; method: "llm" | "heuristic" }> {
+  const worthLLM =
+    classification.is_multi_issue ||
+    classification.primary_intent === "mixed" ||
+    classification.primary_intent === "unknown" ||
+    classification.fallback;
+
+  if (availableProviders().length > 0 && worthLLM) {
+    const llm = await llmDecompose(message, classification, traceId);
+    if (llm && llm.length > 0) {
+      log(traceId, "decompose", "LLM split", {
+        count: llm.length,
+        domains: llm.map((s) => s.domain),
+      });
+      return { subProblems: llm, method: "llm" };
+    }
+  }
+  return { subProblems: heuristicDecompose(message, classification), method: "heuristic" };
 }

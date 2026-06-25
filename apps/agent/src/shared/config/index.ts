@@ -23,8 +23,31 @@ import { fileURLToPath } from "node:url";
 })();
 
 export const config = {
-  /** Which provider callLLM uses when none is specified per-call. */
-  defaultProvider: process.env.LLM_PROVIDER ?? "openai",
+  /**
+   * Which provider callLLM uses when none is specified per-call.
+   * Preference: an explicit LLM_PROVIDER → the custom OpenAI-compatible endpoint
+   * (LLM_ENDPOINT, the common case here) → native Azure → standard OpenAI.
+   */
+  defaultProvider:
+    process.env.LLM_PROVIDER ??
+    (process.env.LLM_ENDPOINT
+      ? "custom"
+      : process.env.AZURE_OPENAI_ENDPOINT
+      ? "azure"
+      : "openai"),
+
+  /**
+   * Custom OpenAI-COMPATIBLE endpoint (the company GEP gateway). Three values,
+   * mirroring the curl: model in the body, a base URL ending at /v1, and a
+   * bearer token. No api-version, no /deployments/ path.
+   *   curl 'https://.../openai/v1/chat/completions'
+   *     -H 'Authorization: Bearer <LLM_API_KEY>'
+   *     -d '{ "model": "<LLM_MODEL>", "messages": [...] }'
+   */
+  llmEndpoint: process.env.LLM_ENDPOINT ?? "",
+  llmModel: process.env.LLM_MODEL ?? "",
+  llmApiKey: process.env.LLM_API_KEY ?? "",
+
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
   openaiApiKey: process.env.OPENAI_API_KEY ?? "",
   groqApiKey: process.env.GROQ_API_KEY ?? "",
@@ -34,6 +57,19 @@ export const config = {
   openaiBaseUrl: process.env.OPENAI_BASE_URL ?? "",
   groqModel: process.env.GROQ_MODEL ?? "llama-3.3-70b-versatile",
   geminiModel: process.env.GEMINI_MODEL ?? "gemini-2.5-flash",
+
+  /**
+   * Azure OpenAI (company deployment). Three things differ from standard OpenAI
+   * and are read from env:
+   *   - AZURE_OPENAI_ENDPOINT   : base URL of the resource/gateway
+   *   - AZURE_OPENAI_DEPLOYMENT : the deployment (model) name
+   *   - AZURE_OPENAI_API_KEY    : the bearer token (sent as `Authorization: Bearer`)
+   * api-version is optional and defaults below.
+   */
+  azureEndpoint: process.env.AZURE_OPENAI_ENDPOINT ?? "",
+  azureDeployment: process.env.AZURE_OPENAI_DEPLOYMENT ?? process.env.AZURE_OPENAI_MODEL ?? "",
+  azureApiKey: process.env.AZURE_OPENAI_API_KEY ?? process.env.AZURE_OPENAI_TOKEN ?? "",
+  azureApiVersion: process.env.AZURE_OPENAI_API_VERSION ?? "2024-08-01-preview",
   /**
    * Two-tier routing gate:
    * - Below `domainThreshold` (or no match) => the ticket isn't this agent's

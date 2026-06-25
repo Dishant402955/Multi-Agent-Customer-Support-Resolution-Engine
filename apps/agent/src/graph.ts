@@ -19,6 +19,8 @@ const StateAnnotation = Annotation.Root({
   run_id: Annotation<string>,
   message: Annotation<string>,
   message_count: Annotation<number>,
+  customer_id: Annotation<PipelineState["customer_id"]>,
+  ticket_status: Annotation<PipelineState["ticket_status"]>,
   history: Annotation<PipelineState["history"]>,
   guard: Annotation<PipelineState["guard"]>,
   classification: Annotation<PipelineState["classification"]>,

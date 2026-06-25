@@ -39,9 +39,9 @@ async function main() {
       case "sentiment":
         return out("sentiment", runSentiment(message));
       case "decompose":
-        return out("decompose", runDecomposer(message, await runClassifier(message)));
+        return out("decompose", await runDecomposer(message, await runClassifier(message)));
       case "investigate": {
-        const subs = runDecomposer(message, await runClassifier(message));
+        const { subProblems: subs } = await runDecomposer(message, await runClassifier(message));
         return out("investigate", await runOrchestrator(subs, message, []));
       }
       default:

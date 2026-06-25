@@ -45,6 +45,40 @@ if (config.geminiApiKey) {
     baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
   }));
 }
+// Custom OpenAI-COMPATIBLE endpoint (company GEP gateway). Matches the curl:
+// base URL ends at /v1, model goes in the body, bearer-token auth. The OpenAI
+// SDK appends /chat/completions, so baseURL is LLM_ENDPOINT verbatim.
+if (config.llmEndpoint && config.llmModel && config.llmApiKey) {
+  registerProvider(
+    new OpenAIAdapter({
+      name: "custom",
+      apiKey: config.llmApiKey,
+      defaultModel: config.llmModel,
+      baseURL: config.llmEndpoint,
+      // The adapter self-corrects the token param / temperature from the API's
+      // own error messages, so this works whether the gateway wants max_tokens
+      // or max_completion_tokens and whether or not it accepts temperature.
+    })
+  );
+}
+// Native Azure OpenAI (only if you use a real Azure resource URL with
+// /deployments/ + api-version). Bearer token + endpoint + deployment.
+if (config.azureEndpoint && config.azureDeployment && config.azureApiKey) {
+  const base = config.azureEndpoint.replace(/\/+$/, "");
+  // Accept either a bare resource endpoint or a full deployments URL.
+  const baseURL = base.includes("/deployments/")
+    ? base
+    : `${base}/openai/deployments/${config.azureDeployment}`;
+  registerProvider(
+    new OpenAIAdapter({
+      name: "azure",
+      apiKey: config.azureApiKey,
+      defaultModel: config.azureDeployment,
+      baseURL,
+      defaultQuery: { "api-version": config.azureApiVersion },
+    })
+  );
+}
 function pickProvider(name?: string): LLMProvider {
   const chosen = name ?? config.defaultProvider;
   const provider = providers.get(chosen);

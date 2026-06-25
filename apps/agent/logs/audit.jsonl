@@ -1,0 +1,444 @@
+{"traceId":"boot","ts":"2026-06-25T06:29:27.742Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","refund_eligibility","subscription_change"]}}
+{"traceId":"boot","ts":"2026-06-25T06:29:27.744Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","refund_eligibility","subscription_change"],"registrySize":4}}
+{"traceId":"boot","ts":"2026-06-25T06:29:27.748Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["amendment_guidance","cancellation_policy","escalate_to_human"]}}
+{"traceId":"boot","ts":"2026-06-25T06:29:27.749Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["amendment_guidance","cancellation_policy","escalate_to_human"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-25T06:29:27.753Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-25T06:29:27.753Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"R-5e86ff05","ts":"2026-06-25T06:29:51.207Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-5e86ff05","ts":"2026-06-25T06:29:52.238Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: 400 Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."}}
+{"traceId":"R-5e86ff05","ts":"2026-06-25T06:29:52.905Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: 400 Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."}}
+{"traceId":"R-5e86ff05","ts":"2026-06-25T06:29:53.827Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: 400 Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."}}
+{"traceId":"R-5e86ff05","ts":"2026-06-25T06:29:54.733Z","node":"classifier","message":"LLM classify failed, using keyword fallback","data":{"error":"Error: 400 Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."}}
+{"traceId":"SP-1-0ee9d31b","ts":"2026-06-25T06:29:54.743Z","node":"agent","message":"[billing] received ticket","data":{"text":"I was charged twice this month."}}
+{"traceId":"SP-1-0ee9d31b","ts":"2026-06-25T06:29:54.744Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-0ee9d31b","ts":"2026-06-25T06:29:55.047Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: 400 Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."}}
+{"traceId":"SP-1-0ee9d31b","ts":"2026-06-25T06:29:55.674Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: 400 Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."}}
+{"traceId":"SP-1-0ee9d31b","ts":"2026-06-25T06:29:56.595Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: 400 Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."}}
+{"traceId":"SP-1-0ee9d31b","ts":"2026-06-25T06:29:57.501Z","node":"classifier","message":"LLM routing failed, keyword fallback","data":{"error":"Error: 400 Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."}}
+{"traceId":"SP-1-0ee9d31b","ts":"2026-06-25T06:29:57.503Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":"explain_charge","confidence":0.75,"rationale":"Keyword fallback matched \"explain_charge\" (2 overlaps)."}}
+{"traceId":"SP-1-0ee9d31b","ts":"2026-06-25T06:29:57.506Z","node":"graph:gather","message":"handler \"explain_charge\" gathering"}
+{"traceId":"SP-1-0ee9d31b","ts":"2026-06-25T06:29:57.507Z","node":"declarative","message":"running use case \"explain_charge\""}
+{"traceId":"SP-1-0ee9d31b","ts":"2026-06-25T06:29:57.508Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-0ee9d31b","ts":"2026-06-25T06:29:57.926Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: 400 Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."}}
+{"traceId":"SP-1-0ee9d31b","ts":"2026-06-25T06:29:58.530Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: 400 Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."}}
+{"traceId":"SP-1-0ee9d31b","ts":"2026-06-25T06:29:59.456Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: 400 Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."}}
+{"traceId":"SP-1-0ee9d31b","ts":"2026-06-25T06:30:00.367Z","node":"declarative","message":"param extraction failed","data":{"error":"Error: 400 Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."}}
+{"traceId":"SP-1-0ee9d31b","ts":"2026-06-25T06:30:00.368Z","node":"declarative","message":"missing required param","data":{"missing":["customerId"],"extracted":{}}}
+{"traceId":"SP-1-0ee9d31b","ts":"2026-06-25T06:30:00.371Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-1-0ee9d31b","ts":"2026-06-25T06:30:00.376Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":0}}
+{"traceId":"R-5e86ff05","ts":"2026-06-25T06:30:00.384Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-5e86ff05","ts":"2026-06-25T06:30:00.690Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: 400 Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."}}
+{"traceId":"R-5e86ff05","ts":"2026-06-25T06:30:01.305Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: 400 Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."}}
+{"traceId":"R-5e86ff05","ts":"2026-06-25T06:30:02.235Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: 400 Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."}}
+{"traceId":"R-5e86ff05","ts":"2026-06-25T06:30:03.145Z","node":"synthesize","message":"LLM synthesis failed, deterministic fallback","data":{"error":"Error: 400 Unsupported parameter: 'max_tokens' is not supported with this model. Use 'max_completion_tokens' instead."}}
+{"traceId":"boot","ts":"2026-06-25T07:07:15.952Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","refund_eligibility","subscription_change"]}}
+{"traceId":"boot","ts":"2026-06-25T07:07:15.955Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","refund_eligibility","subscription_change"],"registrySize":4}}
+{"traceId":"boot","ts":"2026-06-25T07:07:15.958Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["amendment_guidance","cancellation_policy","escalate_to_human"]}}
+{"traceId":"boot","ts":"2026-06-25T07:07:15.959Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["amendment_guidance","cancellation_policy","escalate_to_human"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-25T07:07:15.963Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-25T07:07:15.964Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"R-0308c0d9","ts":"2026-06-25T07:07:54.534Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-0308c0d9","ts":"2026-06-25T07:07:56.489Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"billing","is_multi_issue":false,"fallback":false,"intents":[{"type":"billing","confidence":0.98}]}}
+{"traceId":"SP-1-d05a07ec","ts":"2026-06-25T07:07:56.497Z","node":"agent","message":"[billing] received ticket","data":{"text":"I was charged $49 twice this month — why?"}}
+{"traceId":"SP-1-d05a07ec","ts":"2026-06-25T07:07:56.498Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-d05a07ec","ts":"2026-06-25T07:07:57.963Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":"explain_charge","confidence":0.9,"rationale":"Customer is asking why they were charged $49 twice, which is a request to explain a specific/duplicate charge on their bill."}}
+{"traceId":"SP-1-d05a07ec","ts":"2026-06-25T07:07:57.974Z","node":"graph:gather","message":"handler \"explain_charge\" gathering"}
+{"traceId":"SP-1-d05a07ec","ts":"2026-06-25T07:07:57.977Z","node":"declarative","message":"running use case \"explain_charge\""}
+{"traceId":"SP-1-d05a07ec","ts":"2026-06-25T07:07:57.979Z","node":"tool","message":"calling dbQuery","data":{"args":{"customerId":"cust_001"}}}
+{"traceId":"SP-1-d05a07ec","ts":"2026-06-25T07:07:57.980Z","node":"tool","message":"dbQuery returned","data":{"result":{"charges":[{"id":"txn_1","amount":49,"desc":"Pro plan monthly"},{"id":"txn_2","amount":49,"desc":"Pro plan monthly (duplicate)"}]}}}
+{"traceId":"SP-1-d05a07ec","ts":"2026-06-25T07:07:57.981Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-d05a07ec","ts":"2026-06-25T07:08:00.629Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-1-d05a07ec","ts":"2026-06-25T07:08:00.636Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":1}}
+{"traceId":"R-0308c0d9","ts":"2026-06-25T07:08:00.657Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-f2192668","ts":"2026-06-25T07:08:37.818Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-f2192668","ts":"2026-06-25T07:08:39.328Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"billing","is_multi_issue":false,"fallback":false,"intents":[{"type":"billing","confidence":0.98}]}}
+{"traceId":"SP-1-a45c1205","ts":"2026-06-25T07:08:39.337Z","node":"agent","message":"[billing] received ticket","data":{"text":"I was charged $49 twice this month — why?"}}
+{"traceId":"SP-1-a45c1205","ts":"2026-06-25T07:08:39.338Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-a45c1205","ts":"2026-06-25T07:08:40.557Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":"explain_charge","confidence":0.93,"rationale":"Customer is asking why they were charged $49 twice this month, which is a request to explain a specific/duplicate charge on their bill."}}
+{"traceId":"SP-1-a45c1205","ts":"2026-06-25T07:08:40.560Z","node":"graph:gather","message":"handler \"explain_charge\" gathering"}
+{"traceId":"SP-1-a45c1205","ts":"2026-06-25T07:08:40.561Z","node":"declarative","message":"running use case \"explain_charge\""}
+{"traceId":"SP-1-a45c1205","ts":"2026-06-25T07:08:40.562Z","node":"tool","message":"calling dbQuery","data":{"args":{"customerId":"cust_002"}}}
+{"traceId":"SP-1-a45c1205","ts":"2026-06-25T07:08:40.563Z","node":"tool","message":"dbQuery returned","data":{"result":{"charges":[{"id":"txn_9","amount":12,"desc":"Add-on: extra seats"}]}}}
+{"traceId":"SP-1-a45c1205","ts":"2026-06-25T07:08:40.564Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-a45c1205","ts":"2026-06-25T07:08:43.525Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":false,"evidenceCount":1}}
+{"traceId":"R-f2192668","ts":"2026-06-25T07:08:43.531Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-10e97ca0","ts":"2026-06-25T07:09:44.678Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-10e97ca0","ts":"2026-06-25T07:09:46.298Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"mixed","is_multi_issue":true,"fallback":false,"intents":[{"type":"technical","confidence":0.93},{"type":"billing","confidence":0.9}]}}
+{"traceId":"SP-1-5b2ca3aa","ts":"2026-06-25T07:09:46.309Z","node":"agent","message":"[technical] received ticket","data":{"text":"The app crashes after login and I was also charged twice."}}
+{"traceId":"SP-1-5b2ca3aa","ts":"2026-06-25T07:09:46.311Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-2-653f5237","ts":"2026-06-25T07:09:46.312Z","node":"agent","message":"[billing] received ticket","data":{"text":"The app crashes after login and I was also charged twice."}}
+{"traceId":"SP-2-653f5237","ts":"2026-06-25T07:09:46.313Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-5b2ca3aa","ts":"2026-06-25T07:09:48.229Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":"error_diagnosis","confidence":0.62,"rationale":"Primary issue is a product malfunction (app crashes after login), which fits error diagnosis; the double charge is a billing concern but no billing handler is available, so route to diagnosing the crash."}}
+{"traceId":"SP-1-5b2ca3aa","ts":"2026-06-25T07:09:48.235Z","node":"graph:gather","message":"handler \"error_diagnosis\" gathering"}
+{"traceId":"SP-1-5b2ca3aa","ts":"2026-06-25T07:09:48.237Z","node":"declarative","message":"running use case \"error_diagnosis\""}
+{"traceId":"SP-1-5b2ca3aa","ts":"2026-06-25T07:09:48.238Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-2-653f5237","ts":"2026-06-25T07:09:48.515Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":"explain_charge","confidence":0.62,"rationale":"Customer reports being charged twice, which fits explaining a specific/duplicate charge. The app crash is a separate non-billing issue, but the billing-related request is to understand the duplicate charge."}}
+{"traceId":"SP-2-653f5237","ts":"2026-06-25T07:09:48.518Z","node":"graph:gather","message":"handler \"explain_charge\" gathering"}
+{"traceId":"SP-2-653f5237","ts":"2026-06-25T07:09:48.519Z","node":"declarative","message":"running use case \"explain_charge\""}
+{"traceId":"SP-2-653f5237","ts":"2026-06-25T07:09:48.521Z","node":"tool","message":"calling dbQuery","data":{"args":{"customerId":"cust_002"}}}
+{"traceId":"SP-2-653f5237","ts":"2026-06-25T07:09:48.522Z","node":"tool","message":"dbQuery returned","data":{"result":{"charges":[{"id":"txn_9","amount":12,"desc":"Add-on: extra seats"}]}}}
+{"traceId":"SP-2-653f5237","ts":"2026-06-25T07:09:48.523Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-5b2ca3aa","ts":"2026-06-25T07:09:49.166Z","node":"tool","message":"calling lookupErrorCode","data":{"args":{"customerId":"cust_002"}}}
+{"traceId":"SP-1-5b2ca3aa","ts":"2026-06-25T07:09:49.168Z","node":"tool","message":"lookupErrorCode returned","data":{"result":{"found":false,"errorCode":null}}}
+{"traceId":"SP-1-5b2ca3aa","ts":"2026-06-25T07:09:49.169Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["troubleshooting.md"]}}
+{"traceId":"SP-1-5b2ca3aa","ts":"2026-06-25T07:09:49.172Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-2-653f5237","ts":"2026-06-25T07:09:51.565Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-2-653f5237","ts":"2026-06-25T07:09:51.570Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":1}}
+{"traceId":"SP-1-5b2ca3aa","ts":"2026-06-25T07:09:52.042Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":false,"evidenceCount":2}}
+{"traceId":"R-10e97ca0","ts":"2026-06-25T07:09:52.052Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-f40c4f56","ts":"2026-06-25T07:10:39.447Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-f40c4f56","ts":"2026-06-25T07:10:40.782Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"unknown","is_multi_issue":false,"fallback":true,"intents":[{"type":"unknown","confidence":0.4}]}}
+{"traceId":"SP-1-3b32278d","ts":"2026-06-25T07:10:40.794Z","node":"agent","message":"[policy] received ticket","data":{"text":"who got assigned my task ? can you name that person ?"}}
+{"traceId":"SP-1-3b32278d","ts":"2026-06-25T07:10:40.796Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-3b32278d","ts":"2026-06-25T07:10:42.319Z","node":"classifier","message":"classified ticket","data":{"agent":"policy","handlerId":null,"confidence":0.74,"rationale":"The customer is asking who a task was assigned to and to name that person, which is a task/assignment or privacy request not covered by amendment guidance, cancellation policy, or escalation triggers."}}
+{"traceId":"SP-1-3b32278d","ts":"2026-06-25T07:10:42.321Z","node":"agent","message":"[policy] out of domain","data":{"confidence":0.74,"domainThreshold":0.3}}
+{"traceId":"R-f40c4f56","ts":"2026-06-25T07:10:42.331Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-7ec8f33a","ts":"2026-06-25T07:11:03.749Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-7ec8f33a","ts":"2026-06-25T07:11:05.329Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"technical","is_multi_issue":false,"fallback":false,"intents":[{"type":"technical","confidence":0.98}]}}
+{"traceId":"SP-1-bdb9b9e8","ts":"2026-06-25T07:11:05.334Z","node":"agent","message":"[technical] received ticket","data":{"text":"the app still crashes"}}
+{"traceId":"SP-1-bdb9b9e8","ts":"2026-06-25T07:11:05.335Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-bdb9b9e8","ts":"2026-06-25T07:11:07.440Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":"error_diagnosis","confidence":0.74,"rationale":"Customer reports the app crashes, indicating a product error needing diagnosis and troubleshooting rather than account access or service status."}}
+{"traceId":"SP-1-bdb9b9e8","ts":"2026-06-25T07:11:07.448Z","node":"graph:gather","message":"handler \"error_diagnosis\" gathering"}
+{"traceId":"SP-1-bdb9b9e8","ts":"2026-06-25T07:11:07.449Z","node":"declarative","message":"running use case \"error_diagnosis\""}
+{"traceId":"SP-1-bdb9b9e8","ts":"2026-06-25T07:11:07.451Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-bdb9b9e8","ts":"2026-06-25T07:11:08.415Z","node":"tool","message":"calling lookupErrorCode","data":{"args":{"customerId":"cust_002"}}}
+{"traceId":"SP-1-bdb9b9e8","ts":"2026-06-25T07:11:08.417Z","node":"tool","message":"lookupErrorCode returned","data":{"result":{"found":false,"errorCode":null}}}
+{"traceId":"SP-1-bdb9b9e8","ts":"2026-06-25T07:11:08.418Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["troubleshooting.md"]}}
+{"traceId":"SP-1-bdb9b9e8","ts":"2026-06-25T07:11:08.420Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-bdb9b9e8","ts":"2026-06-25T07:11:11.184Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":false,"evidenceCount":2}}
+{"traceId":"R-7ec8f33a","ts":"2026-06-25T07:11:11.194Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"boot","ts":"2026-06-25T07:32:21.607Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","refund_eligibility","subscription_change"]}}
+{"traceId":"boot","ts":"2026-06-25T07:32:21.609Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","refund_eligibility","subscription_change"],"registrySize":4}}
+{"traceId":"boot","ts":"2026-06-25T07:32:21.613Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["amendment_guidance","cancellation_policy","escalate_to_human"]}}
+{"traceId":"boot","ts":"2026-06-25T07:32:21.613Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["amendment_guidance","cancellation_policy","escalate_to_human"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-25T07:32:21.618Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-25T07:32:21.618Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"R-aeaf4ac5","ts":"2026-06-25T07:32:54.769Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-aeaf4ac5","ts":"2026-06-25T07:32:56.502Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"billing","is_multi_issue":false,"fallback":false,"intents":[{"type":"billing","confidence":0.98}]}}
+{"traceId":"SP-1-175737b5","ts":"2026-06-25T07:32:56.515Z","node":"agent","message":"[billing] received ticket","data":{"text":"I was charged $49 twice this month — why?"}}
+{"traceId":"SP-1-175737b5","ts":"2026-06-25T07:32:56.517Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-175737b5","ts":"2026-06-25T07:32:58.161Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":"explain_charge","confidence":0.93,"rationale":"Customer is asking why they were charged $49 twice, which matches explaining a specific/duplicate charge on the bill."}}
+{"traceId":"SP-1-175737b5","ts":"2026-06-25T07:32:58.168Z","node":"graph:gather","message":"handler \"explain_charge\" gathering"}
+{"traceId":"SP-1-175737b5","ts":"2026-06-25T07:32:58.171Z","node":"declarative","message":"running use case \"explain_charge\""}
+{"traceId":"SP-1-175737b5","ts":"2026-06-25T07:32:58.174Z","node":"tool","message":"calling dbQuery","data":{"args":{"customerId":"cust_001"}}}
+{"traceId":"SP-1-175737b5","ts":"2026-06-25T07:32:58.176Z","node":"tool","message":"dbQuery returned","data":{"result":{"charges":[{"id":"txn_1","amount":49,"desc":"Pro plan monthly"},{"id":"txn_2","amount":49,"desc":"Pro plan monthly (duplicate)"}]}}}
+{"traceId":"SP-1-175737b5","ts":"2026-06-25T07:32:58.177Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-175737b5","ts":"2026-06-25T07:33:01.495Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-1-175737b5","ts":"2026-06-25T07:33:01.501Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":1}}
+{"traceId":"R-aeaf4ac5","ts":"2026-06-25T07:33:01.526Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-71095dd9","ts":"2026-06-25T07:33:45.102Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-71095dd9","ts":"2026-06-25T07:33:46.576Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"billing","is_multi_issue":false,"fallback":false,"intents":[{"type":"billing","confidence":0.99}]}}
+{"traceId":"SP-1-d39adbbd","ts":"2026-06-25T07:33:46.584Z","node":"agent","message":"[billing] received ticket","data":{"text":"i want refund !!!!"}}
+{"traceId":"SP-1-d39adbbd","ts":"2026-06-25T07:33:46.585Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-d39adbbd","ts":"2026-06-25T07:33:48.219Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":"refund_eligibility","confidence":0.93,"rationale":"Customer explicitly requests a refund without mentioning payment failure, subscription changes, or asking to explain a specific charge."}}
+{"traceId":"SP-1-d39adbbd","ts":"2026-06-25T07:33:48.225Z","node":"graph:gather","message":"handler \"refund_eligibility\" gathering"}
+{"traceId":"SP-1-d39adbbd","ts":"2026-06-25T07:33:48.227Z","node":"declarative","message":"running use case \"refund_eligibility\""}
+{"traceId":"SP-1-d39adbbd","ts":"2026-06-25T07:33:48.229Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["refund_policy.md"]}}
+{"traceId":"SP-1-d39adbbd","ts":"2026-06-25T07:33:48.232Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-d39adbbd","ts":"2026-06-25T07:33:51.518Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-1-d39adbbd","ts":"2026-06-25T07:33:51.524Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":1}}
+{"traceId":"R-71095dd9","ts":"2026-06-25T07:33:51.532Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-35dd6f52","ts":"2026-06-25T07:35:17.613Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-35dd6f52","ts":"2026-06-25T07:35:19.459Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"billing","is_multi_issue":false,"fallback":false,"intents":[{"type":"billing","confidence":0.98}]}}
+{"traceId":"SP-1-458e0614","ts":"2026-06-25T07:35:19.464Z","node":"agent","message":"[billing] received ticket","data":{"text":"I was charged $49 twice this month — why?"}}
+{"traceId":"SP-1-458e0614","ts":"2026-06-25T07:35:19.465Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-458e0614","ts":"2026-06-25T07:35:20.716Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":"explain_charge","confidence":0.93,"rationale":"Customer is asking why a duplicate $49 charge appeared; this matches explaining a specific charge/duplicate charge on the bill."}}
+{"traceId":"SP-1-458e0614","ts":"2026-06-25T07:35:20.720Z","node":"graph:gather","message":"handler \"explain_charge\" gathering"}
+{"traceId":"SP-1-458e0614","ts":"2026-06-25T07:35:20.721Z","node":"declarative","message":"running use case \"explain_charge\""}
+{"traceId":"SP-1-458e0614","ts":"2026-06-25T07:35:20.723Z","node":"tool","message":"calling dbQuery","data":{"args":{"customerId":"cust_005"}}}
+{"traceId":"SP-1-458e0614","ts":"2026-06-25T07:35:20.724Z","node":"tool","message":"dbQuery returned","data":{"result":{"charges":[{"id":"txn_41","amount":79,"desc":"Pro plan monthly"},{"id":"txn_42","amount":79,"desc":"Pro plan monthly (duplicate)"}]}}}
+{"traceId":"SP-1-458e0614","ts":"2026-06-25T07:35:20.724Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-458e0614","ts":"2026-06-25T07:35:23.752Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-1-458e0614","ts":"2026-06-25T07:35:23.754Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":1}}
+{"traceId":"R-35dd6f52","ts":"2026-06-25T07:35:23.762Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-f6d02992","ts":"2026-06-25T07:36:20.294Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-f6d02992","ts":"2026-06-25T07:36:21.737Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"billing","is_multi_issue":false,"fallback":false,"intents":[{"type":"billing","confidence":0.98}]}}
+{"traceId":"SP-1-b54e79ff","ts":"2026-06-25T07:36:21.741Z","node":"agent","message":"[billing] received ticket","data":{"text":"I was charged $49 twice this month — why?"}}
+{"traceId":"SP-1-b54e79ff","ts":"2026-06-25T07:36:21.742Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-b54e79ff","ts":"2026-06-25T07:36:23.411Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":"explain_charge","confidence":0.92,"rationale":"Customer is asking why they were charged $49 twice, which is a request to explain a specific/duplicate charge on their bill."}}
+{"traceId":"SP-1-b54e79ff","ts":"2026-06-25T07:36:23.419Z","node":"graph:gather","message":"handler \"explain_charge\" gathering"}
+{"traceId":"SP-1-b54e79ff","ts":"2026-06-25T07:36:23.420Z","node":"declarative","message":"running use case \"explain_charge\""}
+{"traceId":"SP-1-b54e79ff","ts":"2026-06-25T07:36:23.422Z","node":"tool","message":"calling dbQuery","data":{"args":{"customerId":"cust_001"}}}
+{"traceId":"SP-1-b54e79ff","ts":"2026-06-25T07:36:23.423Z","node":"tool","message":"dbQuery returned","data":{"result":{"charges":[{"id":"txn_1","amount":49,"desc":"Pro plan monthly"},{"id":"txn_2","amount":49,"desc":"Pro plan monthly (duplicate)"}]}}}
+{"traceId":"SP-1-b54e79ff","ts":"2026-06-25T07:36:23.424Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-b54e79ff","ts":"2026-06-25T07:36:25.873Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-1-b54e79ff","ts":"2026-06-25T07:36:25.876Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":1}}
+{"traceId":"R-f6d02992","ts":"2026-06-25T07:36:25.884Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-889920a4","ts":"2026-06-25T07:36:36.806Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-889920a4","ts":"2026-06-25T07:36:38.477Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"billing","is_multi_issue":false,"fallback":false,"intents":[{"type":"billing","confidence":0.98}]}}
+{"traceId":"SP-1-2767a993","ts":"2026-06-25T07:36:38.489Z","node":"agent","message":"[billing] received ticket","data":{"text":"I was charged $49 twice this month — why?"}}
+{"traceId":"SP-1-2767a993","ts":"2026-06-25T07:36:38.491Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-2767a993","ts":"2026-06-25T07:36:40.086Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":"explain_charge","confidence":0.93,"rationale":"Customer is asking why they were charged $49 twice, which is a request to explain a specific/duplicate charge on their bill."}}
+{"traceId":"SP-1-2767a993","ts":"2026-06-25T07:36:40.088Z","node":"graph:gather","message":"handler \"explain_charge\" gathering"}
+{"traceId":"SP-1-2767a993","ts":"2026-06-25T07:36:40.088Z","node":"declarative","message":"running use case \"explain_charge\""}
+{"traceId":"SP-1-2767a993","ts":"2026-06-25T07:36:40.089Z","node":"tool","message":"calling dbQuery","data":{"args":{"customerId":"cust_010"}}}
+{"traceId":"SP-1-2767a993","ts":"2026-06-25T07:36:40.090Z","node":"tool","message":"dbQuery returned","data":{"result":{"charges":[{"id":"txn_81","amount":49,"desc":"Pro plan monthly"}]}}}
+{"traceId":"SP-1-2767a993","ts":"2026-06-25T07:36:40.091Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-2767a993","ts":"2026-06-25T07:36:42.970Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":false,"evidenceCount":1}}
+{"traceId":"R-889920a4","ts":"2026-06-25T07:36:42.978Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-168ff34a","ts":"2026-06-25T07:38:13.068Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-168ff34a","ts":"2026-06-25T07:38:15.040Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"mixed","is_multi_issue":true,"fallback":false,"intents":[{"type":"technical","confidence":0.93},{"type":"billing","confidence":0.9}]}}
+{"traceId":"SP-1-91ebf3d1","ts":"2026-06-25T07:38:15.043Z","node":"agent","message":"[technical] received ticket","data":{"text":"The app crashes after login and I was also charged twice."}}
+{"traceId":"SP-1-91ebf3d1","ts":"2026-06-25T07:38:15.044Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-2-cda48b0f","ts":"2026-06-25T07:38:15.045Z","node":"agent","message":"[billing] received ticket","data":{"text":"The app crashes after login and I was also charged twice."}}
+{"traceId":"SP-2-cda48b0f","ts":"2026-06-25T07:38:15.046Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-91ebf3d1","ts":"2026-06-25T07:38:17.024Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":null,"confidence":0.62,"rationale":"Message contains two issues: an app crash after login (could fit error_diagnosis) and a billing problem (no billing/refunds handler listed). Since no single available handler covers both and billing is out of scope, choose null."}}
+{"traceId":"SP-1-91ebf3d1","ts":"2026-06-25T07:38:17.025Z","node":"agent","message":"[technical] out of domain","data":{"confidence":0.62,"domainThreshold":0.3}}
+{"traceId":"SP-2-cda48b0f","ts":"2026-06-25T07:38:17.536Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":"explain_charge","confidence":0.62,"rationale":"Customer reports being charged twice, which fits explaining a specific/duplicate charge. The app crash is a separate non-billing issue, but the billing-related part best matches explain_charge rather than refund_eligibility since they did not explicitly request a refund."}}
+{"traceId":"SP-2-cda48b0f","ts":"2026-06-25T07:38:17.540Z","node":"graph:gather","message":"handler \"explain_charge\" gathering"}
+{"traceId":"SP-2-cda48b0f","ts":"2026-06-25T07:38:17.541Z","node":"declarative","message":"running use case \"explain_charge\""}
+{"traceId":"SP-2-cda48b0f","ts":"2026-06-25T07:38:17.542Z","node":"tool","message":"calling dbQuery","data":{"args":{"customerId":"cust_003"}}}
+{"traceId":"SP-2-cda48b0f","ts":"2026-06-25T07:38:17.543Z","node":"tool","message":"dbQuery returned","data":{"result":{"charges":[{"id":"txn_21","amount":399,"desc":"Business plan monthly"},{"id":"txn_22","amount":60,"desc":"Add-on: 3 extra seats"}]}}}
+{"traceId":"SP-2-cda48b0f","ts":"2026-06-25T07:38:17.544Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-2-cda48b0f","ts":"2026-06-25T07:38:20.389Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-2-cda48b0f","ts":"2026-06-25T07:38:20.392Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":1}}
+{"traceId":"R-168ff34a","ts":"2026-06-25T07:38:20.396Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-131a9607","ts":"2026-06-25T07:38:39.215Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-131a9607","ts":"2026-06-25T07:38:41.041Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"mixed","is_multi_issue":true,"fallback":false,"intents":[{"type":"technical","confidence":0.93},{"type":"billing","confidence":0.9}]}}
+{"traceId":"SP-1-0f7f879a","ts":"2026-06-25T07:38:41.051Z","node":"agent","message":"[technical] received ticket","data":{"text":"The app crashes after login and I was also charged twice."}}
+{"traceId":"SP-1-0f7f879a","ts":"2026-06-25T07:38:41.053Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-2-1278b823","ts":"2026-06-25T07:38:41.054Z","node":"agent","message":"[billing] received ticket","data":{"text":"The app crashes after login and I was also charged twice."}}
+{"traceId":"SP-2-1278b823","ts":"2026-06-25T07:38:41.055Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-0f7f879a","ts":"2026-06-25T07:38:42.811Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":"error_diagnosis","confidence":0.62,"rationale":"Primary issue is a product malfunction (app crashes after login), which fits error diagnosis. The double charge is a billing concern but no billing handler is available; error_diagnosis is the closest match."}}
+{"traceId":"SP-1-0f7f879a","ts":"2026-06-25T07:38:42.818Z","node":"graph:gather","message":"handler \"error_diagnosis\" gathering"}
+{"traceId":"SP-1-0f7f879a","ts":"2026-06-25T07:38:42.820Z","node":"declarative","message":"running use case \"error_diagnosis\""}
+{"traceId":"SP-1-0f7f879a","ts":"2026-06-25T07:38:42.822Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-0f7f879a","ts":"2026-06-25T07:38:43.911Z","node":"tool","message":"calling lookupErrorCode","data":{"args":{"customerId":"cust_003"}}}
+{"traceId":"SP-1-0f7f879a","ts":"2026-06-25T07:38:43.912Z","node":"tool","message":"lookupErrorCode returned","data":{"result":{"found":false,"errorCode":null}}}
+{"traceId":"SP-1-0f7f879a","ts":"2026-06-25T07:38:43.913Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["troubleshooting.md"]}}
+{"traceId":"SP-1-0f7f879a","ts":"2026-06-25T07:38:43.947Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-2-1278b823","ts":"2026-06-25T07:38:45.822Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":"explain_charge","confidence":0.62,"rationale":"Customer reports being charged twice, which fits explaining a specific/duplicate charge. Although they also mention an app crash, that is outside billing; the best matching billing handler is to explain the duplicate charge."}}
+{"traceId":"SP-2-1278b823","ts":"2026-06-25T07:38:45.828Z","node":"graph:gather","message":"handler \"explain_charge\" gathering"}
+{"traceId":"SP-2-1278b823","ts":"2026-06-25T07:38:45.829Z","node":"declarative","message":"running use case \"explain_charge\""}
+{"traceId":"SP-2-1278b823","ts":"2026-06-25T07:38:45.830Z","node":"tool","message":"calling dbQuery","data":{"args":{"customerId":"cust_003"}}}
+{"traceId":"SP-2-1278b823","ts":"2026-06-25T07:38:45.831Z","node":"tool","message":"dbQuery returned","data":{"result":{"charges":[{"id":"txn_21","amount":399,"desc":"Business plan monthly"},{"id":"txn_22","amount":60,"desc":"Add-on: 3 extra seats"}]}}}
+{"traceId":"SP-2-1278b823","ts":"2026-06-25T07:38:45.832Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-0f7f879a","ts":"2026-06-25T07:38:46.808Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":false,"evidenceCount":2}}
+{"traceId":"SP-2-1278b823","ts":"2026-06-25T07:38:48.878Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-2-1278b823","ts":"2026-06-25T07:38:48.884Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":1}}
+{"traceId":"R-131a9607","ts":"2026-06-25T07:38:48.888Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-7fc5ce3a","ts":"2026-06-25T07:39:36.556Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-7fc5ce3a","ts":"2026-06-25T07:39:38.198Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"technical","is_multi_issue":false,"fallback":false,"intents":[{"type":"technical","confidence":0.93}]}}
+{"traceId":"SP-1-4171a989","ts":"2026-06-25T07:39:38.203Z","node":"agent","message":"[technical] received ticket","data":{"text":"I can't log in — it says my account is locked."}}
+{"traceId":"SP-1-4171a989","ts":"2026-06-25T07:39:38.204Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-4171a989","ts":"2026-06-25T07:39:39.550Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":"account_access","confidence":0.98,"rationale":"Customer cannot log in and explicitly reports the account is locked, which matches the account_access handler for locked accounts and login issues."}}
+{"traceId":"SP-1-4171a989","ts":"2026-06-25T07:39:39.555Z","node":"graph:gather","message":"handler \"account_access\" gathering"}
+{"traceId":"SP-1-4171a989","ts":"2026-06-25T07:39:39.556Z","node":"declarative","message":"running use case \"account_access\""}
+{"traceId":"SP-1-4171a989","ts":"2026-06-25T07:39:39.557Z","node":"tool","message":"calling accountStatus","data":{"args":{"customerId":"cust_008"}}}
+{"traceId":"SP-1-4171a989","ts":"2026-06-25T07:39:39.558Z","node":"tool","message":"accountStatus returned","data":{"result":{"found":true,"customerId":"cust_008","locked":false,"mfaEnabled":false,"lastLogin":"2026-06-20T13:33:00Z"}}}
+{"traceId":"SP-1-4171a989","ts":"2026-06-25T07:39:39.559Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["account_help.md"]}}
+{"traceId":"SP-1-4171a989","ts":"2026-06-25T07:39:39.561Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-4171a989","ts":"2026-06-25T07:39:42.524Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-1-4171a989","ts":"2026-06-25T07:39:42.527Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":2}}
+{"traceId":"R-7fc5ce3a","ts":"2026-06-25T07:39:42.532Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"boot","ts":"2026-06-25T07:40:59.569Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","refund_eligibility","subscription_change"]}}
+{"traceId":"boot","ts":"2026-06-25T07:40:59.572Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","refund_eligibility","subscription_change"],"registrySize":4}}
+{"traceId":"boot","ts":"2026-06-25T07:40:59.575Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["amendment_guidance","cancellation_policy","escalate_to_human"]}}
+{"traceId":"boot","ts":"2026-06-25T07:40:59.576Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["amendment_guidance","cancellation_policy","escalate_to_human"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-25T07:40:59.578Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-25T07:40:59.578Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-25T07:49:49.995Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","refund_eligibility","subscription_change"]}}
+{"traceId":"boot","ts":"2026-06-25T07:49:49.997Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","refund_eligibility","subscription_change"],"registrySize":4}}
+{"traceId":"boot","ts":"2026-06-25T07:49:50.001Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["amendment_guidance","cancellation_policy","escalate_to_human"]}}
+{"traceId":"boot","ts":"2026-06-25T07:49:50.002Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["amendment_guidance","cancellation_policy","escalate_to_human"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-25T07:49:50.006Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-25T07:49:50.006Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"R-12909af7","ts":"2026-06-25T07:50:27.240Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-12909af7","ts":"2026-06-25T07:50:29.119Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"mixed","is_multi_issue":true,"fallback":false,"intents":[{"type":"policy","confidence":0.97},{"type":"billing","confidence":0.72}]}}
+{"traceId":"SP-1-42fa605d","ts":"2026-06-25T07:50:29.127Z","node":"agent","message":"[policy] received ticket","data":{"text":"I want to cancel my plan and delete all my data under GDPR."}}
+{"traceId":"SP-1-42fa605d","ts":"2026-06-25T07:50:29.128Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-2-08fb460e","ts":"2026-06-25T07:50:29.129Z","node":"agent","message":"[billing] received ticket","data":{"text":"I want to cancel my plan and delete all my data under GDPR."}}
+{"traceId":"SP-2-08fb460e","ts":"2026-06-25T07:50:29.129Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-42fa605d","ts":"2026-06-25T07:50:30.881Z","node":"classifier","message":"classified ticket","data":{"agent":"policy","handlerId":"escalate_to_human","confidence":0.78,"rationale":"Customer requests cancellation plus GDPR data deletion, which involves privacy/legal compliance beyond standard cancellation policy and should be routed to a human/privacy queue."}}
+{"traceId":"SP-1-42fa605d","ts":"2026-06-25T07:50:30.887Z","node":"graph:gather","message":"handler \"escalate_to_human\" gathering"}
+{"traceId":"SP-1-42fa605d","ts":"2026-06-25T07:50:30.888Z","node":"declarative","message":"running use case \"escalate_to_human\""}
+{"traceId":"SP-1-42fa605d","ts":"2026-06-25T07:50:30.889Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["escalation_matrix.md"]}}
+{"traceId":"SP-1-42fa605d","ts":"2026-06-25T07:50:30.893Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-2-08fb460e","ts":"2026-06-25T07:50:31.277Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":null,"confidence":0.93,"rationale":"Customer requests cancellation and GDPR data deletion, which is not covered by the available billing handlers (charge explanation, failed payment, refund eligibility, subscription change)."}}
+{"traceId":"SP-2-08fb460e","ts":"2026-06-25T07:50:31.278Z","node":"agent","message":"[billing] out of domain","data":{"confidence":0.93,"domainThreshold":0.3}}
+{"traceId":"SP-1-42fa605d","ts":"2026-06-25T07:50:33.174Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":false,"evidenceCount":1}}
+{"traceId":"R-12909af7","ts":"2026-06-25T07:50:33.193Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-252e4ab0","ts":"2026-06-25T07:51:48.191Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-252e4ab0","ts":"2026-06-25T07:51:50.252Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"policy","is_multi_issue":false,"fallback":false,"intents":[{"type":"policy","confidence":0.74},{"type":"billing","confidence":0.56}]}}
+{"traceId":"SP-1-d5a1ec53","ts":"2026-06-25T07:51:50.258Z","node":"agent","message":"[policy] received ticket","data":{"text":"what is the update on my issues ?"}}
+{"traceId":"SP-1-d5a1ec53","ts":"2026-06-25T07:51:50.259Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-d5a1ec53","ts":"2026-06-25T07:51:51.681Z","node":"classifier","message":"classified ticket","data":{"agent":"policy","handlerId":null,"confidence":0.62,"rationale":"The customer is asking for a status update on unspecified issues; it does not relate to contract amendments, cancellation policy, or a clear escalation trigger."}}
+{"traceId":"SP-1-d5a1ec53","ts":"2026-06-25T07:51:51.682Z","node":"agent","message":"[policy] out of domain","data":{"confidence":0.62,"domainThreshold":0.3}}
+{"traceId":"R-252e4ab0","ts":"2026-06-25T07:51:51.691Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"boot","ts":"2026-06-25T08:06:37.894Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","refund_eligibility","subscription_change"]}}
+{"traceId":"boot","ts":"2026-06-25T08:06:37.895Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","refund_eligibility","subscription_change"],"registrySize":4}}
+{"traceId":"boot","ts":"2026-06-25T08:06:37.899Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["amendment_guidance","cancellation_policy","escalate_to_human"]}}
+{"traceId":"boot","ts":"2026-06-25T08:06:37.899Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["amendment_guidance","cancellation_policy","escalate_to_human"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-25T08:06:37.902Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-25T08:06:37.902Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"R-cb71a7bf","ts":"2026-06-25T08:06:57.328Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-cb71a7bf","ts":"2026-06-25T08:06:58.998Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"billing","is_multi_issue":false,"fallback":false,"intents":[{"type":"billing","confidence":0.98}]}}
+{"traceId":"SP-1-c966854e","ts":"2026-06-25T08:06:59.004Z","node":"agent","message":"[billing] received ticket","data":{"text":"I was charged $49 twice this month — why?"}}
+{"traceId":"SP-1-c966854e","ts":"2026-06-25T08:06:59.006Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-c966854e","ts":"2026-06-25T08:07:00.420Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":"explain_charge","confidence":0.93,"rationale":"Customer is asking why they were charged $49 twice, which matches explaining a specific/duplicate charge on their bill."}}
+{"traceId":"SP-1-c966854e","ts":"2026-06-25T08:07:00.425Z","node":"graph:gather","message":"handler \"explain_charge\" gathering"}
+{"traceId":"SP-1-c966854e","ts":"2026-06-25T08:07:00.426Z","node":"declarative","message":"running use case \"explain_charge\""}
+{"traceId":"SP-1-c966854e","ts":"2026-06-25T08:07:00.427Z","node":"tool","message":"calling dbQuery","data":{"args":{"customerId":"cust_002"}}}
+{"traceId":"SP-1-c966854e","ts":"2026-06-25T08:07:00.428Z","node":"tool","message":"dbQuery returned","data":{"result":{"charges":[{"id":"txn_9","amount":12,"desc":"Add-on: extra seats"}]}}}
+{"traceId":"SP-1-c966854e","ts":"2026-06-25T08:07:00.429Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-c966854e","ts":"2026-06-25T08:07:04.013Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":false,"evidenceCount":1}}
+{"traceId":"R-cb71a7bf","ts":"2026-06-25T08:07:04.023Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-65a4d6c5","ts":"2026-06-25T08:08:51.633Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-65a4d6c5","ts":"2026-06-25T08:08:53.365Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"unknown","is_multi_issue":false,"fallback":true,"intents":[{"type":"unknown","confidence":0.4}]}}
+{"traceId":"R-65a4d6c5","ts":"2026-06-25T08:08:53.375Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-65a4d6c5","ts":"2026-06-25T08:08:54.700Z","node":"decompose","message":"LLM split","data":{"count":1,"domains":["policy"]}}
+{"traceId":"SP-1-34f3bc0a","ts":"2026-06-25T08:08:54.704Z","node":"agent","message":"[policy] received ticket","data":{"text":"you annoying me brooo!!!"}}
+{"traceId":"SP-1-34f3bc0a","ts":"2026-06-25T08:08:54.705Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-34f3bc0a","ts":"2026-06-25T08:08:56.235Z","node":"classifier","message":"classified ticket","data":{"agent":"policy","handlerId":"escalate_to_human","confidence":0.62,"rationale":"Customer message is abusive/harassing language; best handled via escalation per high-risk/abusive situation guidance."}}
+{"traceId":"SP-1-34f3bc0a","ts":"2026-06-25T08:08:56.242Z","node":"graph:gather","message":"handler \"escalate_to_human\" gathering"}
+{"traceId":"SP-1-34f3bc0a","ts":"2026-06-25T08:08:56.243Z","node":"declarative","message":"running use case \"escalate_to_human\""}
+{"traceId":"SP-1-34f3bc0a","ts":"2026-06-25T08:08:56.244Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["escalation_matrix.md"]}}
+{"traceId":"SP-1-34f3bc0a","ts":"2026-06-25T08:08:56.247Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-34f3bc0a","ts":"2026-06-25T08:08:59.476Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":false,"evidenceCount":1}}
+{"traceId":"R-65a4d6c5","ts":"2026-06-25T08:08:59.485Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-0a74e147","ts":"2026-06-25T08:09:31.742Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-0a74e147","ts":"2026-06-25T08:09:33.421Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"policy","is_multi_issue":false,"fallback":false,"intents":[{"type":"policy","confidence":0.62}]}}
+{"traceId":"SP-1-9d140792","ts":"2026-06-25T08:09:33.429Z","node":"agent","message":"[policy] received ticket","data":{"text":"i want to talk to a human"}}
+{"traceId":"SP-1-9d140792","ts":"2026-06-25T08:09:33.431Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-9d140792","ts":"2026-06-25T08:09:34.568Z","node":"classifier","message":"classified ticket","data":{"agent":"policy","handlerId":"escalate_to_human","confidence":0.93,"rationale":"Customer explicitly requests to speak with a human, which matches the escalation/hand-off handler."}}
+{"traceId":"SP-1-9d140792","ts":"2026-06-25T08:09:34.572Z","node":"graph:gather","message":"handler \"escalate_to_human\" gathering"}
+{"traceId":"SP-1-9d140792","ts":"2026-06-25T08:09:34.574Z","node":"declarative","message":"running use case \"escalate_to_human\""}
+{"traceId":"SP-1-9d140792","ts":"2026-06-25T08:09:34.575Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["escalation_matrix.md"]}}
+{"traceId":"SP-1-9d140792","ts":"2026-06-25T08:09:34.576Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-9d140792","ts":"2026-06-25T08:09:37.801Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":false,"evidenceCount":1}}
+{"traceId":"R-0a74e147","ts":"2026-06-25T08:09:37.808Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-9e215870","ts":"2026-06-25T08:10:09.879Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-9e215870","ts":"2026-06-25T08:10:11.584Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"billing","is_multi_issue":false,"fallback":false,"intents":[{"type":"billing","confidence":0.72},{"type":"policy","confidence":0.34}]}}
+{"traceId":"SP-1-d332c650","ts":"2026-06-25T08:10:11.595Z","node":"agent","message":"[billing] received ticket","data":{"text":"escalate it bro !!!!!"}}
+{"traceId":"SP-1-d332c650","ts":"2026-06-25T08:10:11.597Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-d332c650","ts":"2026-06-25T08:10:13.130Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":null,"confidence":0.74,"rationale":"Customer requests escalation but provides no billing issue details that match explain_charge, failed_payment, refund_eligibility, or subscription_change."}}
+{"traceId":"SP-1-d332c650","ts":"2026-06-25T08:10:13.131Z","node":"agent","message":"[billing] out of domain","data":{"confidence":0.74,"domainThreshold":0.3}}
+{"traceId":"R-9e215870","ts":"2026-06-25T08:10:13.137Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-301a9c0f","ts":"2026-06-25T08:10:48.679Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-301a9c0f","ts":"2026-06-25T08:10:50.310Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"mixed","is_multi_issue":true,"fallback":false,"intents":[{"type":"policy","confidence":0.96},{"type":"billing","confidence":0.62}]}}
+{"traceId":"R-301a9c0f","ts":"2026-06-25T08:10:50.318Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-301a9c0f","ts":"2026-06-25T08:10:51.844Z","node":"decompose","message":"LLM split","data":{"count":2,"domains":["billing","policy"]}}
+{"traceId":"SP-1-eb6753de","ts":"2026-06-25T08:10:51.849Z","node":"agent","message":"[billing] received ticket","data":{"text":"I want to cancel my plan and delete all my data under GDPR."}}
+{"traceId":"SP-1-eb6753de","ts":"2026-06-25T08:10:51.850Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-2-2ea67eb1","ts":"2026-06-25T08:10:51.852Z","node":"agent","message":"[policy] received ticket","data":{"text":"I want to cancel my plan and delete all my data under GDPR."}}
+{"traceId":"SP-2-2ea67eb1","ts":"2026-06-25T08:10:51.853Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-eb6753de","ts":"2026-06-25T08:10:53.411Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":null,"confidence":0.9,"rationale":"Customer requests plan cancellation and GDPR data deletion; none of the available billing handlers cover cancellation or data deletion/privacy requests."}}
+{"traceId":"SP-1-eb6753de","ts":"2026-06-25T08:10:53.412Z","node":"agent","message":"[billing] out of domain","data":{"confidence":0.9,"domainThreshold":0.3}}
+{"traceId":"SP-2-2ea67eb1","ts":"2026-06-25T08:10:53.897Z","node":"classifier","message":"classified ticket","data":{"agent":"policy","handlerId":"escalate_to_human","confidence":0.78,"rationale":"Request combines subscription cancellation with GDPR data deletion, which is a legal/privacy rights request requiring escalation to the appropriate human/privacy queue rather than standard cancellation guidance."}}
+{"traceId":"SP-2-2ea67eb1","ts":"2026-06-25T08:10:53.901Z","node":"graph:gather","message":"handler \"escalate_to_human\" gathering"}
+{"traceId":"SP-2-2ea67eb1","ts":"2026-06-25T08:10:53.903Z","node":"declarative","message":"running use case \"escalate_to_human\""}
+{"traceId":"SP-2-2ea67eb1","ts":"2026-06-25T08:10:53.904Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["escalation_matrix.md"]}}
+{"traceId":"SP-2-2ea67eb1","ts":"2026-06-25T08:10:53.906Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-2-2ea67eb1","ts":"2026-06-25T08:10:56.760Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":false,"evidenceCount":1}}
+{"traceId":"R-301a9c0f","ts":"2026-06-25T08:10:56.768Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-07fc9d0f","ts":"2026-06-25T08:11:43.834Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-07fc9d0f","ts":"2026-06-25T08:11:45.500Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"mixed","is_multi_issue":true,"fallback":false,"intents":[{"type":"policy","confidence":0.74},{"type":"billing","confidence":0.62}]}}
+{"traceId":"R-07fc9d0f","ts":"2026-06-25T08:11:45.506Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-07fc9d0f","ts":"2026-06-25T08:11:46.723Z","node":"decompose","message":"LLM split","data":{"count":1,"domains":["policy"]}}
+{"traceId":"SP-1-a0f9c703","ts":"2026-06-25T08:11:46.728Z","node":"agent","message":"[policy] received ticket","data":{"text":"any update ?"}}
+{"traceId":"SP-1-a0f9c703","ts":"2026-06-25T08:11:46.729Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-a0f9c703","ts":"2026-06-25T08:11:48.359Z","node":"classifier","message":"classified ticket","data":{"agent":"policy","handlerId":null,"confidence":0.62,"rationale":"The message is a generic status check ('any update?') without context indicating amendment guidance, cancellation policy, or escalation triggers."}}
+{"traceId":"SP-1-a0f9c703","ts":"2026-06-25T08:11:48.361Z","node":"agent","message":"[policy] out of domain","data":{"confidence":0.62,"domainThreshold":0.3}}
+{"traceId":"R-07fc9d0f","ts":"2026-06-25T08:11:48.368Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-fcb3a79b","ts":"2026-06-25T08:12:26.991Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-fcb3a79b","ts":"2026-06-25T08:12:28.598Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"technical","is_multi_issue":false,"fallback":false,"intents":[{"type":"technical","confidence":0.98}]}}
+{"traceId":"SP-1-833ce330","ts":"2026-06-25T08:12:28.607Z","node":"agent","message":"[technical] received ticket","data":{"text":"Your API is returning 500 errors on every request — this is urgent."}}
+{"traceId":"SP-1-833ce330","ts":"2026-06-25T08:12:28.608Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-833ce330","ts":"2026-06-25T08:12:30.557Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":"error_diagnosis","confidence":0.78,"rationale":"Customer reports consistent HTTP 500 errors from the API on every request, indicating a product error needing diagnosis and remediation rather than account access; could be outage-related but primary ask is error behavior."}}
+{"traceId":"SP-1-833ce330","ts":"2026-06-25T08:12:30.560Z","node":"graph:gather","message":"handler \"error_diagnosis\" gathering"}
+{"traceId":"SP-1-833ce330","ts":"2026-06-25T08:12:30.560Z","node":"declarative","message":"running use case \"error_diagnosis\""}
+{"traceId":"SP-1-833ce330","ts":"2026-06-25T08:12:30.561Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-833ce330","ts":"2026-06-25T08:12:31.587Z","node":"tool","message":"calling lookupErrorCode","data":{"args":{"customerId":"cust_002"}}}
+{"traceId":"SP-1-833ce330","ts":"2026-06-25T08:12:31.589Z","node":"tool","message":"lookupErrorCode returned","data":{"result":{"found":false,"errorCode":null}}}
+{"traceId":"SP-1-833ce330","ts":"2026-06-25T08:12:31.590Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["troubleshooting.md"]}}
+{"traceId":"SP-1-833ce330","ts":"2026-06-25T08:12:31.591Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-833ce330","ts":"2026-06-25T08:12:34.613Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":false,"evidenceCount":2}}
+{"traceId":"R-fcb3a79b","ts":"2026-06-25T08:12:34.620Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"boot","ts":"2026-06-25T08:32:42.156Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","refund_eligibility","subscription_change"]}}
+{"traceId":"boot","ts":"2026-06-25T08:32:42.158Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","refund_eligibility","subscription_change"],"registrySize":4}}
+{"traceId":"boot","ts":"2026-06-25T08:32:42.163Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["amendment_guidance","cancellation_policy","escalate_to_human"]}}
+{"traceId":"boot","ts":"2026-06-25T08:32:42.164Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["amendment_guidance","cancellation_policy","escalate_to_human"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-25T08:32:42.169Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-25T08:32:42.170Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"R-f8f65159","ts":"2026-06-25T08:33:03.997Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-f8f65159","ts":"2026-06-25T08:33:06.020Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"billing","is_multi_issue":false,"fallback":false,"intents":[{"type":"billing","confidence":0.98}]}}
+{"traceId":"SP-1-a87736ec","ts":"2026-06-25T08:33:06.024Z","node":"agent","message":"[billing] received ticket","data":{"text":"I was charged $49 twice this month — why?"}}
+{"traceId":"SP-1-a87736ec","ts":"2026-06-25T08:33:06.025Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-a87736ec","ts":"2026-06-25T08:33:07.554Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":"explain_charge","confidence":0.92,"rationale":"Customer is asking why they were charged $49 twice this month, which is a request to explain a specific (possibly duplicate) charge on their bill."}}
+{"traceId":"SP-1-a87736ec","ts":"2026-06-25T08:33:07.589Z","node":"graph:gather","message":"handler \"explain_charge\" gathering"}
+{"traceId":"SP-1-a87736ec","ts":"2026-06-25T08:33:07.590Z","node":"declarative","message":"running use case \"explain_charge\""}
+{"traceId":"SP-1-a87736ec","ts":"2026-06-25T08:33:07.592Z","node":"tool","message":"calling dbQuery","data":{"args":{"customerId":"cust_001"}}}
+{"traceId":"SP-1-a87736ec","ts":"2026-06-25T08:33:07.593Z","node":"tool","message":"dbQuery returned","data":{"result":{"charges":[{"id":"txn_1","amount":49,"desc":"Pro plan monthly"},{"id":"txn_2","amount":49,"desc":"Pro plan monthly (duplicate)"}]}}}
+{"traceId":"SP-1-a87736ec","ts":"2026-06-25T08:33:07.594Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-a87736ec","ts":"2026-06-25T08:33:10.935Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-1-a87736ec","ts":"2026-06-25T08:33:10.940Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":1}}
+{"traceId":"R-f8f65159","ts":"2026-06-25T08:33:10.948Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-056a692a","ts":"2026-06-25T08:33:52.175Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-056a692a","ts":"2026-06-25T08:33:53.937Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"billing","is_multi_issue":false,"fallback":false,"intents":[{"type":"billing","confidence":0.99}]}}
+{"traceId":"SP-1-3226cc48","ts":"2026-06-25T08:33:53.940Z","node":"agent","message":"[billing] received ticket","data":{"text":"i want refund!!!"}}
+{"traceId":"SP-1-3226cc48","ts":"2026-06-25T08:33:53.942Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-3226cc48","ts":"2026-06-25T08:33:55.782Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":"refund_eligibility","confidence":0.93,"rationale":"Customer explicitly requests a refund without mentioning payment failure or subscription changes; best matched to refund eligibility guidance."}}
+{"traceId":"SP-1-3226cc48","ts":"2026-06-25T08:33:55.794Z","node":"graph:gather","message":"handler \"refund_eligibility\" gathering"}
+{"traceId":"SP-1-3226cc48","ts":"2026-06-25T08:33:55.795Z","node":"declarative","message":"running use case \"refund_eligibility\""}
+{"traceId":"SP-1-3226cc48","ts":"2026-06-25T08:33:55.796Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["refund_policy.md"]}}
+{"traceId":"SP-1-3226cc48","ts":"2026-06-25T08:33:55.798Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-3226cc48","ts":"2026-06-25T08:33:58.830Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-1-3226cc48","ts":"2026-06-25T08:33:58.835Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":1}}
+{"traceId":"R-056a692a","ts":"2026-06-25T08:33:58.838Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-8db91465","ts":"2026-06-25T08:34:39.049Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-8db91465","ts":"2026-06-25T08:34:41.033Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"billing","is_multi_issue":false,"fallback":false,"intents":[{"type":"billing","confidence":0.95}]}}
+{"traceId":"SP-1-26556122","ts":"2026-06-25T08:34:41.035Z","node":"agent","message":"[billing] received ticket","data":{"text":"just initiate the refund or let me talk to a human"}}
+{"traceId":"SP-1-26556122","ts":"2026-06-25T08:34:41.036Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-26556122","ts":"2026-06-25T08:34:42.531Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":"refund_eligibility","confidence":0.74,"rationale":"Customer requests initiating a refund; best matched to refund eligibility/processing flow. Also asks for a human, but no handler covers escalation."}}
+{"traceId":"SP-1-26556122","ts":"2026-06-25T08:34:42.540Z","node":"graph:gather","message":"handler \"refund_eligibility\" gathering"}
+{"traceId":"SP-1-26556122","ts":"2026-06-25T08:34:42.542Z","node":"declarative","message":"running use case \"refund_eligibility\""}
+{"traceId":"SP-1-26556122","ts":"2026-06-25T08:34:42.543Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["refund_policy.md"]}}
+{"traceId":"SP-1-26556122","ts":"2026-06-25T08:34:42.546Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-26556122","ts":"2026-06-25T08:34:46.025Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-1-26556122","ts":"2026-06-25T08:34:46.030Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":1}}
+{"traceId":"R-8db91465","ts":"2026-06-25T08:34:46.034Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"boot","ts":"2026-06-25T08:35:21.744Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","refund_eligibility","subscription_change"]}}
+{"traceId":"boot","ts":"2026-06-25T08:35:21.747Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","refund_eligibility","subscription_change"],"registrySize":4}}
+{"traceId":"boot","ts":"2026-06-25T08:35:21.752Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["amendment_guidance","cancellation_policy","escalate_to_human"]}}
+{"traceId":"boot","ts":"2026-06-25T08:35:21.753Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["amendment_guidance","cancellation_policy","escalate_to_human"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-25T08:35:21.757Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-25T08:35:21.757Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-25T08:40:20.518Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","refund_eligibility","subscription_change"]}}
+{"traceId":"boot","ts":"2026-06-25T08:40:20.519Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","refund_eligibility","subscription_change"],"registrySize":4}}
+{"traceId":"boot","ts":"2026-06-25T08:40:20.522Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["amendment_guidance","cancellation_policy","escalate_to_human"]}}
+{"traceId":"boot","ts":"2026-06-25T08:40:20.523Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["amendment_guidance","cancellation_policy","escalate_to_human"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-25T08:40:20.525Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-25T08:40:20.525Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"R-d80c1bcd","ts":"2026-06-25T08:40:51.998Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-d80c1bcd","ts":"2026-06-25T08:40:54.357Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"mixed","is_multi_issue":true,"fallback":false,"intents":[{"type":"technical","confidence":0.93},{"type":"billing","confidence":0.9}]}}
+{"traceId":"R-d80c1bcd","ts":"2026-06-25T08:40:54.359Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-d80c1bcd","ts":"2026-06-25T08:40:55.828Z","node":"decompose","message":"LLM split","data":{"count":2,"domains":["technical","billing"]}}
+{"traceId":"SP-1-c6153a5d","ts":"2026-06-25T08:40:55.832Z","node":"agent","message":"[technical] received ticket","data":{"text":"The app crashes after login and I was also charged twice."}}
+{"traceId":"SP-1-c6153a5d","ts":"2026-06-25T08:40:55.833Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-2-3e706830","ts":"2026-06-25T08:40:55.835Z","node":"agent","message":"[billing] received ticket","data":{"text":"The app crashes after login and I was also charged twice."}}
+{"traceId":"SP-2-3e706830","ts":"2026-06-25T08:40:55.836Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-c6153a5d","ts":"2026-06-25T08:40:57.678Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":"error_diagnosis","confidence":0.62,"rationale":"The primary issue described is a product malfunction (app crashes after login), which fits error diagnosis. The double charge is a billing concern but no billing handler is available; error_diagnosis is the closest match to address the crash and potentially related transaction duplication."}}
+{"traceId":"SP-1-c6153a5d","ts":"2026-06-25T08:40:57.706Z","node":"graph:gather","message":"handler \"error_diagnosis\" gathering"}
+{"traceId":"SP-1-c6153a5d","ts":"2026-06-25T08:40:57.707Z","node":"declarative","message":"running use case \"error_diagnosis\""}
+{"traceId":"SP-1-c6153a5d","ts":"2026-06-25T08:40:57.708Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-2-3e706830","ts":"2026-06-25T08:40:57.720Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":"explain_charge","confidence":0.72,"rationale":"Customer reports being charged twice, which fits explaining an unexpected/duplicate charge. Although they also mention an app crash, the billing-related issue best matches explain_charge."}}
+{"traceId":"SP-2-3e706830","ts":"2026-06-25T08:40:57.725Z","node":"graph:gather","message":"handler \"explain_charge\" gathering"}
+{"traceId":"SP-2-3e706830","ts":"2026-06-25T08:40:57.726Z","node":"declarative","message":"running use case \"explain_charge\""}
+{"traceId":"SP-2-3e706830","ts":"2026-06-25T08:40:57.727Z","node":"tool","message":"calling dbQuery","data":{"args":{"customerId":"cust_002"}}}
+{"traceId":"SP-2-3e706830","ts":"2026-06-25T08:40:57.727Z","node":"tool","message":"dbQuery returned","data":{"result":{"charges":[{"id":"txn_9","amount":12,"desc":"Add-on: extra seats"}]}}}
+{"traceId":"SP-2-3e706830","ts":"2026-06-25T08:40:57.728Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-c6153a5d","ts":"2026-06-25T08:40:58.501Z","node":"tool","message":"calling lookupErrorCode","data":{"args":{"customerId":"cust_002"}}}
+{"traceId":"SP-1-c6153a5d","ts":"2026-06-25T08:40:58.503Z","node":"tool","message":"lookupErrorCode returned","data":{"result":{"found":false,"errorCode":null}}}
+{"traceId":"SP-1-c6153a5d","ts":"2026-06-25T08:40:58.504Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["troubleshooting.md"]}}
+{"traceId":"SP-1-c6153a5d","ts":"2026-06-25T08:40:58.507Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-2-3e706830","ts":"2026-06-25T08:41:00.202Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-2-3e706830","ts":"2026-06-25T08:41:00.208Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":1}}
+{"traceId":"SP-1-c6153a5d","ts":"2026-06-25T08:41:01.560Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":false,"evidenceCount":2}}
+{"traceId":"R-d80c1bcd","ts":"2026-06-25T08:41:01.564Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-956d59fb","ts":"2026-06-25T08:41:38.352Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-956d59fb","ts":"2026-06-25T08:41:40.012Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"technical","is_multi_issue":false,"fallback":false,"intents":[{"type":"technical","confidence":0.62},{"type":"billing","confidence":0.38}]}}
+{"traceId":"SP-1-f94e2581","ts":"2026-06-25T08:41:40.014Z","node":"agent","message":"[technical] received ticket","data":{"text":"any updates ?"}}
+{"traceId":"SP-1-f94e2581","ts":"2026-06-25T08:41:40.015Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-f94e2581","ts":"2026-06-25T08:41:41.805Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":null,"confidence":0.22,"rationale":"The message 'any updates ?' lacks context about whether the customer is asking about login/access, a specific error, or service status; cannot confidently route to a specific handler."}}
+{"traceId":"SP-1-f94e2581","ts":"2026-06-25T08:41:41.806Z","node":"agent","message":"[technical] out of domain","data":{"confidence":0.22,"domainThreshold":0.3}}
+{"traceId":"R-956d59fb","ts":"2026-06-25T08:41:41.808Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}

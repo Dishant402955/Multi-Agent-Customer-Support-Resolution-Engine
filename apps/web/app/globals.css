@@ -4,27 +4,31 @@
 
 /* Dark-only palette (zinc). The app forces `dark` on <html>, but we also set
    :root to the same values so it never renders unstyled. */
+/* Monochrome, dark-only. A true black-and-white tool: no hue anywhere, status is
+   conveyed by weight/border/fill rather than color. Calm and editorial. */
 @layer base {
   :root,
   .dark {
-    --background: 240 10% 4%;
-    --foreground: 0 0% 98%;
-    --card: 240 6% 8%;
-    --card-foreground: 0 0% 98%;
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 4% 14%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 4% 14%;
-    --muted-foreground: 240 5% 65%;
-    --accent: 240 4% 16%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 4% 16%;
-    --input: 240 4% 16%;
-    --ring: 217 91% 60%;
-    --radius: 0.75rem;
+    --background: 0 0% 4%;
+    --foreground: 0 0% 95%;
+    --card: 0 0% 7%;
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 7%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 0 0% 94%;
+    --primary-foreground: 0 0% 8%;
+    --secondary: 0 0% 13%;
+    --secondary-foreground: 0 0% 92%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 58%;
+    --accent: 0 0% 15%;
+    --accent-foreground: 0 0% 95%;
+    --destructive: 0 0% 78%;
+    --destructive-foreground: 0 0% 8%;
+    --border: 0 0% 16%;
+    --input: 0 0% 18%;
+    --ring: 0 0% 45%;
+    --radius: 0.5rem;
   }
 }
 
@@ -32,13 +36,24 @@
   * {
     @apply border-border;
   }
+  html,
+  body {
+    height: 100%;
+  }
   body {
     @apply bg-background text-foreground;
-    background-image: radial-gradient(
-      1200px 600px at 75% -10%,
-      hsl(240 8% 12%) 0%,
-      hsl(var(--background)) 55%
-    );
-    min-height: 100vh;
+  }
+  /* Slim, unobtrusive scrollbars for the panes. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(0 0% 22%) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: hsl(0 0% 20%);
+    border-radius: 9999px;
   }
 }

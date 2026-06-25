@@ -22,8 +22,48 @@ import type {
 } from "../core/types.js";
 import { getTool } from "../tools/registry.js";
 import { retrieveFromScope } from "../kb/retriever.js";
-import { callLLM } from "../gateway/index.js";
+import { callLLM, availableProviders } from "../gateway/index.js";
 import { log } from "../core/logger.js";
+
+/** True when at least one LLM provider is configured. */
+function hasLLM(): boolean {
+  return availableProviders().length > 0;
+}
+
+/** Render prior conversation turns (if any) for the answer prompt. */
+function historyBlock(state: AgentState): string {
+  const hist = (state.ticket.history ?? []) as { role: string; text: string }[];
+  if (!hist.length) return "";
+  const lines = hist.slice(-4).map((m) => `${m.role}: ${m.text}`).join("\n");
+  return `CONVERSATION SO FAR (oldest first):\n${lines}\n`;
+}
+
+/**
+ * Deterministic answer when no LLM is available (or the LLM call fails). Builds
+ * findings from the gathered tool data + KB snippets so the agent still returns
+ * something useful and traceable offline.
+ */
+function fallbackAnswer(
+  def: UseCaseDefinition,
+  gathered: Record<string, unknown>,
+  kbHits: { source: string; text: string }[]
+): StructuredAnswer {
+  const parts: string[] = [];
+  if (kbHits.length) {
+    const top = kbHits[0];
+    parts.push(top.text.split("\n").slice(0, 3).join(" ").slice(0, 280));
+  }
+  const toolNames = Object.keys(gathered);
+  if (toolNames.length) parts.push(`Checked: ${toolNames.join(", ")}.`);
+  const haveData = parts.length > 0;
+  return {
+    findings: haveData
+      ? parts.join(" ")
+      : "We received your request but could not gather enough information automatically.",
+    actions: haveData ? ["Review the details above and reply if anything looks off."] : [],
+    resolved: haveData,
+  };
+}
 
 /** The structured shape we ask the LLM to return, so a merger can consume it. */
 const answerSchema = z.object({
@@ -96,6 +136,8 @@ async function extractParams(
   };
   const targets = Object.keys(specs).filter((n) => known[n] === undefined);
   if (targets.length === 0) return {};
+  // No LLM → can't reliably extract; skip (we'll ask for required params instead).
+  if (!hasLLM()) return {};
 
   const fieldLines = targets
     .map((n) => {
@@ -226,6 +268,8 @@ export function makeDeclarativeHandler(def: UseCaseDefinition): UseCaseHandler {
       ].join("\n");
 
       const user = [
+        historyBlock(state),
+        state.ticket.focus ? `FOCUS ON THIS SUB-PROBLEM: ${state.ticket.focus}\n` : "",
         `CUSTOMER MESSAGE: ${state.ticket.text}`,
         "",
         `GATHERED DATA: ${JSON.stringify(gathered, null, 2)}`,
@@ -244,31 +288,41 @@ export function makeDeclarativeHandler(def: UseCaseDefinition): UseCaseHandler {
         .join("\n");
 
       let structured: StructuredAnswer;
-      try {
-        const raw = await callLLM<unknown>({
-          traceId,
-          system,
-          user,
-          json: true,
-          options: { temperature: 0.2, maxTokens: 700 },
-        });
-        structured = answerSchema.parse(raw);
-      } catch (err) {
-        // If the model returns malformed JSON, degrade gracefully rather than
-        // crash — surface it as an escalation with the parse error as reasoning.
-        log(traceId, "declarative", "structured answer parse failed", {
-          error: String(err),
-        });
-        return {
-          escalate: true,
-          evidence,
-          reasoning: [
-            `Ran declarative use case "${def.use_case_id}".`,
-            `Structured answer parse failed: ${String(err)}.`,
-          ],
-          scratch: { params },
-          done: true,
-        };
+      if (!hasLLM()) {
+        // Offline / no key — compose a deterministic answer from the evidence.
+        structured = fallbackAnswer(def, gathered, kbHits);
+        log(traceId, "declarative", "no LLM provider, deterministic answer");
+      } else {
+        try {
+          const raw = await callLLM<unknown>({
+            traceId,
+            system,
+            user,
+            json: true,
+            options: { temperature: 0.2, maxTokens: 700 },
+          });
+          structured = answerSchema.parse(raw);
+        } catch (err) {
+          // The LLM failed or returned malformed JSON. If we gathered any data,
+          // degrade to a deterministic answer; otherwise flag for escalation.
+          log(traceId, "declarative", "answer failed, attempting fallback", {
+            error: String(err),
+          });
+          if (kbHits.length || Object.keys(gathered).length) {
+            structured = fallbackAnswer(def, gathered, kbHits);
+          } else {
+            return {
+              escalate: true,
+              evidence,
+              reasoning: [
+                `Ran declarative use case "${def.use_case_id}".`,
+                `Answer generation failed: ${String(err)}.`,
+              ],
+              scratch: { params },
+              done: true,
+            };
+          }
+        }
       }
 
       return {

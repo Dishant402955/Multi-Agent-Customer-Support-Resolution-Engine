@@ -52,6 +52,8 @@ export interface AgentReport {
   evidence: string[];
   status: AgentStatus;
   confidence: number;
+  /** Wall-clock time this agent took (ms) — set by the orchestrator fan-out. */
+  duration_ms?: number;
 
   // Set when the agent matched its domain but was not confident enough to act
   // and needs more detail from the customer (framework status
@@ -80,6 +82,10 @@ export interface Escalation {
   urgency?: PriorityLevel;
   internal_actions?: string[];
   customer_addendum?: string;
+  // Assigned by the Application API after the pipeline runs (it owns the human
+  // org + dashboard). The agent leaves this unset.
+  assigned_agent?: { id: string; name: string; title: string; department: string };
+  escalation_id?: string;
 }
 
 export interface Resolution {
@@ -90,11 +96,28 @@ export interface Resolution {
   evidence: string[];
 }
 
+// Live status of the ticket itself (owned by the application layer), passed in
+// so the synthesizer can answer follow-ups/"what's the update?" without asking
+// the customer to re-identify themselves.
+export interface TicketStatus {
+  has_escalation: boolean;
+  escalation_status?: "open" | "resolved" | null;
+  assignee_name?: string | null;
+  department?: string | null;
+  urgency?: string | null;
+}
+
+export type StepKind = "llm" | "heuristic";
+
 export interface AuditEvent {
   step: string;
   actor: string;
   timestamp: string;
   summary: string;
+  /** Whether this step reasoned with the LLM or a deterministic rule. */
+  kind?: StepKind;
+  /** A fuller "thought" — the reasoning behind this step, for the chat trail. */
+  detail?: string;
 }
 
 // The full object that grows as it moves through the pipeline.
@@ -103,6 +126,10 @@ export interface PipelineState {
   run_id: string;
   message: string;
   message_count: number;
+  /** The customer this ticket is acting as (selected in the UI), if any. */
+  customer_id?: string;
+  /** Live ticket status (escalation open/resolved, assignee) for follow-ups. */
+  ticket_status?: TicketStatus;
   history: Message[];
 
   guard?: Guard;
@@ -123,6 +150,8 @@ export interface PipelineInput {
   run_id: string;
   message: string;
   message_count: number;
+  customer_id?: string;
+  ticket_status?: TicketStatus;
   history: Message[];
 }
 
@@ -130,6 +159,18 @@ export function nowIso(): string {
   return new Date().toISOString();
 }
 
-export function audit(step: string, actor: string, summary: string): AuditEvent {
-  return { step, actor, timestamp: nowIso(), summary };
+export function audit(
+  step: string,
+  actor: string,
+  summary: string,
+  extra?: { kind?: StepKind; detail?: string }
+): AuditEvent {
+  return {
+    step,
+    actor,
+    timestamp: nowIso(),
+    summary,
+    ...(extra?.kind ? { kind: extra.kind } : {}),
+    ...(extra?.detail ? { detail: extra.detail } : {}),
+  };
 }

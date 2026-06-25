@@ -5,11 +5,17 @@ specialist agents **in parallel**, assesses severity, escalates when needed, and
 returns one customer-ready resolution with reasoning + evidence — plus a full
 audit trail.
 
-This is the **base**: agents return **hard-coded** answers (no LLM, no external
-APIs). Every agent and step is a **pure function** you can run on its own.
+Specialist agents are **LLM-backed** through a small shared framework: each agent
+is described by **declarative JSON use cases** with a scoped knowledge base and a
+tool pool, all routed through a **single LLM gateway** (Azure OpenAI by default).
+Every pipeline step is a typed function you can run on its own, and the whole
+thing **degrades to deterministic heuristics when no LLM key is set** — so it
+runs offline too.
 
 ```
 Next.js (web, dark UI)  →  Express API + SQLite  →  Agent System (LangGraph, TS)
+                                                         │
+                                          shared/ framework: LLM gateway · KB · tools
 ```
 
 Pipeline: `guard → classify → sentiment → decompose → investigate (parallel) →
@@ -58,13 +64,41 @@ the web port in `apps/web/package.json`, and the browser→API URL in
 
 ---
 
+## LLM setup (company endpoint)
+
+The agents call an LLM through one gateway (`apps/agent/src/shared/gateway`). The
+company gateway is **OpenAI-compatible** (model in the body, base URL ending at
+`/v1`, bearer-token auth), so you set exactly **three** values in `.env`:
+
+```bash
+LLM_ENDPOINT=https://openaiqc.gep.com/summerintern/openai/v1  # base URL up to /v1
+LLM_MODEL=gpt-5.2                                             # model sent in the body
+LLM_API_KEY=your-bearer-token                                # Authorization: Bearer <token>
+```
+
+This maps 1:1 to the curl: the SDK appends `/chat/completions` to `LLM_ENDPOINT`,
+puts `LLM_MODEL` in the request body, and sends `LLM_API_KEY` as a bearer header.
+When `LLM_ENDPOINT` is set the engine selects this endpoint automatically (no
+`LLM_PROVIDER` needed) and uses a normal chat-completions body (it accepts
+`temperature` for a `gpt-5.x` model name).
+
+**No key? It still runs.** With no provider configured, intent routing, agent
+answers, and final synthesis fall back to deterministic heuristics (keyword
+routing + KB/tool-grounded templates) — handy for offline demos. Standard
+OpenAI/Anthropic/Groq/Gemini and native Azure are also supported (see
+`.env.example`).
+
+---
+
 ## Developing agents independently
 
-This is a hard requirement of the design: **each agent and each step is a pure,
-importable function** with typed input/output — no DB, no HTTP, no LLM. You can
-build/test one in isolation without running the rest of the system.
+A hard requirement of the design: **each agent and each step is an importable
+unit** with typed input/output you can build and test in isolation, without
+running the rest of the system. Steps (`guard`, `classify`, …) are pure
+functions; each specialist agent is a self-contained framework agent (its own
+use cases + KB scope) you can invoke on its own.
 
-### Run a single agent (hard-coded specialist)
+### Run a single agent (LLM-backed specialist)
 
 ```bash
 npm --workspace apps/agent run agent -- billing "I was charged twice"
@@ -90,20 +124,29 @@ npm --workspace apps/agent run pipeline -- "App crashes after login and I was ch
 
 ### Import an agent as a function
 
-Each specialist is exported as a plain function:
+Each specialist is a framework agent exposed through an adapter to the pipeline
+contract:
 
 ```ts
-import { investigateBilling } from "apps/agent/src/agents/billing";
+import { getAgent } from "apps/agent/src/agents/registry";
 
-const report = investigateBilling(
+const report = await getAgent("billing").run(
   { id: "SP-1", domain: "billing", description: "charged twice" },
   { message: "I was charged twice", history: [] }
 );
 ```
 
-**To add a new agent:** create `apps/agent/src/agents/<name>.ts` implementing the
-`SpecialistAgent` interface, then add one line to
-`apps/agent/src/agents/registry.ts`. The orchestrator picks it up by domain.
+Under the hood `apps/agent/src/agents/billing/index.ts` is just
+`createAgent({ name: "billing", useCasesDir: "./usecases" })` — the shared
+factory pointed at this agent's own JSON use cases.
+
+**To add a new use case:** drop a JSON file in `apps/agent/src/agents/<domain>/
+usecases/` (id, description, example utterances, prompt, allowed tools + KB
+files). The classifier and execution graph pick it up automatically — no code.
+
+**To add a new agent (domain):** copy `agents/billing/index.ts`, point it at a
+new `usecases/` folder, and add one line to `apps/agent/src/agents/registry.ts`
+via `adaptAgent(...)`. The orchestrator routes to it by domain.
 
 ---
 
@@ -162,19 +205,23 @@ issue, emit one sub-problem. This is what makes the parallel fan-out possible.
 
 **Job:** Investigate one sub-problem in one domain and return a structured report
 (`findings`, `actions`, `reasoning`, `evidence`, `status`, `confidence`). Each
-agent is a **pure function** `(sub, ctx) => AgentReport` — no DB/HTTP/LLM in the
-base. Today they're hard-coded; swap a body for real logic without changing the
-signature.
+agent is an **LLM-backed framework agent**: it routes the sub-ticket to one of
+its **declarative JSON use cases**, gathers grounding from its scoped **tools**
+and **knowledge base**, then asks the LLM (via the shared gateway) for a
+structured answer. Follow-up history and the specific sub-problem are passed in
+as focus. With no LLM key it falls back to keyword routing + KB/tool-grounded
+templates, so the signature and contract never change.
 
-- **Owns:** `apps/agent/src/agents/*` (`technical.ts`, `billing.ts`, `policy.ts`,
-  …) + `registry.ts`
+- **Owns:** `apps/agent/src/agents/<domain>/{index.ts,usecases/*.json}`,
+  `agents/{adapter,registry,base}.ts`, and the `apps/agent/src/shared/` framework
+  (gateway, core, handlers, tools, kb)
 - **Reads:** a `SubProblem` + `{ message, history }`
 - **Writes:** one `AgentReport` (collected into `agent_reports[]`)
 - **Run alone:** `npm --workspace apps/agent run agent -- billing "…"`
-- **Add an agent:** new file implementing `SpecialistAgent`, then one line in
-  `registry.ts`.
-- **Done when:** each domain returns relevant findings + at least one evidence
-  ref where applicable, and sets an honest `status`.
+- **Add a use case:** a JSON file in the agent's `usecases/`. **Add an agent:**
+  one `createAgent` + a `usecases/` folder + a line in `registry.ts`.
+- **Done when:** each domain returns relevant findings + evidence refs (tool/KB
+  sources) and sets an honest `status`.
 
 ---
 
@@ -183,7 +230,10 @@ signature.
 **Job:** Take all the agent reports and produce the final answer. Merge findings,
 detect conflicts, compute an `overall_status`, and synthesize **one**
 customer-ready `resolution` that always includes reasoning + evidence (and the
-escalation note when present).
+escalation note when present). Synthesis is **LLM-backed** (the gateway merges
+overlapping points into one coherent, empathetic reply) with a deterministic
+template merge as fallback; reasoning + evidence always come from the agents,
+never invented by the model.
 
 - **Owns:** the merge half of `apps/agent/src/steps/orchestrator.ts` +
   `apps/agent/src/steps/synthesizer.ts`
@@ -262,7 +312,15 @@ techathon/
 │       └── src/
 │           ├── steps/        # guard, classifier, sentiment, decomposer,
 │           │                 #   orchestrator, severity, escalation, synthesizer
-│           ├── agents/       # technical, billing, policy + registry (pure fns)
+│           ├── agents/       # technical/ billing/ policy/ (index + usecases/*.json)
+│           │                 #   + adapter, registry, base
+│           ├── shared/       # the LLM agent framework:
+│           │   ├── gateway/  #   single LLM door (azure/openai/… adapters)
+│           │   ├── core/     #   per-agent classify → graph → report
+│           │   ├── handlers/ #   one declarative handler runs any JSON use case
+│           │   ├── tools/    #   shared tool pool (mocked data sources)
+│           │   ├── kb/       #   central knowledge base + retriever
+│           │   └── config/   #   single env reader
 │           ├── nodes.ts      # pipeline nodes (shared)
 │           ├── graph.ts      # LangGraph StateGraph wiring
 │           ├── pipeline.ts   # linear fallback runner
@@ -301,10 +359,19 @@ run never hard-fails.
 
 ---
 
-## Notes / limitations (base)
+## Notes / limitations
 
-- Agent answers are **hard-coded** (deterministic, keyword-aware) — no LLM, no
-  external services. Swap any agent's function body for real logic later; the
-  signatures and pipeline don't change.
+- Agents are **LLM-backed** through the shared gateway (Azure OpenAI by default).
+  With no key configured the system falls back to deterministic heuristics, so it
+  always runs.
+- **Tools are mocked.** The shared tool pool (`shared/tools`) returns realistic
+  in-memory data rather than calling live external services — there are no
+  outbound network APIs to stand up. Swap a tool's `run()` for a real call later;
+  the use cases and pipeline don't change.
+- The **knowledge base** ships markdown policies under `shared/kb/library` with
+  tiered (keyword/TF-IDF) retrieval; embeddings can slot in behind the same
+  interface.
 - SQLite is Node's built-in `node:sqlite` (no `better-sqlite3`, no compiler).
+- Every agent interaction is logged to a durable JSONL **audit trail**
+  (`logs/audit.jsonl`; set `AUDIT_LOG=off` to disable the file).
 - Dark mode only by design.

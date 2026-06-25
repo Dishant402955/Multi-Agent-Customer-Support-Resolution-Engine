@@ -11,6 +11,8 @@ import type { AgentDomain, AgentReport, Message, SubProblem } from "../contracts
 export interface AgentContext {
   message: string;
   history: Message[];
+  /** Selected customer id — auto-attached so tools can look the customer up. */
+  customerId?: string;
 }
 
 export interface SpecialistAgent {

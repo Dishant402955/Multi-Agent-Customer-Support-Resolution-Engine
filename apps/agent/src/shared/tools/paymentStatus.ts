@@ -24,6 +24,38 @@ const MOCK_PAYMENTS: Record<string, PaymentRecord> = {
     method: "Mastercard ****1881",
     lastPayment: { amount: 12, status: "failed", declineReason: "insufficient_funds" },
   },
+  cust_003: {
+    method: "Visa ****3091",
+    lastPayment: { amount: 399, status: "succeeded" },
+  },
+  cust_004: {
+    method: "Amex ****1007",
+    lastPayment: { amount: 4800, status: "succeeded" },
+  },
+  cust_005: {
+    method: "Visa ****7755",
+    lastPayment: { amount: 79, status: "pending" },
+  },
+  cust_006: {
+    method: "Mastercard ****2240",
+    lastPayment: { amount: 24, status: "failed", declineReason: "expired_card" },
+  },
+  cust_007: {
+    method: "Visa ****6612",
+    lastPayment: { amount: 299, status: "failed", declineReason: "card_declined" },
+  },
+  cust_008: {
+    method: "—",
+    lastPayment: { amount: 0, status: "succeeded" },
+  },
+  cust_009: {
+    method: "Wire transfer",
+    lastPayment: { amount: 12000, status: "succeeded" },
+  },
+  cust_010: {
+    method: "Visa ****9090",
+    lastPayment: { amount: 49, status: "succeeded" },
+  },
 };
 
 export const paymentStatus: Tool = {

@@ -19,6 +19,16 @@ export interface Ticket {
   text: string;
   /** Optional structured context the orchestrator already knows. */
   context?: Record<string, unknown>;
+  /**
+   * Prior turns on the same ticket (follow-ups). Lets the agent's answer take
+   * the conversation into account without polluting param extraction.
+   */
+  history?: { role: string; text: string }[];
+  /**
+   * For a decomposed multi-issue ticket, the specific sub-problem this agent
+   * should focus on (the decomposer's description). Empty for single-issue.
+   */
+  focus?: string;
 }
 
 /**

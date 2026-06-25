@@ -112,6 +112,16 @@ flowchart TB
 
 Policy agent uses LLM + prompts only — no separate service.
 
+> **Implementation note (as built).** The "mock external services" above are
+> realized **in-process** as the shared **tool pool** (`apps/agent/src/shared/
+> tools`) plus the central **knowledge base** (`shared/kb`), rather than as
+> separate Express processes — same synthesized data, no extra servers to run.
+> The **LLM** is reached through one gateway (`shared/gateway`) and points at the
+> company **OpenAI-compatible** endpoint via three env vars (`LLM_ENDPOINT`,
+> `LLM_MODEL`, `LLM_API_KEY` — a bearer token); with no key the agents fall back
+> to deterministic heuristics. SQLite uses Node's built-in `node:sqlite`. See the
+> root `README.md` for the live layout and run commands.
+
 ---
 
 ## Repo structure
