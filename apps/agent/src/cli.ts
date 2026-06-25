@@ -35,13 +35,13 @@ async function main() {
       case "guard":
         return out("guard", runGuard(message));
       case "classify":
-        return out("classify", runClassifier(message));
+        return out("classify", await runClassifier(message));
       case "sentiment":
         return out("sentiment", runSentiment(message));
       case "decompose":
-        return out("decompose", runDecomposer(message, runClassifier(message)));
+        return out("decompose", runDecomposer(message, await runClassifier(message)));
       case "investigate": {
-        const subs = runDecomposer(message, runClassifier(message));
+        const subs = runDecomposer(message, await runClassifier(message));
         return out("investigate", await runOrchestrator(subs, message, []));
       }
       default:
@@ -55,7 +55,7 @@ async function main() {
     const domain = (rest[0] as AgentDomain) || "billing";
     const message = rest.slice(1).join(" ") || DEFAULT_MSG;
     const sub: SubProblem = { id: "SP-1", domain, description: message };
-    return out(`${domain} agent`, getAgent(domain).run(sub, { message, history: [] }));
+    return out(`${domain} agent`, await getAgent(domain).run(sub, { message, history: [] }));
   }
 
   // default: full pipeline

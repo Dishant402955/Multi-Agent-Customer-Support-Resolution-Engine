@@ -1,0 +1,34 @@
+{
+  "use_case_id": "error_diagnosis",
+  "version": 1,
+  "enabled": true,
+  "description": "Diagnose a product error the customer is hitting (e.g. a failing feature or an error code) and give the known cause and fix.",
+  "example_utterances": [
+    "The export feature throws an error",
+    "I'm getting ERR_AUTH_401 when calling the API",
+    "Why does my report fail to download?",
+    "The app shows an error when I try to export",
+    "My integration keeps returning a 401",
+    "Something is broken when I export my data"
+  ],
+  "prompt": "You are a technical support specialist. Diagnose the customer's problem using the GATHERED DATA (lookupErrorCode results) and the troubleshooting KB. State (1) the most likely cause and (2) the recommended fix as concrete steps. Set resolved=true whenever you can identify a likely cause AND a fix from EITHER source — a matching KB symptom counts even if no error code was found. Set resolved=false ONLY when neither the tool nor the KB gives you a cause or fix (then the case is escalated). Reassure the customer that errors in export/reporting/integration are read-only and do not affect their stored data. Do not invent error codes or fixes.",
+  "capabilities": {
+    "tools": ["lookupErrorCode"],
+    "knowledge_base": [
+      { "library_name": "Shared Support KB", "knowledge_file": "troubleshooting.md" }
+    ],
+    "can_ask_user": true
+  },
+  "required_params": {},
+  "optional_params": {
+    "errorCode": {
+      "type": "string",
+      "description": "The product error code the customer encountered, if known."
+    }
+  },
+  "side_effecting": false,
+  "response_templates": {
+    "diagnosed": "Here's what's happening: {{cause}} To fix it: {{fix}}",
+    "needs_escalation": "I couldn't pin this down from our runbook. I'm escalating it to engineering with your trace id so they can investigate."
+  }
+}

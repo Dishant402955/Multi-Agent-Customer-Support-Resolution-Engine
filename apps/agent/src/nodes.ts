@@ -28,7 +28,7 @@ export async function guardNode(s: PipelineState): Promise<Partial<PipelineState
 }
 
 export async function classifyNode(s: PipelineState): Promise<Partial<PipelineState>> {
-  const classification = runClassifier(s.message);
+  const classification = await runClassifier(s.message, s.history, s.run_id);
   const top = classification.intents.map((i) => `${i.type} ${i.confidence.toFixed(2)}`).join(", ");
   return {
     classification,

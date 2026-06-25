@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   FileText,
   Gauge,
+  HelpCircle,
   ShieldAlert,
   Workflow,
 } from "lucide-react";
@@ -69,12 +70,29 @@ function AgentReportItem({ r }: { r: AgentReport }) {
       <div className="mb-2 flex items-center gap-2">
         <Boxes className="size-4 text-primary" />
         <strong className="capitalize">{r.agent} agent</strong>
-        <Badge variant={statusVariant(r.status)}>{r.status}</Badge>
+        {r.clarification_needed ? (
+          <Badge variant="warning">
+            <HelpCircle className="mr-1 size-3" /> needs clarification
+          </Badge>
+        ) : (
+          <Badge variant={statusVariant(r.status)}>{r.status}</Badge>
+        )}
         <span className="ml-auto text-xs text-muted-foreground">
           conf {Math.round(r.confidence * 100)}%
         </span>
       </div>
-      {r.findings.length > 0 && (
+      {r.clarification_needed && (r.clarification_question || r.findings[0]) && (
+        <div className="mb-2 flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-sm">
+          <HelpCircle className="mt-0.5 size-4 shrink-0 text-amber-500" />
+          <div>
+            <div className="font-medium text-foreground">We need a bit more detail</div>
+            <p className="text-muted-foreground">
+              {r.clarification_question || r.findings[0]}
+            </p>
+          </div>
+        </div>
+      )}
+      {!r.clarification_needed && r.findings.length > 0 && (
         <ul className="ml-4 list-disc space-y-1 text-sm">
           {r.findings.map((f, i) => (
             <li key={i}>{f}</li>
