@@ -14,6 +14,7 @@ export interface RunRequest {
     department?: string | null;
     urgency?: string | null;
   };
+  prior_context?: unknown;
   history: { role: string; text: string; timestamp: string }[];
 }
 

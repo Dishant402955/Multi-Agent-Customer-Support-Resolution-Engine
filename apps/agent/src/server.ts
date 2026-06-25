@@ -13,7 +13,7 @@ app.use(express.json({ limit: "1mb" }));
 app.get("/health", (_req, res) => res.json({ ok: true, service: "agent" }));
 
 function parseRunBody(body: Record<string, unknown> | null | undefined) {
-  const { ticket_id, run_id, message, message_count, customer_id, ticket_status, history } = body || {};
+  const { ticket_id, run_id, message, message_count, customer_id, ticket_status, prior_context, history } = body || {};
   if (!message || typeof message !== "string" || !message.trim()) {
     return { error: "message is required" as const };
   }
@@ -25,6 +25,7 @@ function parseRunBody(body: Record<string, unknown> | null | undefined) {
       message_count: message_count as number | undefined,
       customer_id: customer_id as string | undefined,
       ticket_status: ticket_status as Parameters<typeof buildInput>[0]["ticket_status"],
+      prior_context: prior_context as Parameters<typeof buildInput>[0]["prior_context"],
       history: (history as Parameters<typeof buildInput>[0]["history"]) ?? [],
     }),
   };

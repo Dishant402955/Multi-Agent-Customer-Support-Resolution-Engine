@@ -21,6 +21,7 @@ const StateAnnotation = Annotation.Root({
   message_count: Annotation<number>,
   customer_id: Annotation<PipelineState["customer_id"]>,
   ticket_status: Annotation<PipelineState["ticket_status"]>,
+  prior_context: Annotation<PipelineState["prior_context"]>,
   history: Annotation<PipelineState["history"]>,
   guard: Annotation<PipelineState["guard"]>,
   classification: Annotation<PipelineState["classification"]>,
@@ -45,7 +46,7 @@ const builder = new StateGraph(StateAnnotation)
   .addNode("classify_step", classifyNode)
   .addNode("sentiment_step", sentimentNode)
   .addNode("decompose_step", decomposeNode)
-  .addNode("investigate_step", investigateNode)
+  .addNode("investigate_step", (s) => investigateNode(s))
   .addNode("severity_step", severityNode)
   .addNode("escalation_step", escalationNode)
   .addNode("synthesize_step", synthesizeNode)

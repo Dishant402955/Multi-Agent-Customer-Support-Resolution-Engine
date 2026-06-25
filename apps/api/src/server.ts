@@ -10,8 +10,10 @@ import {
   createEscalation,
   deleteTicket,
   ensureTicket,
+  getCustomerHistory,
   getLatestEscalationForTicket,
   getLatestRun,
+  getLatestRunContext,
   getMessages,
   getOpenEscalationForTicket,
   getTicketCustomer,
@@ -22,17 +24,40 @@ import {
   listTicketsDashboard,
   resolveEscalation,
   saveRun,
+  ticketExists,
   type EscalationRecord,
 } from "./db";
 import { runAgentPipeline, runAgentPipelineStream, type RunRequest } from "./agentClient";
-import { claimUser, listUsers, releaseUser, userName } from "./users";
+import { claimUser, listUsers, PRESENCE_STORE, PRESENCE_TTL_MS, releaseUser, userName } from "./users";
 import { HUMAN_AGENTS, pickAssignee, type Department } from "./humans";
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 
-app.get("/health", (_req, res) => res.json({ ok: true, service: "api" }));
+app.get("/health", (_req, res) =>
+  res.json({
+    ok: true,
+    service: "api",
+    presence: {
+      store: PRESENCE_STORE,
+      ttl_ms: PRESENCE_TTL_MS,
+      note:
+        PRESENCE_STORE === "sqlite"
+          ? "Presence locks are stored in SQLite and shared by API instances using the same DB file."
+          : "Presence locks are process-local.",
+    },
+  })
+);
+
+function requestedCustomerId(value: unknown): string | null {
+  return value && String(value).trim() ? String(value).trim() : null;
+}
+
+function canAccessTicket(ticketId: string, customerId: string | null): boolean {
+  if (!ticketExists(ticketId)) return false;
+  return getTicketCustomer(ticketId) === customerId;
+}
 
 // Route an escalation to the right human department based on the run.
 function departmentFor(state: any): Department {
@@ -177,13 +202,21 @@ async function executeTicketRun(body: Record<string, unknown>) {
   const ticketId =
     ticket_id && String(ticket_id).trim() ? String(ticket_id) : `T-${randomUUID().slice(0, 8)}`;
 
+  const requestedCustomer = requestedCustomerId(customer_id);
+  const exists = ticketExists(ticketId);
   const existingCustomer = getTicketCustomer(ticketId);
-  const customerId =
-    existingCustomer ?? (customer_id && String(customer_id).trim() ? String(customer_id) : null);
+  if (exists && existingCustomer !== requestedCustomer) {
+    return { error: "Ticket does not belong to the selected customer", status: 403 as const };
+  }
+  const customerId = exists ? existingCustomer : requestedCustomer;
   ensureTicket(ticketId, customerId);
 
-  const history = getMessages(ticketId);
+  // Agent contract: history is prior customer messages only. Full thread remains
+  // available for display via getMessages(), while structured prior_context
+  // carries the previous run's support response/reports/investigation.
+  const history = getCustomerHistory(ticketId);
   const isFollowUp = history.length > 0;
+  const priorContext = isFollowUp ? getLatestRunContext(ticketId) : null;
 
   const priorEsc = getLatestEscalationForTicket(ticketId);
   const ticketStatus = priorEsc
@@ -207,6 +240,7 @@ async function executeTicketRun(body: Record<string, unknown>) {
     message_count: messageCount,
     ...(customerId ? { customer_id: customerId } : {}),
     ticket_status: ticketStatus,
+    ...(priorContext ? { prior_context: priorContext } : {}),
     history,
   };
 
@@ -279,9 +313,20 @@ app.post("/api/tickets/stream", async (req, res) => {
         send(evt);
       }
     } catch (err) {
-      send({ type: "error", message: (err as Error).message });
-      res.end();
-      return;
+      // If SSE/progress mode fails after we've accepted the message, fall back to
+      // the regular non-streaming pipeline with the same run request. This avoids
+      // duplicating the customer message while still completing the ticket.
+      send({
+        type: "step_start",
+        message: `Live progress failed; retrying without streaming: ${(err as Error).message}`,
+      });
+      try {
+        state = await runAgentPipeline(prep.runReq);
+      } catch (fallbackErr) {
+        send({ type: "error", message: (fallbackErr as Error).message });
+        res.end();
+        return;
+      }
     }
 
     if (!state) {
@@ -325,7 +370,10 @@ app.get("/api/tickets", (req, res) => {
 // same customer at once.
 app.get("/api/users", (req, res) => {
   const session = req.query.session ? String(req.query.session) : undefined;
-  res.json({ users: listUsers(session) });
+  res.json({
+    users: listUsers(session),
+    presence: { store: PRESENCE_STORE, ttl_ms: PRESENCE_TTL_MS },
+  });
 });
 
 app.post("/api/users/:id/claim", (req, res) => {
@@ -334,9 +382,13 @@ app.post("/api/users/:id/claim", (req, res) => {
   const result = claimUser(req.params.id, session);
   if (!result.ok) {
     const status = result.reason === "occupied" ? 409 : 404;
-    return res.status(status).json({ error: result.reason, users: listUsers(session) });
+    return res.status(status).json({
+      error: result.reason,
+      users: listUsers(session),
+      presence: { store: PRESENCE_STORE, ttl_ms: PRESENCE_TTL_MS },
+    });
   }
-  res.json({ ok: true, users: listUsers(session) });
+  res.json({ ok: true, users: listUsers(session), presence: { store: PRESENCE_STORE, ttl_ms: PRESENCE_TTL_MS } });
 });
 
 app.post("/api/users/:id/release", (req, res) => {
@@ -393,6 +445,10 @@ app.get("/api/dashboard/tickets/:id", (req, res) => {
 });
 
 app.get("/api/tickets/:id", (req, res) => {
+  const customer = requestedCustomerId(req.query.customer);
+  if (!canAccessTicket(req.params.id, customer)) {
+    return res.status(404).json({ error: "Ticket not found" });
+  }
   const run = getLatestRun(req.params.id);
   const messages = getMessages(req.params.id);
   if (!run && messages.length === 0) return res.status(404).json({ error: "Ticket not found" });
@@ -407,6 +463,10 @@ app.get("/api/tickets/:id", (req, res) => {
 });
 
 app.delete("/api/tickets/:id", (req, res) => {
+  const customer = requestedCustomerId(req.query.customer);
+  if (!canAccessTicket(req.params.id, customer)) {
+    return res.status(404).json({ error: "Ticket not found" });
+  }
   deleteTicket(req.params.id);
   res.json({ ok: true });
 });

@@ -37,6 +37,7 @@ export function adaptAgent(domain: AgentDomain, fw: FrameworkAgent): SpecialistA
         ...(sub.description && sub.description !== ctx.message
           ? { focus: sub.description }
           : {}),
+        ...(ctx.priorContext ? { priorContext: ctx.priorContext } : {}),
       });
 
       // The framework distinguishes "matched my domain but I'm unsure — ask the
@@ -58,6 +59,13 @@ export function adaptAgent(domain: AgentDomain, fw: FrameworkAgent): SpecialistA
         ...(needsClarification
           ? { clarification_needed: true, clarification_question: report.findings }
           : {}),
+        trace: report.trace.map((t) => ({
+          traceId: t.traceId,
+          ts: t.ts,
+          node: t.node,
+          message: t.message,
+          data: t.data,
+        })),
       };
     },
   };

@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getDashboardTicket, listDashboardTickets } from "@/lib/api";
 import type { AuditEvent, TicketDashboardDetail, TicketDashboardRow, TicketLifecycleStatus } from "@/lib/types";
-import { KindTag } from "@/components/views";
+import { AgentReportDetails, InvestigationSummary, KindTag, StructuredResolutionDetails } from "@/components/views";
 
 type StatusFilter = "all" | TicketLifecycleStatus;
 
@@ -342,17 +342,28 @@ function RunTraceCard({
               </p>
               <div className="space-y-2">
                 {run.agent_reports.map((r) => (
-                  <div key={r.sub_problem_id + r.agent} className="rounded-md border border-border p-2.5 text-xs">
-                    <div className="flex items-center gap-2">
-                      <strong className="capitalize">{r.agent}</strong>
-                      <Badge variant="outline">{r.status}</Badge>
-                      {r.duration_ms != null && (
-                        <span className="ml-auto text-muted-foreground">{r.duration_ms}ms</span>
-                      )}
-                    </div>
-                    {r.findings[0] && <p className="mt-1 text-muted-foreground">{r.findings[0]}</p>}
-                  </div>
+                  <AgentReportDetails key={r.sub_problem_id + r.agent} report={r} />
                 ))}
+              </div>
+            </div>
+          )}
+
+          {run.state.investigation && (
+            <div className="mb-4">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Investigation merge
+              </p>
+              <InvestigationSummary s={run.state} />
+            </div>
+          )}
+
+          {run.state.resolution && (
+            <div className="mb-4">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Structured resolution
+              </p>
+              <div className="rounded-md border border-border bg-card/40 p-3">
+                <StructuredResolutionDetails s={run.state} />
               </div>
             </div>
           )}

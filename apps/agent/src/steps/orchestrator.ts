@@ -102,9 +102,15 @@ export async function runOrchestrator(
   message: string,
   history: Message[],
   customerId?: string,
+  priorContext?: AgentContext["priorContext"],
   onAgentDone?: (domain: AgentDomain, report: AgentReport) => void
 ): Promise<{ reports: AgentReport[]; investigation: Investigation; timing: OrchestratorTiming }> {
-  const ctx: AgentContext = { message, history, ...(customerId ? { customerId } : {}) };
+  const ctx: AgentContext = {
+    message,
+    history,
+    ...(customerId ? { customerId } : {}),
+    ...(priorContext ? { priorContext } : {}),
+  };
   const startedAt = Date.now();
   const reports = await fanOut(subProblems, ctx, onAgentDone);
   const wallMs = Date.now() - startedAt;

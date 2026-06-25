@@ -29,6 +29,11 @@ export interface Ticket {
    * should focus on (the decomposer's description). Empty for single-issue.
    */
   focus?: string;
+  /**
+   * Compact structured context from the latest previous pipeline run on this
+   * ticket. Used for follow-ups so agents can reference prior findings/actions.
+   */
+  priorContext?: unknown;
 }
 
 /**

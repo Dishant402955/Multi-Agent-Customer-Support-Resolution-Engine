@@ -2,7 +2,7 @@
 // linear runner if the graph executor throws (lazy import so a construction
 // error is caught here instead of crashing the process).
 import { randomUUID } from "node:crypto";
-import type { Message, PipelineInput, PipelineState, TicketStatus } from "./contracts/types";
+import type { Message, PipelineInput, PipelineState, PriorRunContext, TicketStatus } from "./contracts/types";
 import { runPipelineLinear } from "./pipeline";
 
 export function buildInput(opts: {
@@ -12,6 +12,7 @@ export function buildInput(opts: {
   message_count?: number;
   customer_id?: string;
   ticket_status?: TicketStatus;
+  prior_context?: PriorRunContext;
   history?: Message[];
 }): PipelineInput {
   return {
@@ -21,6 +22,7 @@ export function buildInput(opts: {
     message_count: opts.message_count ?? 1,
     ...(opts.customer_id ? { customer_id: opts.customer_id } : {}),
     ...(opts.ticket_status ? { ticket_status: opts.ticket_status } : {}),
+    ...(opts.prior_context ? { prior_context: opts.prior_context } : {}),
     history: opts.history ?? [],
   };
 }

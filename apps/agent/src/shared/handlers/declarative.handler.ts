@@ -38,6 +38,17 @@ function historyBlock(state: AgentState): string {
   return `CONVERSATION SO FAR (oldest first):\n${lines}\n`;
 }
 
+/** Render structured facts from the previous run for follow-up handling. */
+function priorContextBlock(state: AgentState): string {
+  const prior = state.ticket.priorContext;
+  if (!prior || (typeof prior === "object" && Object.keys(prior).length === 0)) return "";
+  return `LATEST PRIOR RUN CONTEXT (use for follow-ups; do not ask the customer to restate these facts):\n${JSON.stringify(
+    prior,
+    null,
+    2
+  )}\n`;
+}
+
 /**
  * Deterministic answer when no LLM is available (or the LLM call fails). Builds
  * findings from the gathered tool data + KB snippets so the agent still returns
@@ -270,6 +281,7 @@ export function makeDeclarativeHandler(def: UseCaseDefinition): UseCaseHandler {
       const user = [
         historyBlock(state),
         state.ticket.focus ? `FOCUS ON THIS SUB-PROBLEM: ${state.ticket.focus}\n` : "",
+        priorContextBlock(state),
         `CUSTOMER MESSAGE: ${state.ticket.text}`,
         "",
         `GATHERED DATA: ${JSON.stringify(gathered, null, 2)}`,

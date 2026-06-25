@@ -1,10 +1,17 @@
-// Demo "customers" you can act as, plus a tiny in-memory presence lock so two
+// Demo "customers" you can act as, plus a SQLite-backed presence lock so two
 // browser instances can't act as the same customer at the same time.
 //
-// Presence is intentionally in-process and TTL-based: a claim is renewed by a
-// client heartbeat and auto-expires if the client goes away (closed tab, crash),
-// which frees the customer for someone else. Good enough for a single-process
-// demo; swap the Map for Redis if this ever runs multi-instance.
+// Presence is intentionally TTL-based: a claim is renewed by a client heartbeat
+// and auto-expires if the client goes away (closed tab, crash). SQLite makes the
+// lock durable across API restarts and shareable by API instances using the same
+// DB file. For a horizontally scaled production service, swap this for Redis or
+// a database row with stricter transaction/isolation guarantees.
+import {
+  claimPresenceLock,
+  listPresenceLocks,
+  releasePresenceLock,
+  releasePresenceSession,
+} from "./db";
 
 export interface User {
   id: string;
@@ -38,31 +45,17 @@ export interface UserPresence extends User {
   mine: boolean;
 }
 
-const TTL_MS = 45_000;
-
-interface Claim {
-  sessionId: string;
-  expiresAt: number;
-}
-
-// customerId -> active claim
-const claims = new Map<string, Claim>();
-
-function prune(): void {
-  const now = Date.now();
-  for (const [id, c] of claims) {
-    if (c.expiresAt <= now) claims.delete(id);
-  }
-}
+export const PRESENCE_TTL_MS = 45_000;
+export const PRESENCE_STORE = "sqlite";
 
 export function listUsers(sessionId?: string): UserPresence[] {
-  prune();
+  const claims = listPresenceLocks();
   return USERS.map((u) => {
     const c = claims.get(u.id);
     return {
       ...u,
       occupied: !!c,
-      mine: !!c && c.sessionId === sessionId,
+      mine: !!c && c.session_id === sessionId,
     };
   });
 }
@@ -78,26 +71,16 @@ export interface ClaimResult {
  * session: claiming a new customer releases any other the session held.
  */
 export function claimUser(userId: string, sessionId: string): ClaimResult {
-  prune();
   if (!USERS.some((u) => u.id === userId)) return { ok: false, reason: "unknown_user" };
-  const existing = claims.get(userId);
-  if (existing && existing.sessionId !== sessionId) return { ok: false, reason: "occupied" };
-
-  for (const [id, c] of claims) {
-    if (c.sessionId === sessionId && id !== userId) claims.delete(id);
-  }
-  claims.set(userId, { sessionId, expiresAt: Date.now() + TTL_MS });
-  return { ok: true };
+  const result = claimPresenceLock(userId, sessionId, PRESENCE_TTL_MS);
+  return result === "ok" ? { ok: true } : { ok: false, reason: "occupied" };
 }
 
 export function releaseUser(userId: string, sessionId: string): void {
-  const c = claims.get(userId);
-  if (c && c.sessionId === sessionId) claims.delete(userId);
+  releasePresenceLock(userId, sessionId);
 }
 
 /** Release whatever this session holds (used on disconnect). */
 export function releaseSession(sessionId: string): void {
-  for (const [id, c] of claims) {
-    if (c.sessionId === sessionId) claims.delete(id);
-  }
+  releasePresenceSession(sessionId);
 }

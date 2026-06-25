@@ -62,6 +62,16 @@ export interface AgentReport {
   // status contract and all downstream steps are unchanged.
   clarification_needed?: boolean;
   clarification_question?: string;
+  /** Internal framework/tool/KB/LLM trace rows captured while this agent ran. */
+  trace?: AgentTraceEvent[];
+}
+
+export interface AgentTraceEvent {
+  traceId: string;
+  ts: string;
+  node: string;
+  message: string;
+  data?: Record<string, unknown>;
 }
 
 export interface Investigation {
@@ -107,6 +117,19 @@ export interface TicketStatus {
   urgency?: string | null;
 }
 
+// Compact structured context from the latest previous run on the same ticket.
+// Follow-ups can use this to build on what was already investigated instead of
+// relying only on the raw chat transcript.
+export interface PriorRunContext {
+  run_id?: string;
+  message?: string;
+  resolution?: Resolution;
+  agent_reports?: AgentReport[];
+  investigation?: Investigation;
+  severity?: Severity;
+  escalation?: Escalation;
+}
+
 export type StepKind = "llm" | "heuristic";
 
 export interface AuditEvent {
@@ -130,6 +153,8 @@ export interface PipelineState {
   customer_id?: string;
   /** Live ticket status (escalation open/resolved, assignee) for follow-ups. */
   ticket_status?: TicketStatus;
+  /** Latest previous structured run, if this is a follow-up. */
+  prior_context?: PriorRunContext;
   history: Message[];
 
   guard?: Guard;
@@ -152,6 +177,7 @@ export interface PipelineInput {
   message_count: number;
   customer_id?: string;
   ticket_status?: TicketStatus;
+  prior_context?: PriorRunContext;
   history: Message[];
 }
 

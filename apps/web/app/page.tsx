@@ -24,6 +24,7 @@ import {
   listTickets,
   listUsers,
   releaseUser,
+  submitTicket,
   submitTicketStream,
 } from "@/lib/api";
 import type {
@@ -77,6 +78,7 @@ function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [run, setRun] = useState<PipelineState | null>(null);
   const [input, setInput] = useState("");
+  const [manualTicketId, setManualTicketId] = useState("");
   const [pending, setPending] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -209,8 +211,9 @@ function Home() {
 
   async function openConversation(id: string) {
     setActiveId(id);
+    setManualTicketId(id);
     setError("");
-    const data = await getTicket(id);
+    const data = await getTicket(id, selectedUser || undefined);
     setMessages(data?.messages ?? []);
     setRun(data?.run ?? null);
     setEscalationId(data?.escalation_id ?? data?.run?.escalation?.escalation_id ?? null);
@@ -222,6 +225,7 @@ function Home() {
     setRun(null);
     setError("");
     setInput("");
+    setManualTicketId("");
     setPending(null);
   }
 
@@ -254,7 +258,7 @@ function Home() {
 
   async function onDelete(id: string, e: React.MouseEvent) {
     e.stopPropagation();
-    await deleteTicket(id);
+    await deleteTicket(id, selectedUser || undefined);
     if (id === activeId) newChat();
     await refreshList();
   }
@@ -268,14 +272,25 @@ function Home() {
     setLoading(true);
     setProgress(emptyProgress());
     setEscalationId(null);
+    const ticketId = activeId || manualTicketId.trim() || undefined;
     try {
-      const data = await submitTicketStream(
-        msg,
-        (evt) => applyProgressEvent(evt),
-        activeId || undefined,
-        selectedUser || undefined
-      );
+      let data;
+      try {
+        data = await submitTicketStream(
+          msg,
+          (evt) => applyProgressEvent(evt),
+          ticketId,
+          selectedUser || undefined
+        );
+      } catch (streamErr) {
+        // If SSE is blocked or interrupted, complete the same ticket through the
+        // regular endpoint so the user still gets a result.
+        setProgress(null);
+        data = await submitTicket(msg, ticketId, selectedUser || undefined);
+        setError(`Live progress unavailable; completed without streaming. ${(streamErr as Error).message}`);
+      }
       setActiveId(data.ticket_id);
+      setManualTicketId(data.ticket_id);
       setMessages(data.messages);
       setRun(data.run);
       setEscalationId(data.escalation_id ?? data.run?.escalation?.escalation_id ?? null);
@@ -386,6 +401,29 @@ function Home() {
           </Button>
         </header>
 
+        <div className="border-b border-border p-3 md:hidden">
+          <div className="flex items-center gap-2">
+            <div className="min-w-0 flex-1">
+              <UserPicker users={users} selected={selectedUser} onSelect={selectUser} />
+            </div>
+            <Button variant="outline" size="sm" onClick={newChat}>
+              New
+            </Button>
+          </div>
+          <div className="mt-2 flex gap-2">
+            <Link href="/tickets" className="flex-1">
+              <Button variant="outline" size="sm" className="w-full gap-2">
+                <LayoutDashboard className="size-3.5" /> Tickets
+              </Button>
+            </Link>
+            <Link href="/escalations" className="flex-1">
+              <Button variant="outline" size="sm" className="w-full gap-2">
+                <ShieldAlert className="size-3.5" /> Escalations
+              </Button>
+            </Link>
+          </div>
+        </div>
+
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
           {!hasThread && !loading ? (
             <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center px-6 text-center">
@@ -444,6 +482,25 @@ function Home() {
                   ) : null}
                 </div>
               )}
+
+              {!loading && run && (
+                <div className="rounded-lg border border-border bg-card/40 lg:hidden">
+                  <Tabs defaultValue="details" className="w-full">
+                    <div className="border-b border-border p-2">
+                      <TabsList className="grid w-full grid-cols-2 bg-secondary">
+                        <TabsTrigger value="details">Details</TabsTrigger>
+                        <TabsTrigger value="flow">Flow</TabsTrigger>
+                      </TabsList>
+                    </div>
+                    <TabsContent value="details" className="mt-0">
+                      <RunDetails s={run} />
+                    </TabsContent>
+                    <TabsContent value="flow" className="mt-0 p-3">
+                      <PipelineFlow s={run} loading={loading} progress={progress} />
+                    </TabsContent>
+                  </Tabs>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -452,6 +509,26 @@ function Home() {
         <div className="border-t border-border px-4 py-3">
           <div className="mx-auto max-w-2xl">
             {error && <p className="mb-2 text-sm font-medium text-destructive">{error}</p>}
+            <div className="mb-2 flex flex-col gap-1.5 sm:flex-row sm:items-center">
+              <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Continue ticket
+              </label>
+              <input
+                value={manualTicketId}
+                onChange={(e) => setManualTicketId(e.target.value)}
+                placeholder="Optional ticket ID, e.g. T-1234abcd"
+                className="min-w-0 flex-1 rounded-md border border-border bg-card px-2 py-1.5 font-mono text-xs outline-none focus:border-foreground/40"
+              />
+              {manualTicketId.trim() && manualTicketId.trim() !== activeId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void openConversation(manualTicketId.trim())}
+                >
+                  Load
+                </Button>
+              )}
+            </div>
             <div className="flex items-end gap-2 rounded-xl border border-border bg-card p-2 focus-within:border-foreground/40">
               <textarea
                 value={input}
@@ -467,6 +544,7 @@ function Home() {
             </div>
             <p className="mt-1.5 px-1 text-[11px] text-muted-foreground">
               Enter to send · Shift+Enter for a new line.{" "}
+              {manualTicketId.trim() && !activeId ? `Will continue ${manualTicketId.trim()}. ` : ""}
               {activeUser
                 ? `Lookups run as ${activeUser.name} — no need to give an id.`
                 : "No customer selected — billing/technical lookups will ask for an id."}

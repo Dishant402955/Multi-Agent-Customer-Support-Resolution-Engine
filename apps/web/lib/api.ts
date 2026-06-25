@@ -86,9 +86,10 @@ export async function submitTicket(
 }
 
 /** Latest run + full message thread for one ticket (used to reopen a chat). */
-export async function getTicket(ticketId: string): Promise<TicketDetail | null> {
+export async function getTicket(ticketId: string, customerId?: string): Promise<TicketDetail | null> {
   try {
-    const res = await fetch(`${API}/api/tickets/${encodeURIComponent(ticketId)}`);
+    const qs = customerId ? `?customer=${encodeURIComponent(customerId)}` : "";
+    const res = await fetch(`${API}/api/tickets/${encodeURIComponent(ticketId)}${qs}`);
     if (!res.ok) return null;
     return (await res.json()) as TicketDetail;
   } catch {
@@ -110,9 +111,10 @@ export async function listTickets(customerId?: string): Promise<TicketSummary[]>
 }
 
 /** Permanently delete a ticket and its history. */
-export async function deleteTicket(ticketId: string): Promise<void> {
+export async function deleteTicket(ticketId: string, customerId?: string): Promise<void> {
   try {
-    await fetch(`${API}/api/tickets/${encodeURIComponent(ticketId)}`, { method: "DELETE" });
+    const qs = customerId ? `?customer=${encodeURIComponent(customerId)}` : "";
+    await fetch(`${API}/api/tickets/${encodeURIComponent(ticketId)}${qs}`, { method: "DELETE" });
   } catch {
     // best-effort; the list refresh will reflect server truth
   }

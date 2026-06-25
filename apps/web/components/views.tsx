@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Check, ChevronRight, Loader2 } from "lucide-react";
-import type { AuditEvent, PipelineState, PipelineStepId, RunProgress, StepKind } from "@/lib/types";
+import type { AgentReport, AuditEvent, PipelineState, PipelineStepId, RunProgress, StepKind } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 
 function statusVariant(status: string) {
@@ -52,6 +52,198 @@ function Bar({ label, value }: { label: string; value: number }) {
   );
 }
 
+function DetailList({ items }: { items: string[] }) {
+  if (!items.length) return <p className="text-xs text-muted-foreground">None reported.</p>;
+  return (
+    <ul className="ml-4 list-disc space-y-1 text-xs text-muted-foreground">
+      {items.map((item, i) => (
+        <li key={`${item}-${i}`}>{item}</li>
+      ))}
+    </ul>
+  );
+}
+
+export function InvestigationSummary({ s }: { s: PipelineState }) {
+  if (!s.investigation) return null;
+  const conflicts = s.investigation.conflicts || [];
+  return (
+    <div className="rounded-md border border-border bg-card/40 p-3 text-xs">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-medium">Merged investigation</span>
+        <Badge
+          variant={
+            s.investigation.overall_status === "resolved"
+              ? "success"
+              : s.investigation.overall_status === "unresolved"
+              ? "destructive"
+              : "warning"
+          }
+        >
+          {s.investigation.overall_status}
+        </Badge>
+        <span className="text-muted-foreground">
+          {s.agent_reports?.length ?? 0} specialist report{(s.agent_reports?.length ?? 0) === 1 ? "" : "s"} merged
+        </span>
+      </div>
+      {conflicts.length > 0 ? (
+        <div className="mt-2 rounded border border-destructive/40 bg-destructive/5 p-2">
+          <p className="font-medium text-foreground">Conflicts detected</p>
+          <ul className="ml-4 mt-1 list-disc text-muted-foreground">
+            {conflicts.map((c, i) => (
+              <li key={`${c}-${i}`}>{c}</li>
+            ))}
+          </ul>
+        </div>
+      ) : (
+        <p className="mt-2 text-muted-foreground">
+          No conflicts were detected between specialist findings.
+        </p>
+      )}
+    </div>
+  );
+}
+
+export function AgentReportDetails({ report }: { report: AgentReport }) {
+  return (
+    <div className="rounded-md border border-border bg-card/40 p-3 text-xs">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <strong className="capitalize">{report.agent} specialist</strong>
+        <Badge variant={report.clarification_needed ? "warning" : statusVariant(report.status)}>
+          {report.clarification_needed ? "needs clarification" : report.status}
+        </Badge>
+        <Badge variant="outline">confidence {Math.round((report.confidence ?? 0) * 100)}%</Badge>
+        {report.duration_ms != null && <Badge variant="outline">{report.duration_ms}ms</Badge>}
+      </div>
+
+      {report.clarification_needed && report.clarification_question && (
+        <div className="mb-3 rounded-md border border-amber-500/40 bg-amber-500/5 p-2">
+          <p className="font-medium text-foreground">Clarifying question</p>
+          <p className="mt-1 text-muted-foreground">{report.clarification_question}</p>
+        </div>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Findings
+          </p>
+          <DetailList items={report.findings || []} />
+        </div>
+        <div>
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Actions
+          </p>
+          <DetailList items={report.actions || []} />
+        </div>
+      </div>
+
+      <div className="mt-3">
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Reasoning
+        </p>
+        <p className="rounded-md border border-border bg-background/50 p-2 text-muted-foreground">
+          {report.reasoning || "No reasoning provided."}
+        </p>
+      </div>
+
+      <div className="mt-3">
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Evidence
+        </p>
+        {report.evidence?.length ? (
+          <div className="flex flex-wrap gap-1.5">
+            {report.evidence.map((e, i) => (
+              <code key={`${e}-${i}`} className="rounded bg-secondary px-1.5 py-0.5 text-[11px]">
+                {e}
+              </code>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">No evidence cited.</p>
+        )}
+      </div>
+
+      {report.trace?.length ? (
+        <div className="mt-3">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Internal trace
+          </p>
+          <ol className="max-h-40 space-y-1 overflow-y-auto rounded-md border border-border bg-background/50 p-2">
+            {report.trace.map((t, i) => (
+              <li key={`${t.traceId}-${i}`} className="text-[11px] text-muted-foreground">
+                <span className="font-mono">{new Date(t.ts).toLocaleTimeString()}</span>{" "}
+                <Badge variant="outline">{t.node}</Badge>{" "}
+                <span>{t.message}</span>
+                {t.data && (
+                  <pre className="mt-1 overflow-x-auto rounded bg-secondary/60 p-1 text-[10px]">
+                    {JSON.stringify(t.data, null, 2)}
+                  </pre>
+                )}
+              </li>
+            ))}
+          </ol>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+export function StructuredResolutionDetails({ s }: { s: PipelineState }) {
+  const res = s.resolution;
+  if (!res) return null;
+  return (
+    <div className="space-y-4">
+      <div>
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Summary
+        </p>
+        <p className="text-sm">{res.summary}</p>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Findings
+          </p>
+          <DetailList items={res.findings || []} />
+        </div>
+        <div>
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Actions
+          </p>
+          <DetailList items={res.actions || []} />
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Reasoning
+        </p>
+        <p className="rounded-md border border-border bg-card/40 p-2 text-xs text-muted-foreground">
+          {res.reasoning || "No reasoning provided."}
+        </p>
+      </div>
+
+      <div>
+        <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Evidence
+        </p>
+        {res.evidence?.length ? (
+          <div className="flex flex-wrap gap-1.5">
+            {res.evidence.map((e, i) => (
+              <code key={`${e}-${i}`} className="rounded bg-secondary px-1.5 py-0.5 text-[11px]">
+                {e}
+              </code>
+            ))}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">No evidence cited.</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /**
  * The analytical breakdown for one run — rendered in the right-hand panel.
  * Deliberately scoped to the "what was decided" views (classification,
@@ -61,8 +253,10 @@ function Bar({ label, value }: { label: string; value: number }) {
 export function RunDetails({ s }: { s: PipelineState }) {
   const c = s.classification;
   const subs = s.sub_problems || [];
+  const reports = s.agent_reports || [];
   const sev = s.severity;
   const esc = s.escalation;
+  const res = s.resolution;
 
   return (
     <div className="text-sm">
@@ -93,6 +287,14 @@ export function RunDetails({ s }: { s: PipelineState }) {
 
       {c && c.intents.length > 0 && (
         <Section title="Classification">
+          {c.fallback && (
+            <div className="mb-3 rounded-md border border-amber-500/40 bg-amber-500/5 p-2 text-xs">
+              <p className="font-medium text-foreground">Low confidence fallback</p>
+              <p className="mt-1 text-muted-foreground">
+                Routed to Policy for review instead of guessing a specialist.
+              </p>
+            </div>
+          )}
           <div className="space-y-2">
             {c.intents.map((i) => (
               <Bar key={i.type} label={i.type} value={i.confidence} />
@@ -112,6 +314,22 @@ export function RunDetails({ s }: { s: PipelineState }) {
               </div>
             ))}
           </div>
+        </Section>
+      )}
+
+      {reports.length > 0 && (
+        <Section title={reports.length > 1 ? `Specialist Reports · ${reports.length}` : "Specialist Report"}>
+          <div className="space-y-3">
+            {reports.map((r) => (
+              <AgentReportDetails key={r.sub_problem_id + r.agent} report={r} />
+            ))}
+          </div>
+        </Section>
+      )}
+
+      {s.investigation && (
+        <Section title="Investigation Merge">
+          <InvestigationSummary s={s} />
         </Section>
       )}
 
@@ -144,6 +362,12 @@ export function RunDetails({ s }: { s: PipelineState }) {
               ) : null}
             </div>
           )}
+        </Section>
+      )}
+
+      {res && (
+        <Section title="Structured Resolution">
+          <StructuredResolutionDetails s={s} />
         </Section>
       )}
     </div>
@@ -273,23 +497,7 @@ export function ChatActivity({ s }: { s: PipelineState }) {
           {reports.length > 0 && (
             <div className="space-y-2">
               {reports.map((r) => (
-                <div key={r.sub_problem_id + r.agent} className="text-xs">
-                  <div className="flex items-center gap-2">
-                    <strong className="capitalize">{r.agent} agent</strong>
-                    <Badge variant={r.clarification_needed ? "warning" : statusVariant(r.status)}>
-                      {r.clarification_needed ? "needs info" : r.status}
-                    </Badge>
-                    <span className="ml-auto tabular-nums text-muted-foreground">
-                      {r.duration_ms != null ? `${r.duration_ms}ms · ` : ""}
-                      {Math.round(r.confidence * 100)}%
-                    </span>
-                  </div>
-                  {(r.findings[0] || r.clarification_question) && (
-                    <p className="mt-1 text-muted-foreground">
-                      {r.clarification_question || r.findings[0]}
-                    </p>
-                  )}
-                </div>
+                <AgentReportDetails key={r.sub_problem_id + r.agent} report={r} />
               ))}
             </div>
           )}

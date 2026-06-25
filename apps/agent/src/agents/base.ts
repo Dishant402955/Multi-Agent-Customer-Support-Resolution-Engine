@@ -6,13 +6,15 @@
 // framework's report shape onto the pipeline's AgentReport contract.
 //
 // `run` may be sync or async — the orchestrator awaits it either way.
-import type { AgentDomain, AgentReport, Message, SubProblem } from "../contracts/types";
+import type { AgentDomain, AgentReport, Message, PriorRunContext, SubProblem } from "../contracts/types";
 
 export interface AgentContext {
   message: string;
   history: Message[];
   /** Selected customer id — auto-attached so tools can look the customer up. */
   customerId?: string;
+  /** Latest previous structured run context for follow-up reasoning. */
+  priorContext?: PriorRunContext;
 }
 
 export interface SpecialistAgent {

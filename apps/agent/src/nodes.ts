@@ -115,6 +115,7 @@ export async function investigateNode(
     s.message,
     s.history,
     s.customer_id,
+    s.prior_context,
     (agent, report) => {
       onAgentDone?.(agent, [
         audit(
@@ -160,6 +161,16 @@ export async function investigateNode(
         }
       )
     );
+    for (const t of r.trace ?? []) {
+      events.push({
+        step: `agent:${t.node}`,
+        actor: `${r.agent} ${t.node}`,
+        timestamp: t.ts,
+        summary: t.message,
+        kind: t.node === "tool" || t.node === "kb" ? "heuristic" : "llm",
+        ...(t.data ? { detail: JSON.stringify(t.data) } : {}),
+      });
+    }
   }
 
   events.push(
@@ -175,7 +186,7 @@ export async function investigateNode(
 }
 
 export async function severityNode(s: PipelineState): Promise<Partial<PipelineState>> {
-  const severity = runSeverity(s.message, s.agent_reports || [], s.investigation!, s.sentiment!);
+  const severity = runSeverity(s.agent_reports || [], s.investigation!, s.sentiment!, s.message_count);
   return {
     severity,
     audit_trail: [
@@ -214,7 +225,11 @@ export async function escalationNode(s: PipelineState): Promise<Partial<Pipeline
     (s.sub_problems?.[0]?.domain as AgentDomain) ||
     (s.classification?.primary_intent as AgentDomain) ||
     "policy";
-  const escalation = runEscalation(gate.reasons, s.severity!, primaryDomain);
+  const escalation = await runEscalation(gate.reasons, s.severity!, primaryDomain, {
+    traceId: s.run_id,
+    reports: s.agent_reports,
+    investigation: s.investigation,
+  });
   return {
     escalation,
     audit_trail: [
@@ -236,6 +251,7 @@ export async function synthesizeNode(s: PipelineState): Promise<Partial<Pipeline
     message: s.message,
     history: s.history,
     ticketStatus: s.ticket_status,
+    priorContext: s.prior_context,
   });
   return {
     resolution,

@@ -45,6 +45,12 @@ db.exec(`
     status         TEXT NOT NULL DEFAULT 'open',
     created_at     TEXT NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS presence_locks (
+    customer_id TEXT PRIMARY KEY,
+    session_id  TEXT NOT NULL,
+    expires_at  INTEGER NOT NULL
+  );
 `);
 
 // Migration: associate tickets with the customer they were opened as, so each
@@ -80,6 +86,10 @@ export function getTicketCustomer(ticketId: string): string | null {
     .prepare("SELECT customer_id FROM tickets WHERE ticket_id = ?")
     .get(ticketId) as any;
   return row?.customer_id ?? null;
+}
+
+export function ticketExists(ticketId: string): boolean {
+  return !!db.prepare("SELECT 1 FROM tickets WHERE ticket_id = ?").get(ticketId);
 }
 
 export function getCustomerHistory(ticketId: string): StoredMessage[] {
@@ -140,6 +150,59 @@ export function deleteTicket(ticketId: string): void {
   db.prepare("DELETE FROM tickets WHERE ticket_id = ?").run(ticketId);
 }
 
+// ---- Durable-ish presence locks -------------------------------------------
+// SQLite keeps "act as customer" locks out of process memory, so a restarted API
+// or another API instance using the same DB sees the same ownership state.
+
+export interface PresenceClaim {
+  customer_id: string;
+  session_id: string;
+  expires_at: number;
+}
+
+export function prunePresenceLocks(now = Date.now()): void {
+  db.prepare("DELETE FROM presence_locks WHERE expires_at <= ?").run(now);
+}
+
+export function listPresenceLocks(now = Date.now()): Map<string, PresenceClaim> {
+  prunePresenceLocks(now);
+  const rows = db.prepare("SELECT customer_id, session_id, expires_at FROM presence_locks").all() as any[];
+  return new Map(
+    rows.map((r) => [
+      String(r.customer_id),
+      {
+        customer_id: String(r.customer_id),
+        session_id: String(r.session_id),
+        expires_at: Number(r.expires_at),
+      },
+    ])
+  );
+}
+
+export function claimPresenceLock(customerId: string, sessionId: string, ttlMs: number): "ok" | "occupied" {
+  const now = Date.now();
+  prunePresenceLocks(now);
+  const existing = db
+    .prepare("SELECT session_id FROM presence_locks WHERE customer_id = ?")
+    .get(customerId) as any;
+  if (existing && existing.session_id !== sessionId) return "occupied";
+
+  const expiresAt = now + ttlMs;
+  db.prepare("DELETE FROM presence_locks WHERE session_id = ? AND customer_id <> ?").run(sessionId, customerId);
+  db.prepare(
+    "INSERT OR REPLACE INTO presence_locks (customer_id, session_id, expires_at) VALUES (?, ?, ?)"
+  ).run(customerId, sessionId, expiresAt);
+  return "ok";
+}
+
+export function releasePresenceLock(customerId: string, sessionId: string): void {
+  db.prepare("DELETE FROM presence_locks WHERE customer_id = ? AND session_id = ?").run(customerId, sessionId);
+}
+
+export function releasePresenceSession(sessionId: string): void {
+  db.prepare("DELETE FROM presence_locks WHERE session_id = ?").run(sessionId);
+}
+
 export function countCustomerMessages(ticketId: string): number {
   const row = db
     .prepare("SELECT COUNT(*) AS n FROM messages WHERE ticket_id = ? AND role = 'customer'")
@@ -167,6 +230,31 @@ export function getLatestRun(ticketId: string): any | null {
     .prepare("SELECT state_json FROM runs WHERE ticket_id = ? ORDER BY created_at DESC LIMIT 1")
     .get(ticketId) as any;
   return row ? JSON.parse(row.state_json) : null;
+}
+
+export interface LatestRunContext {
+  run_id?: string;
+  message?: string;
+  resolution?: unknown;
+  agent_reports?: unknown[];
+  investigation?: unknown;
+  severity?: unknown;
+  escalation?: unknown;
+}
+
+/** Compact structured context from the latest previous run for follow-ups. */
+export function getLatestRunContext(ticketId: string): LatestRunContext | null {
+  const state = getLatestRun(ticketId);
+  if (!state) return null;
+  return {
+    run_id: state.run_id,
+    message: state.message,
+    resolution: state.resolution,
+    agent_reports: Array.isArray(state.agent_reports) ? state.agent_reports : [],
+    investigation: state.investigation,
+    severity: state.severity,
+    escalation: state.escalation,
+  };
 }
 
 // ---- Dashboard (all tickets / full traces) ---------------------------------

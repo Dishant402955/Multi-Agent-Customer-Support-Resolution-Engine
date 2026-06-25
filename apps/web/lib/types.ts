@@ -34,6 +34,14 @@ export interface AgentReport {
   duration_ms?: number;
   clarification_needed?: boolean;
   clarification_question?: string;
+  trace?: AgentTraceEvent[];
+}
+export interface AgentTraceEvent {
+  traceId: string;
+  ts: string;
+  node: string;
+  message: string;
+  data?: Record<string, unknown>;
 }
 export interface Investigation { overall_status: string; conflicts: string[]; }
 export interface Severity { level: string; priority: string; reasoning: string; }
@@ -59,6 +67,15 @@ export interface Resolution {
   actions: string[];
   reasoning: string;
   evidence: string[];
+}
+export interface PriorRunContext {
+  run_id?: string;
+  message?: string;
+  resolution?: Resolution;
+  agent_reports?: AgentReport[];
+  investigation?: Investigation;
+  severity?: Severity;
+  escalation?: Escalation;
 }
 // Sidebar list item (server-backed).
 export interface TicketSummary {
@@ -191,6 +208,7 @@ export interface PipelineState {
   message: string;
   message_count: number;
   history?: Message[];
+  prior_context?: PriorRunContext;
   guard?: { force_escalation: boolean; reason: string | null; matched_phrase: string | null };
   classification?: Classification;
   sentiment?: Sentiment;

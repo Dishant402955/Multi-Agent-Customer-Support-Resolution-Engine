@@ -9,7 +9,7 @@
 // Safety net: if no provider is configured or the call fails, we fall back to a
 // deterministic template merge. Either way evidence + reasoning come straight
 // from the reports (never invented by the model), preserving traceability.
-import type { AgentReport, Escalation, Message, Resolution, TicketStatus } from "../contracts/types";
+import type { AgentReport, Escalation, Message, PriorRunContext, Resolution, TicketStatus } from "../contracts/types";
 import { callLLM, availableProviders } from "../shared/gateway/index";
 import { log } from "../shared/core/logger";
 
@@ -18,6 +18,7 @@ interface SynthOpts {
   message?: string;
   history?: Message[];
   ticketStatus?: TicketStatus;
+  priorContext?: PriorRunContext;
 }
 
 /** Human-readable line describing the ticket's current escalation status. */
@@ -44,13 +45,19 @@ function historyBlock(history?: Message[]): string {
   return lines;
 }
 
+function priorContextBlock(prior?: PriorRunContext): string {
+  if (!prior || Object.keys(prior).length === 0) return "";
+  return JSON.stringify(prior, null, 2);
+}
+
 // ---------------------------------------------------------------------------
 // Deterministic merge — also the fallback when the LLM is unavailable.
 // ---------------------------------------------------------------------------
 function deterministic(
   reports: AgentReport[],
   escalation: Escalation | undefined,
-  status?: TicketStatus
+  status?: TicketStatus,
+  prior?: PriorRunContext
 ): Resolution {
   const findings = reports.flatMap((r) => r.findings);
   const actions = reports.flatMap((r) => r.actions);
@@ -67,6 +74,8 @@ function deterministic(
       issueCount > 1
         ? `We looked into the ${issueCount} issues you reported and have an update on each.`
         : `We've reviewed your request and have an update.`;
+  } else if (prior?.resolution?.summary) {
+    summary = `Here's the latest on your ticket. Previously: ${prior.resolution.summary}`;
   } else if (sline) {
     // No fresh findings (e.g. a "what's the update?" follow-up) → report status.
     summary = `Here's the latest on your ticket. ${sline}`;
@@ -76,10 +85,10 @@ function deterministic(
 
   const resolution: Resolution = {
     summary,
-    findings: haveFindings ? findings : sline ? [sline] : [],
-    actions: [...actions],
-    reasoning: reasoning || "Resolution based on ticket context.",
-    evidence,
+    findings: haveFindings ? findings : prior?.resolution?.findings ?? (sline ? [sline] : []),
+    actions: actions.length ? [...actions] : prior?.resolution?.actions ?? [],
+    reasoning: reasoning || prior?.resolution?.reasoning || "Resolution based on ticket context.",
+    evidence: evidence.length ? evidence : prior?.resolution?.evidence ?? [],
   };
 
   if (escalation?.escalate && escalation.customer_addendum) {
@@ -100,9 +109,10 @@ export async function runSynthesizer(
   escalation: Escalation | undefined,
   opts: SynthOpts = {}
 ): Promise<Resolution> {
-  const base = deterministic(reports, escalation, opts.ticketStatus);
+  const base = deterministic(reports, escalation, opts.ticketStatus, opts.priorContext);
 
   const history = historyBlock(opts.history);
+  const prior = priorContextBlock(opts.priorContext);
   const isFollowUp = (opts.history?.length ?? 0) > 0;
 
   // No LLM → deterministic merge. With an LLM, synthesize whenever there's
@@ -110,7 +120,10 @@ export async function runSynthesizer(
   // follow-up like "what's the update?" has thin reports but rich history.
   const canSynthesize =
     availableProviders().length > 0 &&
-    (reports.length > 0 || isFollowUp || (opts.ticketStatus?.has_escalation ?? false));
+    (reports.length > 0 ||
+      isFollowUp ||
+      !!opts.priorContext ||
+      (opts.ticketStatus?.has_escalation ?? false));
   if (!canSynthesize) return base;
 
   const traceId = opts.traceId ?? "synthesize";
@@ -155,6 +168,7 @@ export async function runSynthesizer(
 
   const user = [
     isFollowUp ? `CONVERSATION SO FAR (oldest first):\n${history}\n` : "",
+    prior ? `LATEST PRIOR RUN CONTEXT:\n${prior}\n` : "",
     `CUSTOMER'S LATEST MESSAGE: """${opts.message ?? ""}"""\n`,
     sline ? `TICKET STATUS: ${sline}\n` : "",
     "AGENT REPORTS (this turn):",

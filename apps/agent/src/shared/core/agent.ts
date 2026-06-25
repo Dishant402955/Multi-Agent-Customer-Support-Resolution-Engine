@@ -13,6 +13,24 @@ import { runGraph } from "./graph.js";
 import { log, drainTrace } from "./logger.js";
 import { config } from "../config/index.js";
 
+function routingText(ticket: Ticket): string {
+  const prior = ticket.priorContext ? JSON.stringify(ticket.priorContext) : "";
+  const history = ticket.history?.length
+    ? ticket.history
+        .slice(-4)
+        .map((m) => `${m.role}: ${m.text}`)
+        .join("\n")
+    : "";
+  return [
+    ticket.focus ? `Sub-problem focus: ${ticket.focus}` : "",
+    history ? `Prior conversation:\n${history}` : "",
+    prior ? `Latest prior run context:\n${prior}` : "",
+    `Latest customer message:\n${ticket.text}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
 export async function runAgent(
   registry: Registry,
   agentName: string,
@@ -22,7 +40,7 @@ export async function runAgent(
   log(traceId, "agent", `[${agentName}] received ticket`, { text: ticket.text });
 
   // 1. Classify against THIS agent's use cases only.
-  const cls = await classify(registry, agentName, traceId, ticket.text);
+  const cls = await classify(registry, agentName, traceId, routingText(ticket));
 
   // 2a. Domain gate — no match, or confidence below the (low) domain threshold,
   //     means this simply isn't this agent's specialty. Signal "out_of_domain"
