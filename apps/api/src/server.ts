@@ -721,6 +721,11 @@ app.get("/api/tickets/:id", requireRole("user"), (req: AuthedRequest, res) => {
   if (!run && messages.length === 0) return res.status(404).json({ error: "Ticket not found" });
   const esc = getLatestEscalationForTicket(req.params.id);
   const row = getTicketDashboardRow(req.params.id);
+  // Per-turn pipeline states (one per customer message) so the chat UI can
+  // rebuild the "thoughts" shown between each user/agent turn after a reload.
+  const runs = listRunsForTicket(req.params.id)
+    .map((r) => r.state)
+    .filter(Boolean);
   res.json({
     ticket_id: req.params.id,
     display_id: getTicketDisplayId(req.params.id),
@@ -728,6 +733,7 @@ app.get("/api/tickets/:id", requireRole("user"), (req: AuthedRequest, res) => {
     parent_ticket_id: row?.parent_ticket_id ?? null,
     summary: run?.resolution?.summary ?? null,
     run,
+    runs,
     messages,
     escalation_id: esc?.id ?? null,
     escalation_status: esc?.status ?? null,

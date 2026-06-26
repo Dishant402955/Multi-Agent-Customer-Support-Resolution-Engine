@@ -3,17 +3,13 @@
 // declarative use cases, and SSRF-safe HTTP tools; everything hot-reloads on the
 // agent and every change is written to the audit log.
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   BookOpen,
   ChevronDown,
   ChevronRight,
   FileJson,
   History,
-  LayoutDashboard,
   Loader2,
-  LogOut,
   Plus,
   Save,
   ShieldCheck,
@@ -23,8 +19,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AdminHeader } from "@/components/admin-nav";
 import { adminAgents, listEscalations, platform } from "@/lib/api";
-import { useAuth, useRequireRole } from "@/lib/auth";
+import { useRequireRole } from "@/lib/auth";
 import type {
   ConfigAuditRecord,
   EscalationRecord,
@@ -47,8 +44,6 @@ const TABS: { id: Tab; label: string; icon: typeof BookOpen }[] = [
 
 export default function PlatformPage() {
   const account = useRequireRole("admin");
-  const { logout } = useAuth();
-  const router = useRouter();
   const [tab, setTab] = useState<Tab>("kb");
 
   if (!account) {
@@ -61,31 +56,7 @@ export default function PlatformPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-background/95 px-6 py-4 backdrop-blur">
-        <span className="flex size-7 items-center justify-center rounded bg-foreground text-xs font-bold text-background">
-          SE
-        </span>
-        <div className="flex-1">
-          <h1 className="text-base font-semibold tracking-tight">Platform</h1>
-          <p className="text-xs text-muted-foreground">Live config store — changes hot-reload the agent</p>
-        </div>
-        <Link href="/tickets">
-          <Button variant="outline" size="sm" className="gap-2">
-            <LayoutDashboard className="size-3.5" /> Tickets
-          </Button>
-        </Link>
-        <Button
-          variant="ghost"
-          size="icon"
-          title="Sign out"
-          onClick={async () => {
-            await logout();
-            router.replace("/login");
-          }}
-        >
-          <LogOut className="size-4" />
-        </Button>
-      </header>
+      <AdminHeader title="Platform" subtitle="Live config store — changes hot-reload the agent" role="admin" />
 
       <div className="mx-auto max-w-5xl px-6 py-6">
         <div className="mb-6 flex flex-wrap gap-1 border-b border-border">

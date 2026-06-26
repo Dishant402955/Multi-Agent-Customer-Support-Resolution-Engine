@@ -1008,3 +1008,241 @@
 {"traceId":"SP-1-9d4a7d43","ts":"2026-06-26T08:03:00.494Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":2}}
 {"traceId":"R-d2522f16","ts":"2026-06-26T08:03:00.520Z","node":"gateway","message":"LLM call","data":{"provider":"openai","json":true}}
 {"traceId":"R-d2522f16","ts":"2026-06-26T08:03:04.951Z","node":"gateway","message":"LLM call","data":{"provider":"openai","json":true}}
+{"traceId":"config","ts":"2026-06-26T18:26:15.424Z","node":"http-store","message":"http tools reloaded","data":{"tools":["githubRepo"]}}
+{"traceId":"boot","ts":"2026-06-26T18:26:15.434Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","failed_payment_amazon","refund_eligibility","subscription_change"]}}
+{"traceId":"boot","ts":"2026-06-26T18:26:15.435Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","failed_payment_amazon","refund_eligibility","subscription_change"],"registrySize":5}}
+{"traceId":"boot","ts":"2026-06-26T18:26:15.441Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["amendment_guidance","cancellation_policy","escalate_to_human","extend_contract_expiry_date"]}}
+{"traceId":"boot","ts":"2026-06-26T18:26:15.441Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["amendment_guidance","cancellation_policy","escalate_to_human","extend_contract_expiry_date"],"registrySize":4}}
+{"traceId":"boot","ts":"2026-06-26T18:26:15.446Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-26T18:26:15.446Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"R-bbc819af","ts":"2026-06-26T18:26:58.367Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-bbc819af","ts":"2026-06-26T18:27:00.350Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-bbc819af","ts":"2026-06-26T18:27:01.919Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-bbc819af","ts":"2026-06-26T18:27:03.815Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-bbc819af","ts":"2026-06-26T18:27:04.720Z","node":"classifier","message":"LLM classify failed, using keyword fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"R-bbc819af","ts":"2026-06-26T18:27:04.723Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-bbc819af","ts":"2026-06-26T18:27:06.100Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-bbc819af","ts":"2026-06-26T18:27:07.770Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-bbc819af","ts":"2026-06-26T18:27:09.541Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-bbc819af","ts":"2026-06-26T18:27:10.451Z","node":"decompose","message":"LLM decompose failed, heuristic fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-915a9457","ts":"2026-06-26T18:27:10.454Z","node":"agent","message":"[policy] received ticket","data":{"text":"hey"}}
+{"traceId":"SP-1-915a9457","ts":"2026-06-26T18:27:10.456Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-915a9457","ts":"2026-06-26T18:27:11.881Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-915a9457","ts":"2026-06-26T18:27:13.474Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-915a9457","ts":"2026-06-26T18:27:15.335Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-915a9457","ts":"2026-06-26T18:27:16.245Z","node":"classifier","message":"LLM routing failed, keyword fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-915a9457","ts":"2026-06-26T18:27:16.248Z","node":"classifier","message":"classified ticket","data":{"agent":"policy","handlerId":"extend_contract_expiry_date","confidence":0.65,"rationale":"Keyword fallback matched \"extend_contract_expiry_date\" (1 overlaps)."}}
+{"traceId":"SP-1-915a9457","ts":"2026-06-26T18:27:16.273Z","node":"graph:gather","message":"handler \"extend_contract_expiry_date\" gathering"}
+{"traceId":"SP-1-915a9457","ts":"2026-06-26T18:27:16.274Z","node":"declarative","message":"running use case \"extend_contract_expiry_date\""}
+{"traceId":"SP-1-915a9457","ts":"2026-06-26T18:27:16.275Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-915a9457","ts":"2026-06-26T18:27:17.471Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-915a9457","ts":"2026-06-26T18:27:19.000Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-915a9457","ts":"2026-06-26T18:27:20.872Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-915a9457","ts":"2026-06-26T18:27:21.774Z","node":"declarative","message":"param extraction failed","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-915a9457","ts":"2026-06-26T18:27:21.776Z","node":"declarative","message":"missing required param","data":{"missing":["documentCode"],"extracted":{}}}
+{"traceId":"SP-1-915a9457","ts":"2026-06-26T18:27:21.780Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-1-915a9457","ts":"2026-06-26T18:27:21.788Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":0}}
+{"traceId":"R-bbc819af","ts":"2026-06-26T18:27:21.801Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-bbc819af","ts":"2026-06-26T18:27:22.994Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-bbc819af","ts":"2026-06-26T18:27:24.780Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-bbc819af","ts":"2026-06-26T18:27:26.712Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-bbc819af","ts":"2026-06-26T18:27:27.617Z","node":"synthesize","message":"LLM synthesis failed, deterministic fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"R-cda7c080","ts":"2026-06-26T18:28:59.837Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-cda7c080","ts":"2026-06-26T18:29:01.809Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"unknown","is_multi_issue":false,"fallback":true,"intents":[{"type":"unknown","confidence":0.4}]}}
+{"traceId":"R-cda7c080","ts":"2026-06-26T18:29:01.811Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-cda7c080","ts":"2026-06-26T18:29:03.352Z","node":"decompose","message":"LLM split","data":{"count":1,"domains":["technical"]}}
+{"traceId":"SP-1-c359e041","ts":"2026-06-26T18:29:03.353Z","node":"agent","message":"[technical] received ticket","data":{"text":"hey"}}
+{"traceId":"SP-1-c359e041","ts":"2026-06-26T18:29:03.354Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-c359e041","ts":"2026-06-26T18:29:04.853Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":null,"confidence":0.93,"rationale":"Customer only said 'hey' with no issue described; none of the specific handlers (account access, error diagnosis, service status) apply without clarification."}}
+{"traceId":"SP-1-c359e041","ts":"2026-06-26T18:29:04.854Z","node":"agent","message":"[technical] out of domain","data":{"confidence":0.93,"domainThreshold":0.3}}
+{"traceId":"R-cda7c080","ts":"2026-06-26T18:29:04.855Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"config","ts":"2026-06-26T18:32:23.934Z","node":"http-store","message":"http tools reloaded","data":{"tools":["githubRepo"]}}
+{"traceId":"boot","ts":"2026-06-26T18:32:23.940Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","failed_payment_amazon","refund_eligibility","subscription_change"]}}
+{"traceId":"boot","ts":"2026-06-26T18:32:23.941Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","failed_payment_amazon","refund_eligibility","subscription_change"],"registrySize":5}}
+{"traceId":"boot","ts":"2026-06-26T18:32:23.944Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["amendment_guidance","cancellation_policy","escalate_to_human","extend_contract_expiry_date"]}}
+{"traceId":"boot","ts":"2026-06-26T18:32:23.944Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["amendment_guidance","cancellation_policy","escalate_to_human","extend_contract_expiry_date"],"registrySize":4}}
+{"traceId":"boot","ts":"2026-06-26T18:32:23.947Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-26T18:32:23.948Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"R-83454b3a","ts":"2026-06-26T18:33:18.638Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-83454b3a","ts":"2026-06-26T18:33:20.615Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"unknown","is_multi_issue":false,"fallback":true,"intents":[{"type":"unknown","confidence":0.4}]}}
+{"traceId":"R-83454b3a","ts":"2026-06-26T18:33:20.617Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-83454b3a","ts":"2026-06-26T18:33:22.186Z","node":"decompose","message":"LLM split","data":{"count":1,"domains":["technical"]}}
+{"traceId":"SP-1-7143b112","ts":"2026-06-26T18:33:22.190Z","node":"agent","message":"[technical] received ticket","data":{"text":"hii"}}
+{"traceId":"SP-1-7143b112","ts":"2026-06-26T18:33:22.193Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-7143b112","ts":"2026-06-26T18:33:23.482Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":null,"confidence":0.99,"rationale":"Customer only sent a greeting ('hii') with no described issue; no handler applies yet."}}
+{"traceId":"SP-1-7143b112","ts":"2026-06-26T18:33:23.483Z","node":"agent","message":"[technical] out of domain","data":{"confidence":0.99,"domainThreshold":0.3}}
+{"traceId":"R-83454b3a","ts":"2026-06-26T18:33:23.486Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-c6e0b49e","ts":"2026-06-26T18:33:41.518Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-c6e0b49e","ts":"2026-06-26T18:33:42.934Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"unknown","is_multi_issue":false,"fallback":true,"intents":[{"type":"unknown","confidence":0.4}]}}
+{"traceId":"R-c6e0b49e","ts":"2026-06-26T18:33:42.935Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-c6e0b49e","ts":"2026-06-26T18:33:44.204Z","node":"decompose","message":"LLM split","data":{"count":1,"domains":["technical"]}}
+{"traceId":"SP-1-270bc78a","ts":"2026-06-26T18:33:44.206Z","node":"agent","message":"[technical] received ticket","data":{"text":"i have some problems"}}
+{"traceId":"SP-1-270bc78a","ts":"2026-06-26T18:33:44.207Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-270bc78a","ts":"2026-06-26T18:33:46.138Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":null,"confidence":0.93,"rationale":"Customer only states they have 'some problems' without specifying login/access, an error code/feature failure, or a service outage; insufficient detail to route to a specific handler."}}
+{"traceId":"SP-1-270bc78a","ts":"2026-06-26T18:33:46.139Z","node":"agent","message":"[technical] out of domain","data":{"confidence":0.93,"domainThreshold":0.3}}
+{"traceId":"R-c6e0b49e","ts":"2026-06-26T18:33:46.140Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-b0a8b065","ts":"2026-06-26T18:34:09.508Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-b0a8b065","ts":"2026-06-26T18:34:10.947Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"billing","is_multi_issue":false,"fallback":false,"intents":[{"type":"billing","confidence":0.98}]}}
+{"traceId":"SP-1-177a7abc","ts":"2026-06-26T18:34:10.949Z","node":"agent","message":"[billing] received ticket","data":{"text":"i got charged twice"}}
+{"traceId":"SP-1-177a7abc","ts":"2026-06-26T18:34:10.950Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-177a7abc","ts":"2026-06-26T18:34:12.656Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":"explain_charge","confidence":0.78,"rationale":"Customer reports being charged twice, which fits explaining a specific/duplicate charge on their bill. They did not explicitly request a refund, so 'explain_charge' is the best initial handler."}}
+{"traceId":"SP-1-177a7abc","ts":"2026-06-26T18:34:12.684Z","node":"graph:gather","message":"handler \"explain_charge\" gathering"}
+{"traceId":"SP-1-177a7abc","ts":"2026-06-26T18:34:12.686Z","node":"declarative","message":"running use case \"explain_charge\""}
+{"traceId":"SP-1-177a7abc","ts":"2026-06-26T18:34:12.689Z","node":"tool","message":"calling dbQuery","data":{"args":{"customerId":"cust_001"}}}
+{"traceId":"SP-1-177a7abc","ts":"2026-06-26T18:34:12.690Z","node":"tool","message":"dbQuery returned","data":{"result":{"charges":[{"id":"txn_1","amount":49,"desc":"Pro plan monthly"},{"id":"txn_2","amount":49,"desc":"Pro plan monthly (duplicate)"}]}}}
+{"traceId":"SP-1-177a7abc","ts":"2026-06-26T18:34:12.692Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-177a7abc","ts":"2026-06-26T18:34:15.558Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-1-177a7abc","ts":"2026-06-26T18:34:15.562Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":1}}
+{"traceId":"R-b0a8b065","ts":"2026-06-26T18:34:15.570Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"config","ts":"2026-06-26T18:49:31.996Z","node":"http-store","message":"http tools reloaded","data":{"tools":["githubRepo"]}}
+{"traceId":"boot","ts":"2026-06-26T18:49:32.004Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","failed_payment_amazon","refund_eligibility","subscription_change"]}}
+{"traceId":"boot","ts":"2026-06-26T18:49:32.005Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","failed_payment_amazon","refund_eligibility","subscription_change"],"registrySize":5}}
+{"traceId":"boot","ts":"2026-06-26T18:49:32.009Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["amendment_guidance","cancellation_policy","escalate_to_human","extend_contract_expiry_date"]}}
+{"traceId":"boot","ts":"2026-06-26T18:49:32.010Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["amendment_guidance","cancellation_policy","escalate_to_human","extend_contract_expiry_date"],"registrySize":4}}
+{"traceId":"boot","ts":"2026-06-26T18:49:32.013Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-26T18:49:32.014Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"R-d12fce32","ts":"2026-06-26T18:51:38.747Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-d12fce32","ts":"2026-06-26T18:51:40.901Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"unknown","is_multi_issue":false,"fallback":true,"intents":[{"type":"unknown","confidence":0.4}]}}
+{"traceId":"R-d12fce32","ts":"2026-06-26T18:51:40.903Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-d12fce32","ts":"2026-06-26T18:51:42.854Z","node":"decompose","message":"LLM split","data":{"count":1,"domains":["technical"]}}
+{"traceId":"SP-1-ae65cfb4","ts":"2026-06-26T18:51:42.856Z","node":"agent","message":"[technical] received ticket","data":{"text":"hey"}}
+{"traceId":"SP-1-ae65cfb4","ts":"2026-06-26T18:51:42.856Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-ae65cfb4","ts":"2026-06-26T18:51:44.733Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":null,"confidence":0.99,"rationale":"Customer only said 'hey' with no issue described; none of the specific handlers (account access, error diagnosis, service status) apply without clarification."}}
+{"traceId":"SP-1-ae65cfb4","ts":"2026-06-26T18:51:44.734Z","node":"agent","message":"[technical] out of domain","data":{"confidence":0.99,"domainThreshold":0.3}}
+{"traceId":"R-d12fce32","ts":"2026-06-26T18:51:44.738Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-37cc3232","ts":"2026-06-26T18:53:42.746Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-37cc3232","ts":"2026-06-26T18:53:44.549Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"unknown","is_multi_issue":false,"fallback":true,"intents":[{"type":"unknown","confidence":0.4}]}}
+{"traceId":"R-37cc3232","ts":"2026-06-26T18:53:44.551Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-37cc3232","ts":"2026-06-26T18:53:46.019Z","node":"decompose","message":"LLM split","data":{"count":1,"domains":["technical"]}}
+{"traceId":"SP-1-bb09854a","ts":"2026-06-26T18:53:46.020Z","node":"agent","message":"[technical] received ticket","data":{"text":"hey"}}
+{"traceId":"SP-1-bb09854a","ts":"2026-06-26T18:53:46.021Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-bb09854a","ts":"2026-06-26T18:53:47.979Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":null,"confidence":0.74,"rationale":"Customer only sent a greeting ('hey') with no technical issue described; none of the available technical handlers (account access, error diagnosis, service status) apply."}}
+{"traceId":"SP-1-bb09854a","ts":"2026-06-26T18:53:47.981Z","node":"agent","message":"[technical] out of domain","data":{"confidence":0.74,"domainThreshold":0.3}}
+{"traceId":"R-37cc3232","ts":"2026-06-26T18:53:47.984Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"config","ts":"2026-06-26T18:59:01.052Z","node":"http-store","message":"http tools reloaded","data":{"tools":["githubRepo"]}}
+{"traceId":"boot","ts":"2026-06-26T18:59:01.057Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","failed_payment_amazon","refund_eligibility","subscription_change"]}}
+{"traceId":"boot","ts":"2026-06-26T18:59:01.057Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","failed_payment_amazon","refund_eligibility","subscription_change"],"registrySize":5}}
+{"traceId":"boot","ts":"2026-06-26T18:59:01.060Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["amendment_guidance","cancellation_policy","escalate_to_human","extend_contract_expiry_date"]}}
+{"traceId":"boot","ts":"2026-06-26T18:59:01.060Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["amendment_guidance","cancellation_policy","escalate_to_human","extend_contract_expiry_date"],"registrySize":4}}
+{"traceId":"boot","ts":"2026-06-26T18:59:01.063Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-26T18:59:01.063Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"R-02cb114f","ts":"2026-06-26T18:59:20.786Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-02cb114f","ts":"2026-06-26T18:59:22.673Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"unknown","is_multi_issue":false,"fallback":true,"intents":[{"type":"unknown","confidence":0.4}]}}
+{"traceId":"R-02cb114f","ts":"2026-06-26T18:59:22.676Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-02cb114f","ts":"2026-06-26T18:59:24.667Z","node":"decompose","message":"LLM split","data":{"count":1,"domains":["technical"]}}
+{"traceId":"SP-1-e54c3024","ts":"2026-06-26T18:59:24.669Z","node":"agent","message":"[technical] received ticket","data":{"text":"hey"}}
+{"traceId":"SP-1-e54c3024","ts":"2026-06-26T18:59:24.670Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-e54c3024","ts":"2026-06-26T18:59:25.973Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":null,"confidence":0.93,"rationale":"Customer only sent a greeting ('hey') without describing an issue; none of the available technical handlers (account_access, error_diagnosis, service_status) apply."}}
+{"traceId":"SP-1-e54c3024","ts":"2026-06-26T18:59:25.973Z","node":"agent","message":"[technical] out of domain","data":{"confidence":0.93,"domainThreshold":0.3}}
+{"traceId":"R-02cb114f","ts":"2026-06-26T18:59:25.976Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-d07334bd","ts":"2026-06-26T19:00:15.920Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-d07334bd","ts":"2026-06-26T19:00:17.482Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"unknown","is_multi_issue":false,"fallback":true,"intents":[{"type":"unknown","confidence":0.4}]}}
+{"traceId":"R-d07334bd","ts":"2026-06-26T19:00:17.483Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-d07334bd","ts":"2026-06-26T19:00:18.906Z","node":"decompose","message":"LLM split","data":{"count":1,"domains":["technical"]}}
+{"traceId":"SP-1-c4725785","ts":"2026-06-26T19:00:18.908Z","node":"agent","message":"[technical] received ticket","data":{"text":"hey"}}
+{"traceId":"SP-1-c4725785","ts":"2026-06-26T19:00:18.908Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-c4725785","ts":"2026-06-26T19:00:20.656Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":null,"confidence":0.93,"rationale":"Customer only said 'hey' with no described issue; none of the specific handlers (account access, error diagnosis, service status) can be selected without clarification."}}
+{"traceId":"SP-1-c4725785","ts":"2026-06-26T19:00:20.656Z","node":"agent","message":"[technical] out of domain","data":{"confidence":0.93,"domainThreshold":0.3}}
+{"traceId":"R-d07334bd","ts":"2026-06-26T19:00:20.658Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-b9caebdd","ts":"2026-06-26T19:00:29.805Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-b9caebdd","ts":"2026-06-26T19:00:32.291Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"unknown","is_multi_issue":false,"fallback":true,"intents":[{"type":"unknown","confidence":0.4}]}}
+{"traceId":"R-b9caebdd","ts":"2026-06-26T19:00:32.294Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-ee3505ab","ts":"2026-06-26T19:00:33.424Z","node":"agent","message":"[policy] received ticket","data":{"text":"how are you ?"}}
+{"traceId":"SP-1-ee3505ab","ts":"2026-06-26T19:00:33.425Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-ee3505ab","ts":"2026-06-26T19:00:35.118Z","node":"classifier","message":"classified ticket","data":{"agent":"policy","handlerId":null,"confidence":0.99,"rationale":"Customer is making small talk ('how are you?') and not asking about contract amendments, cancellation, contract expiry extension, or escalation-worthy issues."}}
+{"traceId":"SP-1-ee3505ab","ts":"2026-06-26T19:00:35.119Z","node":"agent","message":"[policy] out of domain","data":{"confidence":0.99,"domainThreshold":0.3}}
+{"traceId":"R-b9caebdd","ts":"2026-06-26T19:00:35.120Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"config","ts":"2026-06-26T19:07:22.337Z","node":"http-store","message":"http tools reloaded","data":{"tools":["githubRepo"]}}
+{"traceId":"boot","ts":"2026-06-26T19:07:22.344Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","failed_payment_amazon","refund_eligibility","subscription_change"]}}
+{"traceId":"boot","ts":"2026-06-26T19:07:22.344Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","failed_payment_amazon","refund_eligibility","subscription_change"],"registrySize":5}}
+{"traceId":"boot","ts":"2026-06-26T19:07:22.348Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["amendment_guidance","cancellation_policy","escalate_to_human","extend_contract_expiry_date"]}}
+{"traceId":"boot","ts":"2026-06-26T19:07:22.348Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["amendment_guidance","cancellation_policy","escalate_to_human","extend_contract_expiry_date"],"registrySize":4}}
+{"traceId":"boot","ts":"2026-06-26T19:07:22.352Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-26T19:07:22.352Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"R-c1fb6525","ts":"2026-06-26T19:07:39.617Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-c1fb6525","ts":"2026-06-26T19:07:41.491Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"unknown","is_multi_issue":false,"fallback":true,"intents":[{"type":"unknown","confidence":0.4}]}}
+{"traceId":"R-c1fb6525","ts":"2026-06-26T19:07:41.493Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-c1fb6525","ts":"2026-06-26T19:07:42.842Z","node":"decompose","message":"LLM split","data":{"count":1,"domains":["technical"]}}
+{"traceId":"SP-1-5e407f95","ts":"2026-06-26T19:07:42.844Z","node":"agent","message":"[technical] received ticket","data":{"text":"hey"}}
+{"traceId":"SP-1-5e407f95","ts":"2026-06-26T19:07:42.845Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-5e407f95","ts":"2026-06-26T19:07:44.530Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":null,"confidence":0.99,"rationale":"Customer only said 'hey' with no issue described; none of the specific handlers apply without clarification."}}
+{"traceId":"SP-1-5e407f95","ts":"2026-06-26T19:07:44.530Z","node":"agent","message":"[technical] out of domain","data":{"confidence":0.99,"domainThreshold":0.3}}
+{"traceId":"R-c1fb6525","ts":"2026-06-26T19:07:44.532Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-18d1c562","ts":"2026-06-26T19:08:10.525Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-18d1c562","ts":"2026-06-26T19:08:12.158Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"policy","is_multi_issue":false,"fallback":false,"intents":[{"type":"policy","confidence":0.86}]}}
+{"traceId":"SP-1-e7c33398","ts":"2026-06-26T19:08:12.159Z","node":"agent","message":"[policy] received ticket","data":{"text":"i have GDPR related complaint"}}
+{"traceId":"SP-1-e7c33398","ts":"2026-06-26T19:08:12.160Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-e7c33398","ts":"2026-06-26T19:08:13.960Z","node":"classifier","message":"classified ticket","data":{"agent":"policy","handlerId":"escalate_to_human","confidence":0.93,"rationale":"Customer states they have a GDPR-related complaint, which is a legal/privacy compliance issue requiring escalation to the appropriate human queue per the escalation matrix."}}
+{"traceId":"SP-1-e7c33398","ts":"2026-06-26T19:08:13.993Z","node":"graph:gather","message":"handler \"escalate_to_human\" gathering"}
+{"traceId":"SP-1-e7c33398","ts":"2026-06-26T19:08:13.995Z","node":"declarative","message":"running use case \"escalate_to_human\""}
+{"traceId":"SP-1-e7c33398","ts":"2026-06-26T19:08:13.996Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["escalation_matrix.md"]}}
+{"traceId":"SP-1-e7c33398","ts":"2026-06-26T19:08:13.998Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-e7c33398","ts":"2026-06-26T19:08:17.075Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":false,"evidenceCount":1}}
+{"traceId":"R-18d1c562","ts":"2026-06-26T19:08:17.086Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-18d1c562","ts":"2026-06-26T19:08:20.630Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"config","ts":"2026-06-26T19:17:33.775Z","node":"http-store","message":"http tools reloaded","data":{"tools":["githubRepo"]}}
+{"traceId":"boot","ts":"2026-06-26T19:17:33.782Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","failed_payment_amazon","refund_eligibility","subscription_change"]}}
+{"traceId":"boot","ts":"2026-06-26T19:17:33.782Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","failed_payment_amazon","refund_eligibility","subscription_change"],"registrySize":5}}
+{"traceId":"boot","ts":"2026-06-26T19:17:33.785Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["amendment_guidance","cancellation_policy","escalate_to_human","extend_contract_expiry_date"]}}
+{"traceId":"boot","ts":"2026-06-26T19:17:33.786Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["amendment_guidance","cancellation_policy","escalate_to_human","extend_contract_expiry_date"],"registrySize":4}}
+{"traceId":"boot","ts":"2026-06-26T19:17:33.789Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-26T19:17:33.790Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"config","ts":"2026-06-26T19:27:21.085Z","node":"http-store","message":"http tools reloaded","data":{"tools":["githubRepo"]}}
+{"traceId":"boot","ts":"2026-06-26T19:27:21.094Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","failed_payment_amazon","refund_eligibility","subscription_change"]}}
+{"traceId":"boot","ts":"2026-06-26T19:27:21.094Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","failed_payment_amazon","refund_eligibility","subscription_change"],"registrySize":5}}
+{"traceId":"boot","ts":"2026-06-26T19:27:21.098Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["amendment_guidance","cancellation_policy","escalate_to_human","extend_contract_expiry_date"]}}
+{"traceId":"boot","ts":"2026-06-26T19:27:21.099Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["amendment_guidance","cancellation_policy","escalate_to_human","extend_contract_expiry_date"],"registrySize":4}}
+{"traceId":"boot","ts":"2026-06-26T19:27:21.101Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-26T19:27:21.102Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"R-7a913bf5","ts":"2026-06-26T19:28:17.859Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-7a913bf5","ts":"2026-06-26T19:28:19.666Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"policy","is_multi_issue":false,"fallback":false,"intents":[{"type":"policy","confidence":0.62}]}}
+{"traceId":"SP-1-8428d186","ts":"2026-06-26T19:28:19.671Z","node":"agent","message":"[policy] received ticket","data":{"text":"any update ?"}}
+{"traceId":"SP-1-8428d186","ts":"2026-06-26T19:28:19.672Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-8428d186","ts":"2026-06-26T19:28:21.521Z","node":"classifier","message":"classified ticket","data":{"agent":"policy","handlerId":"escalate_to_human","confidence":0.98,"rationale":"Customer is following up on a GDPR-related complaint previously routed to Legal/Compliance; this remains a legal/compliance escalation requiring human handling and status update."}}
+{"traceId":"SP-1-8428d186","ts":"2026-06-26T19:28:21.543Z","node":"graph:gather","message":"handler \"escalate_to_human\" gathering"}
+{"traceId":"SP-1-8428d186","ts":"2026-06-26T19:28:21.544Z","node":"declarative","message":"running use case \"escalate_to_human\""}
+{"traceId":"SP-1-8428d186","ts":"2026-06-26T19:28:21.545Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["escalation_matrix.md"]}}
+{"traceId":"SP-1-8428d186","ts":"2026-06-26T19:28:21.547Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-8428d186","ts":"2026-06-26T19:28:25.803Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":false,"evidenceCount":1}}
+{"traceId":"R-7a913bf5","ts":"2026-06-26T19:28:25.813Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-7a913bf5","ts":"2026-06-26T19:28:29.326Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-ae03a532","ts":"2026-06-26T19:28:46.868Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-ae03a532","ts":"2026-06-26T19:28:48.379Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"unknown","is_multi_issue":false,"fallback":true,"intents":[{"type":"unknown","confidence":0.4}]}}
+{"traceId":"R-ae03a532","ts":"2026-06-26T19:28:48.380Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-ae03a532","ts":"2026-06-26T19:28:49.936Z","node":"decompose","message":"LLM split","data":{"count":1,"domains":["technical"]}}
+{"traceId":"SP-1-6165261a","ts":"2026-06-26T19:28:49.939Z","node":"agent","message":"[technical] received ticket","data":{"text":"hey??"}}
+{"traceId":"SP-1-6165261a","ts":"2026-06-26T19:28:49.940Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-6165261a","ts":"2026-06-26T19:28:51.699Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":null,"confidence":0.93,"rationale":"Customer message ('hey??') contains no information about account access, an error, or service status; requires clarification before routing."}}
+{"traceId":"SP-1-6165261a","ts":"2026-06-26T19:28:51.700Z","node":"agent","message":"[technical] out of domain","data":{"confidence":0.93,"domainThreshold":0.3}}
+{"traceId":"R-ae03a532","ts":"2026-06-26T19:28:51.702Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-7bbbd290","ts":"2026-06-26T19:29:07.910Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-7bbbd290","ts":"2026-06-26T19:29:09.306Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"unknown","is_multi_issue":false,"fallback":true,"intents":[{"type":"unknown","confidence":0.4}]}}
+{"traceId":"R-7bbbd290","ts":"2026-06-26T19:29:09.307Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-7bbbd290","ts":"2026-06-26T19:29:10.834Z","node":"decompose","message":"LLM split","data":{"count":1,"domains":["technical"]}}
+{"traceId":"SP-1-017fa415","ts":"2026-06-26T19:29:10.836Z","node":"agent","message":"[technical] received ticket","data":{"text":"heyyyy"}}
+{"traceId":"SP-1-017fa415","ts":"2026-06-26T19:29:10.837Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-017fa415","ts":"2026-06-26T19:29:12.200Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":null,"confidence":0.99,"rationale":"Customer only sent a greeting with no described issue; no matching handler applies yet."}}
+{"traceId":"SP-1-017fa415","ts":"2026-06-26T19:29:12.201Z","node":"agent","message":"[technical] out of domain","data":{"confidence":0.99,"domainThreshold":0.3}}
+{"traceId":"R-7bbbd290","ts":"2026-06-26T19:29:12.202Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-f587838c","ts":"2026-06-26T19:29:18.124Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-f587838c","ts":"2026-06-26T19:29:19.685Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"unknown","is_multi_issue":false,"fallback":true,"intents":[{"type":"unknown","confidence":0.4}]}}
+{"traceId":"R-f587838c","ts":"2026-06-26T19:29:19.687Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-0091bbb3","ts":"2026-06-26T19:29:20.671Z","node":"agent","message":"[policy] received ticket","data":{"text":"i am good"}}
+{"traceId":"SP-1-0091bbb3","ts":"2026-06-26T19:29:20.672Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-0091bbb3","ts":"2026-06-26T19:29:22.548Z","node":"classifier","message":"classified ticket","data":{"agent":"policy","handlerId":null,"confidence":0.99,"rationale":"Customer message is a casual status update ('i am good') with no question or issue related to contract amendments, cancellation, escalation, or extending contract expiry dates."}}
+{"traceId":"SP-1-0091bbb3","ts":"2026-06-26T19:29:22.549Z","node":"agent","message":"[policy] out of domain","data":{"confidence":0.99,"domainThreshold":0.3}}
+{"traceId":"R-f587838c","ts":"2026-06-26T19:29:22.550Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"config","ts":"2026-06-26T19:33:28.620Z","node":"http-store","message":"http tools reloaded","data":{"tools":["githubRepo"]}}
+{"traceId":"boot","ts":"2026-06-26T19:33:28.627Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","failed_payment_amazon","refund_eligibility","subscription_change"]}}
+{"traceId":"boot","ts":"2026-06-26T19:33:28.627Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","failed_payment_amazon","refund_eligibility","subscription_change"],"registrySize":5}}
+{"traceId":"boot","ts":"2026-06-26T19:33:28.631Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["amendment_guidance","cancellation_policy","escalate_to_human","extend_contract_expiry_date"]}}
+{"traceId":"boot","ts":"2026-06-26T19:33:28.631Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["amendment_guidance","cancellation_policy","escalate_to_human","extend_contract_expiry_date"],"registrySize":4}}
+{"traceId":"boot","ts":"2026-06-26T19:33:28.635Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\dishant\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-26T19:33:28.635Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"R-9fe25107","ts":"2026-06-26T19:34:04.126Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-9fe25107","ts":"2026-06-26T19:34:05.967Z","node":"classifier","message":"classified ticket","data":{"primary_intent":"billing","is_multi_issue":false,"fallback":false,"intents":[{"type":"billing","confidence":0.93}]}}
+{"traceId":"SP-1-8146d3aa","ts":"2026-06-26T19:34:05.971Z","node":"agent","message":"[billing] received ticket","data":{"text":"i have issue related to billing"}}
+{"traceId":"SP-1-8146d3aa","ts":"2026-06-26T19:34:05.972Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-8146d3aa","ts":"2026-06-26T19:34:07.972Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":null,"confidence":0.62,"rationale":"Customer only states they have a billing-related issue without specifying whether it's an unrecognized charge, failed payment/past due, refund request, or subscription change; needs clarification before selecting a specific billing handler."}}
+{"traceId":"SP-1-8146d3aa","ts":"2026-06-26T19:34:07.973Z","node":"agent","message":"[billing] out of domain","data":{"confidence":0.62,"domainThreshold":0.3}}
+{"traceId":"R-9fe25107","ts":"2026-06-26T19:34:07.977Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}

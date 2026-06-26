@@ -249,6 +249,8 @@ export interface TicketDetail {
   parent_ticket_id?: string | null;
   summary?: string | null;
   run: PipelineState | null;
+  /** Per-turn pipeline states (one per customer message), oldest → newest. */
+  runs?: PipelineState[];
   messages: Message[];
   escalation_id?: string | null;
   escalation_status?: "open" | "resolved" | null;

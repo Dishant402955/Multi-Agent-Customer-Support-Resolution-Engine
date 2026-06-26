@@ -1,23 +1,28 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   ExternalLink,
-  LogOut,
+  Inbox,
   MessageSquare,
-  RefreshCw,
   Search,
-  SlidersHorizontal,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { NotificationBell } from "@/components/notification-bell";
+import { Sheet, SheetBody, SheetHeader } from "@/components/ui/sheet";
+import { AdminHeader } from "@/components/admin-nav";
 import { getDashboardTicket, listDashboardTickets } from "@/lib/api";
-import { useAuth, useRequireRole } from "@/lib/auth";
-import type { AuditEvent, TicketDashboardDetail, TicketDashboardRow, TicketLifecycleStatus } from "@/lib/types";
+import { useRequireRole } from "@/lib/auth";
+import type {
+  AuditEvent,
+  TicketDashboardDetail,
+  TicketDashboardRow,
+  TicketLifecycleStatus,
+} from "@/lib/types";
 import {
   AgentReportDetails,
   DebugPanel,
@@ -28,11 +33,26 @@ import {
 } from "@/components/views";
 
 type StatusFilter = "all" | TicketLifecycleStatus;
+type SortKey = "recent" | "oldest" | "messages" | "runs";
+
+const PAGE_SIZE = 12;
 
 function statusVariant(s: TicketLifecycleStatus) {
   if (s === "escalated") return "destructive" as const;
   if (s === "resolved") return "success" as const;
-  return "secondary" as const;
+  return "warning" as const;
+}
+
+function relativeTime(iso: string) {
+  const diff = Date.now() - +new Date(iso);
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 30) return `${d}d ago`;
+  return new Date(iso).toLocaleDateString();
 }
 
 export default function TicketsDashboardPage() {
@@ -40,57 +60,64 @@ export default function TicketsDashboardPage() {
   const [tickets, setTickets] = useState<TicketDashboardRow[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [detail, setDetail] = useState<TicketDashboardDetail | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
+
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [customerFilter, setCustomerFilter] = useState("all");
+  const [intentFilter, setIntentFilter] = useState("all");
+  const [sort, setSort] = useState<SortKey>("recent");
+  const [page, setPage] = useState(0);
 
   async function loadList() {
     setLoading(true);
-    const list = await listDashboardTickets();
-    setTickets(list);
-    if (!selectedId && list[0]) setSelectedId(list[0].ticket_id);
+    setTickets(await listDashboardTickets());
     setLoading(false);
   }
 
-  async function loadDetail(id: string) {
-    if (!id) {
-      setDetail(null);
-      return;
-    }
-    setDetailLoading(true);
-    setDetail(await getDashboardTicket(id));
-    setDetailLoading(false);
+  function openTicket(id: string) {
+    setSelectedId(id);
+    setSheetOpen(true);
   }
 
   useEffect(() => {
     void loadList();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (selectedId) void loadDetail(selectedId);
+    if (!selectedId) return;
+    setDetailLoading(true);
+    setDetail(null);
+    void getDashboardTicket(selectedId).then((d) => {
+      setDetail(d);
+      setDetailLoading(false);
+    });
   }, [selectedId]);
 
-  // Distinct customers present in the ticket set, for the "filter by user" menu.
+  useEffect(() => {
+    setPage(0);
+  }, [query, filter, customerFilter, intentFilter, sort]);
+
   const customers = useMemo(() => {
     const m = new Map<string, string>();
-    for (const t of tickets) {
-      const key = t.customer_id ?? "__guest__";
-      m.set(key, t.customer_name || "Guest");
-    }
+    for (const t of tickets) m.set(t.customer_id ?? "__guest__", t.customer_name || "Guest");
     return [...m.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
   }, [tickets]);
 
-  const visible = useMemo(() => {
+  const intents = useMemo(() => {
+    const s = new Set<string>();
+    for (const t of tickets) if (t.primary_intent) s.add(t.primary_intent);
+    return [...s].sort();
+  }, [tickets]);
+
+  const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return tickets.filter((t) => {
+    const out = tickets.filter((t) => {
       if (filter !== "all" && t.status !== filter) return false;
-      if (customerFilter !== "all") {
-        const key = t.customer_id ?? "__guest__";
-        if (key !== customerFilter) return false;
-      }
+      if (customerFilter !== "all" && (t.customer_id ?? "__guest__") !== customerFilter) return false;
+      if (intentFilter !== "all" && t.primary_intent !== intentFilter) return false;
       if (!q) return true;
       return (
         t.ticket_id.toLowerCase().includes(q) ||
@@ -100,7 +127,18 @@ export default function TicketsDashboardPage() {
         (t.primary_intent ?? "").toLowerCase().includes(q)
       );
     });
-  }, [tickets, query, filter, customerFilter]);
+    out.sort((a, b) => {
+      if (sort === "recent") return +new Date(b.updated_at) - +new Date(a.updated_at);
+      if (sort === "oldest") return +new Date(a.created_at) - +new Date(b.created_at);
+      if (sort === "messages") return b.message_count - a.message_count;
+      return b.run_count - a.run_count;
+    });
+    return out;
+  }, [tickets, query, filter, customerFilter, intentFilter, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages - 1);
+  const paged = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
 
   const stats = useMemo(() => {
     const escalated = tickets.filter((t) => t.status === "escalated").length;
@@ -108,6 +146,8 @@ export default function TicketsDashboardPage() {
     const active = tickets.filter((t) => t.status === "active").length;
     return { total: tickets.length, escalated, resolved, active };
   }, [tickets]);
+
+  const hasActiveFilters = filter !== "all" || customerFilter !== "all" || intentFilter !== "all" || !!query;
 
   if (!account) {
     return (
@@ -119,284 +159,347 @@ export default function TicketsDashboardPage() {
 
   return (
     <div className="flex h-screen flex-col bg-background text-foreground">
-      <header className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
-        <span className="flex size-7 items-center justify-center rounded bg-foreground text-xs font-bold text-background">
-          SE
-        </span>
-        <div className="flex-1">
-          <h1 className="text-base font-semibold tracking-tight">Tickets dashboard</h1>
-          <p className="text-xs text-muted-foreground">All conversations, statuses, and pipeline traces</p>
+      <AdminHeader
+        title="Tickets"
+        subtitle="All conversations, statuses & pipeline traces"
+        role="admin"
+        onRefresh={() => void loadList()}
+        refreshing={loading}
+      />
+
+      <div className="mx-auto w-full max-w-7xl flex-1 overflow-y-auto px-6 py-6">
+        {/* KPI band — clickable to filter */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Kpi label="Total tickets" value={stats.total} active={filter === "all"} onClick={() => setFilter("all")} tone="neutral" />
+          <Kpi label="Active" value={stats.active} active={filter === "active"} onClick={() => setFilter("active")} tone="amber" />
+          <Kpi label="Escalated" value={stats.escalated} active={filter === "escalated"} onClick={() => setFilter("escalated")} tone="red" />
+          <Kpi label="Resolved" value={stats.resolved} active={filter === "resolved"} onClick={() => setFilter("resolved")} tone="green" />
         </div>
-        <Link href="/platform">
-          <Button variant="outline" size="sm" className="gap-2">
-            <SlidersHorizontal className="size-3.5" /> Platform
-          </Button>
-        </Link>
-        <Link href="/escalations">
-          <Button variant="outline" size="sm">
-            Escalations
-          </Button>
-        </Link>
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => void loadList()}>
-          <RefreshCw className={"size-3.5 " + (loading ? "animate-spin" : "")} /> Refresh
-        </Button>
-        <NotificationBell />
-        <LogoutButton />
-      </header>
 
-      <div className="flex min-h-0 flex-1">
-        {/* ── Ticket list ─────────────────────────────────────────── */}
-        <aside className="flex w-[380px] shrink-0 flex-col border-r border-border">
-          <div className="space-y-2 border-b border-border p-3">
-            <div className="grid grid-cols-4 gap-2 text-center">
-              <MiniStat label="Total" value={stats.total} />
-              <MiniStat label="Active" value={stats.active} />
-              <MiniStat label="Escalated" value={stats.escalated} />
-              <MiniStat label="Resolved" value={stats.resolved} />
-            </div>
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search tickets, customers, intent…"
-                className="w-full rounded-md border border-border bg-card py-2 pl-8 pr-3 text-sm outline-none focus:border-foreground/40"
-              />
-            </div>
-            <div className="flex gap-1">
-              {(["all", "active", "escalated", "resolved"] as StatusFilter[]).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={
-                    "flex-1 rounded-md px-2 py-1 text-xs capitalize transition-colors " +
-                    (filter === f
-                      ? "bg-secondary text-foreground"
-                      : "text-muted-foreground hover:bg-secondary/60")
-                  }
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
-            <select
-              value={customerFilter}
-              onChange={(e) => setCustomerFilter(e.target.value)}
-              className="w-full rounded-md border border-border bg-card px-2 py-1.5 text-xs outline-none focus:border-foreground/40"
-            >
-              <option value="all">All customers</option>
-              {customers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex-1 overflow-y-auto">
-            {loading && <p className="p-4 text-sm text-muted-foreground">Loading…</p>}
-            {!loading && visible.length === 0 && (
-              <p className="p-4 text-sm text-muted-foreground">No tickets match.</p>
-            )}
-            {visible.map((t) => (
-              <button
-                key={t.ticket_id}
-                onClick={() => setSelectedId(t.ticket_id)}
-                className={
-                  "w-full border-b border-border px-3 py-3 text-left transition-colors hover:bg-secondary/40 " +
-                  (selectedId === t.ticket_id ? "bg-secondary/60" : "")
-                }
-              >
-                <div className="flex items-start gap-2">
-                  <p className="flex-1 truncate text-sm font-medium">{t.title}</p>
-                  <Badge variant={statusVariant(t.status)}>{t.status}</Badge>
-                </div>
-                <p className="mt-1 truncate text-xs text-muted-foreground">
-                  {t.customer_name} · <span className="font-mono">{t.display_id}</span>
-                  {t.parent_ticket_id && <span className="ml-1 text-[10px]">· linked</span>}
-                </p>
-                <div className="mt-1.5 flex flex-wrap gap-1">
-                  {t.primary_intent && <Badge variant="outline">{t.primary_intent}</Badge>}
-                  {t.severity && <Badge variant="outline">{t.severity}</Badge>}
-                  {t.priority && <Badge variant="outline">{t.priority}</Badge>}
-                  <span className="text-[10px] text-muted-foreground">
-                    {t.message_count} msg · {t.run_count} run{t.run_count === 1 ? "" : "s"}
-                  </span>
-                </div>
-                <p className="mt-1 text-[10px] text-muted-foreground">
-                  Updated {new Date(t.updated_at).toLocaleString()}
-                </p>
+        {/* Toolbar */}
+        <div className="mt-5 flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[240px] flex-1">
+            <Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search title, ID, customer, intent…"
+              className="w-full rounded-lg border border-border bg-card py-2 pl-8 pr-8 text-sm outline-none focus:border-ring/60 focus:ring-1 focus:ring-ring/20"
+            />
+            {query && (
+              <button onClick={() => setQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground">
+                <X className="size-3.5" />
               </button>
-            ))}
+            )}
           </div>
-        </aside>
+          <select
+            value={customerFilter}
+            onChange={(e) => setCustomerFilter(e.target.value)}
+            className="rounded-lg border border-border bg-card px-2 py-2 text-xs outline-none focus:border-ring/60"
+          >
+            <option value="all">All customers</option>
+            {customers.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          <select
+            value={intentFilter}
+            onChange={(e) => setIntentFilter(e.target.value)}
+            className="rounded-lg border border-border bg-card px-2 py-2 text-xs outline-none focus:border-ring/60"
+          >
+            <option value="all">All intents</option>
+            {intents.map((i) => (
+              <option key={i} value={i}>{i}</option>
+            ))}
+          </select>
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortKey)}
+            className="rounded-lg border border-border bg-card px-2 py-2 text-xs outline-none focus:border-ring/60"
+          >
+            <option value="recent">Newest</option>
+            <option value="oldest">Oldest</option>
+            <option value="messages">Most messages</option>
+            <option value="runs">Most runs</option>
+          </select>
+        </div>
 
-        {/* ── Detail: conversation + traces ───────────────────────── */}
-        <main className="min-w-0 flex-1 overflow-y-auto">
-          {!selectedId ? (
-            <p className="p-8 text-sm text-muted-foreground">Select a ticket to view its conversation and traces.</p>
-          ) : detailLoading ? (
-            <p className="p-8 text-sm text-muted-foreground">Loading ticket…</p>
-          ) : !detail ? (
-            <p className="p-8 text-sm text-muted-foreground">Ticket not found.</p>
-          ) : (
-            <TicketDetailPanel detail={detail} />
+        <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
+          <span>
+            {filtered.length} result{filtered.length === 1 ? "" : "s"}
+            {hasActiveFilters && tickets.length !== filtered.length ? ` of ${tickets.length}` : ""}
+          </span>
+          {hasActiveFilters && (
+            <button
+              onClick={() => {
+                setQuery("");
+                setFilter("all");
+                setCustomerFilter("all");
+                setIntentFilter("all");
+              }}
+              className="underline-offset-2 hover:text-foreground hover:underline"
+            >
+              Clear filters
+            </button>
           )}
-        </main>
+        </div>
+
+        {/* Table */}
+        <div className="mt-3 overflow-hidden rounded-xl border border-border">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-border bg-card/60 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
+                <th className="px-4 py-2.5 font-medium">Ticket</th>
+                <th className="px-4 py-2.5 font-medium">Customer</th>
+                <th className="px-4 py-2.5 font-medium">Status</th>
+                <th className="hidden px-4 py-2.5 font-medium lg:table-cell">Intent</th>
+                <th className="hidden px-4 py-2.5 font-medium md:table-cell">Activity</th>
+                <th className="px-4 py-2.5 text-right font-medium">Updated</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground">Loading…</td>
+                </tr>
+              ) : paged.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="px-4 py-16 text-center">
+                    <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
+                      <Inbox className="size-6 opacity-40" />
+                      No tickets match your filters.
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                paged.map((t) => (
+                  <tr
+                    key={t.ticket_id}
+                    onClick={() => openTicket(t.ticket_id)}
+                    className="cursor-pointer border-b border-border/60 transition-colors last:border-0 hover:bg-secondary/40"
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-[11px] text-muted-foreground/70">{t.display_id}</span>
+                        {t.parent_ticket_id && <Badge variant="outline">linked</Badge>}
+                      </div>
+                      <p className="mt-0.5 max-w-[320px] truncate font-medium">{t.title}</p>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">{t.customer_name}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant={statusVariant(t.status)}>{t.status}</Badge>
+                    </td>
+                    <td className="hidden px-4 py-3 lg:table-cell">
+                      <div className="flex flex-wrap gap-1">
+                        {t.primary_intent && <Badge variant="outline">{t.primary_intent}</Badge>}
+                        {t.severity && <Badge variant="outline">{t.severity}</Badge>}
+                      </div>
+                    </td>
+                    <td className="hidden px-4 py-3 text-xs text-muted-foreground md:table-cell">
+                      {t.message_count} msg · {t.run_count} run{t.run_count === 1 ? "" : "s"}
+                    </td>
+                    <td className="px-4 py-3 text-right text-xs text-muted-foreground">{relativeTime(t.updated_at)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="mt-4 flex items-center justify-between">
+            <Button variant="ghost" size="sm" disabled={safePage === 0} onClick={() => setPage((p) => Math.max(0, p - 1))}>
+              <ChevronLeft className="size-3.5" /> Prev
+            </Button>
+            <span className="text-[11px] text-muted-foreground">
+              Showing {safePage * PAGE_SIZE + 1}–{Math.min(filtered.length, (safePage + 1) * PAGE_SIZE)} of {filtered.length} · Page {safePage + 1}/{totalPages}
+            </span>
+            <Button variant="ghost" size="sm" disabled={safePage >= totalPages - 1} onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}>
+              Next <ChevronRight className="size-3.5" />
+            </Button>
+          </div>
+        )}
       </div>
+
+      {/* ── Detail sheet ───────────────────────────────────────── */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen} side="right">
+        {detailLoading || !detail ? (
+          <SheetBody>
+            <p className="text-sm text-muted-foreground">{detailLoading ? "Loading ticket…" : "Ticket not found."}</p>
+          </SheetBody>
+        ) : (
+          <TicketDetail detail={detail} />
+        )}
+      </Sheet>
     </div>
   );
 }
 
-function MiniStat({ label, value }: { label: string; value: number }) {
+function Kpi({
+  label,
+  value,
+  active,
+  onClick,
+  tone,
+}: {
+  label: string;
+  value: number;
+  active: boolean;
+  onClick: () => void;
+  tone: "neutral" | "amber" | "red" | "green";
+}) {
+  const dot =
+    tone === "amber" ? "bg-amber-400" : tone === "red" ? "bg-red-500" : tone === "green" ? "bg-emerald-500" : "bg-muted-foreground/40";
   return (
-    <div className="rounded-md border border-border bg-card px-2 py-1.5">
-      <div className="text-lg font-semibold tabular-nums">{value}</div>
-      <div className="text-[10px] text-muted-foreground">{label}</div>
-    </div>
+    <button
+      onClick={onClick}
+      className={
+        "flex flex-col gap-1 rounded-xl border bg-card px-4 py-3 text-left transition-colors hover:bg-secondary/30 " +
+        (active ? "border-primary/50 ring-1 ring-inset ring-primary/30" : "border-border")
+      }
+    >
+      <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+        <span className={`size-1.5 rounded-full ${dot}`} /> {label}
+      </span>
+      <span className="text-2xl font-semibold tabular-nums">{value}</span>
+    </button>
   );
 }
 
-function TicketDetailPanel({ detail }: { detail: TicketDashboardDetail }) {
+function TicketDetail({ detail }: { detail: TicketDashboardDetail }) {
   const { ticket, messages, runs, escalation } = detail;
   const latestState = runs.length ? runs[runs.length - 1].state : null;
 
   return (
-    <div className="p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="rounded bg-secondary px-2 py-0.5 font-mono text-sm font-semibold">
-              {ticket.display_id}
-            </span>
-            <h2 className="truncate text-lg font-semibold">{ticket.title}</h2>
-          </div>
-          {/* Rich, developer-facing identifier line. */}
-          <p className="mt-1 font-mono text-[11px] text-muted-foreground">
-            {ticket.ticket_id} · {ticket.customer_name}
-            {ticket.customer_id ? ` (${ticket.customer_id})` : " (guest)"} ·{" "}
-            {ticket.message_count} msg · {ticket.run_count} run{ticket.run_count === 1 ? "" : "s"} ·{" "}
-            created {new Date(ticket.created_at).toLocaleString()}
-            {ticket.parent_ticket_id ? ` · linked from ${ticket.parent_ticket_id}` : ""}
-          </p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            <Badge variant={statusVariant(ticket.status)}>{ticket.status}</Badge>
-            {ticket.primary_intent && <Badge variant="outline">intent: {ticket.primary_intent}</Badge>}
-            {ticket.severity && <Badge variant="outline">severity: {ticket.severity}</Badge>}
-            {ticket.priority && <Badge variant="outline">{ticket.priority}</Badge>}
-          </div>
+    <>
+      <SheetHeader>
+        <div className="flex items-center gap-2">
+          <span className="rounded-md bg-primary/15 px-2 py-0.5 font-mono text-xs font-semibold text-primary ring-1 ring-inset ring-primary/20">
+            {ticket.display_id}
+          </span>
+          <Badge variant={statusVariant(ticket.status)}>{ticket.status}</Badge>
         </div>
-        <div className="flex gap-2">
-          {escalation && (
-            <Link href="/escalations">
-              <Button variant="outline" size="sm">
-                View escalation
+        <h2 className="mt-2 text-lg font-semibold leading-snug">{ticket.title}</h2>
+        <p className="mt-1 font-mono text-[11px] text-muted-foreground/70">
+          {ticket.customer_name}
+          {ticket.customer_id ? ` (${ticket.customer_id})` : " (guest)"} · {ticket.message_count} msg ·{" "}
+          {ticket.run_count} run{ticket.run_count === 1 ? "" : "s"} · created {new Date(ticket.created_at).toLocaleString()}
+        </p>
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+          {ticket.primary_intent && <Badge variant="outline">intent: {ticket.primary_intent}</Badge>}
+          {ticket.severity && <Badge variant="outline">severity: {ticket.severity}</Badge>}
+          {ticket.priority && <Badge variant="outline">{ticket.priority}</Badge>}
+          <div className="ml-auto flex gap-2">
+            {escalation && (
+              <Link href="/escalations">
+                <Button variant="outline" size="sm">Escalation</Button>
+              </Link>
+            )}
+            <Link href={`/?ticket=${ticket.ticket_id}`}>
+              <Button variant="outline" size="sm" className="gap-1.5">
+                <ExternalLink className="size-3.5" /> Open in chat
               </Button>
             </Link>
-          )}
-          <Link href={`/?ticket=${ticket.ticket_id}`}>
-            <Button variant="outline" size="sm" className="gap-2">
-              <ExternalLink className="size-3.5" /> Open in chat
-            </Button>
-          </Link>
+          </div>
         </div>
-      </div>
+      </SheetHeader>
 
-      {escalation && (
-        <div className="mt-4 rounded-lg border border-foreground/30 bg-card p-4 text-sm">
-          <p className="font-medium">
-            Escalation {escalation.status} · {escalation.assignee_name} ({escalation.department})
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">{escalation.reason}</p>
-        </div>
-      )}
+      <SheetBody>
+        {escalation && (
+          <div className="mb-5 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm">
+            <p className="font-medium">
+              Escalation {escalation.status} · {escalation.assignee_name} ({escalation.department})
+            </p>
+            {escalation.reason && <p className="mt-1 text-xs text-muted-foreground">{escalation.reason}</p>}
+          </div>
+        )}
 
-      {latestState && (
-        <section className="mt-6">
-          <LifecycleStepper s={latestState} />
-        </section>
-      )}
+        {latestState && (
+          <section className="mb-6">
+            <LifecycleStepper s={latestState} />
+          </section>
+        )}
 
-      {/* Conversation thread */}
-      <section className="mt-6">
-        <h3 className="mb-3 flex items-center gap-2 text-sm font-medium">
-          <MessageSquare className="size-4" /> Conversation ({messages.length} messages)
-        </h3>
-        <div className="space-y-3 rounded-lg border border-border bg-card/50 p-4">
-          {messages.length === 0 && (
-            <p className="text-sm text-muted-foreground">No messages yet.</p>
-          )}
-          {messages.map((m, i) => (
-            <div
-              key={i}
-              className={
-                "rounded-lg px-3 py-2 text-sm " +
-                (m.role === "customer" ? "bg-secondary" : "border border-border")
-              }
-            >
-              <div className="mb-1 flex items-center gap-2 text-[10px] uppercase tracking-wide text-muted-foreground">
-                <span>{m.role === "customer" ? "Customer" : "Support"}</span>
-                {m.timestamp && (
-                  <span className="font-mono normal-case">
-                    {new Date(m.timestamp).toLocaleString()}
-                  </span>
-                )}
+        {/* Conversation */}
+        <section className="mb-6">
+          <h3 className="mb-3 flex items-center gap-2 text-sm font-medium">
+            <MessageSquare className="size-4" /> Conversation
+            <span className="text-xs font-normal text-muted-foreground">({messages.length})</span>
+          </h3>
+          <div className="space-y-3 rounded-lg border border-border bg-card/40 p-4">
+            {messages.length === 0 && <p className="text-sm text-muted-foreground">No messages yet.</p>}
+            {messages.map((m, i) => (
+              <div
+                key={i}
+                className={
+                  "rounded-lg px-3 py-2 text-sm " +
+                  (m.role === "customer"
+                    ? "bg-primary/10 ring-1 ring-inset ring-primary/15"
+                    : "border border-border bg-background/40")
+                }
+              >
+                <div className="mb-1 flex items-center gap-2 text-[10px] uppercase tracking-wide text-muted-foreground">
+                  <span>{m.role === "customer" ? "Customer" : "Support"}</span>
+                  {m.timestamp && <span className="font-mono normal-case">{new Date(m.timestamp).toLocaleString()}</span>}
+                </div>
+                <p className="whitespace-pre-wrap leading-relaxed">{m.text}</p>
               </div>
-              <p className="whitespace-pre-wrap leading-relaxed">{m.text}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
 
-      {/* Pipeline runs / traces */}
-      <section className="mt-8">
-        <h3 className="mb-3 text-sm font-medium">Pipeline runs ({runs.length})</h3>
-        <p className="mb-4 text-xs text-muted-foreground">
-          Each customer message triggers one pipeline run. Expand a run to see the full audit trace and agent
-          investigations.
-        </p>
-        <div className="space-y-3">
-          {runs.length === 0 && (
-            <p className="text-sm text-muted-foreground">No pipeline runs recorded.</p>
-          )}
-          {runs.map((run, idx) => (
-            <RunTraceCard key={run.run_id} run={run} index={idx + 1} />
-          ))}
-        </div>
-      </section>
-    </div>
+        {/* Pipeline runs */}
+        <section>
+          <h3 className="mb-1 text-sm font-medium">
+            Pipeline runs <span className="text-xs font-normal text-muted-foreground">({runs.length})</span>
+          </h3>
+          <p className="mb-4 text-xs text-muted-foreground">
+            Each customer message triggers one run. Expand to see agent investigations and the full audit trace.
+          </p>
+          <div className="space-y-3">
+            {runs.length === 0 && <p className="text-sm text-muted-foreground">No pipeline runs recorded.</p>}
+            {runs.map((run, idx) => (
+              <RunTraceCard key={run.run_id} run={run} index={idx + 1} defaultOpen={idx === runs.length - 1} />
+            ))}
+          </div>
+        </section>
+      </SheetBody>
+    </>
   );
 }
 
 function RunTraceCard({
   run,
   index,
+  defaultOpen,
 }: {
   run: TicketDashboardDetail["runs"][number];
   index: number;
+  defaultOpen: boolean;
 }) {
-  const [open, setOpen] = useState(index === 1);
+  const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className="rounded-lg border border-border bg-card">
+    <div className="overflow-hidden rounded-lg border border-border bg-card">
       <button
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm hover:bg-secondary/30"
       >
-        {open ? <ChevronDown className="size-4 shrink-0" /> : <ChevronRight className="size-4 shrink-0" />}
-        <span className="font-mono text-xs text-muted-foreground">{run.run_id}</span>
-        <span className="flex-1 truncate font-medium">
-          Turn {run.message_count}: {run.message.slice(0, 80)}
-          {run.message.length > 80 ? "…" : ""}
+        <ChevronDown className={"size-4 shrink-0 text-muted-foreground transition-transform " + (open ? "" : "-rotate-90")} />
+        <span className="flex size-5 shrink-0 items-center justify-center rounded bg-secondary text-[10px] font-semibold tabular-nums">
+          {index}
         </span>
-        <span className="shrink-0 text-xs text-muted-foreground">
-          {new Date(run.created_at).toLocaleString()}
+        <span className="min-w-0 flex-1 truncate font-medium">
+          {run.message.slice(0, 70)}{run.message.length > 70 ? "…" : ""}
         </span>
+        <span className="shrink-0 text-[11px] text-muted-foreground">{new Date(run.created_at).toLocaleTimeString()}</span>
       </button>
 
       {open && (
         <div className="border-t border-border px-4 py-4">
-          <div className="mb-3 flex flex-wrap gap-1.5">
+          <div className="mb-3 flex flex-wrap items-center gap-1.5">
+            <span className="font-mono text-[10px] text-muted-foreground/60">{run.run_id}</span>
             {run.primary_intent && <Badge variant="outline">{run.primary_intent}</Badge>}
             {run.severity && <Badge variant="outline">severity {run.severity}</Badge>}
             {run.priority && <Badge variant="outline">{run.priority}</Badge>}
@@ -405,9 +508,7 @@ function RunTraceCard({
 
           {run.agent_reports.length > 0 && (
             <div className="mb-4">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Agent reports
-              </p>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Agent reports</p>
               <div className="space-y-2">
                 {run.agent_reports.map((r) => (
                   <AgentReportDetails key={r.sub_problem_id + r.agent} report={r} />
@@ -418,18 +519,14 @@ function RunTraceCard({
 
           {run.state.investigation && (
             <div className="mb-4">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Investigation merge
-              </p>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Investigation merge</p>
               <InvestigationSummary s={run.state} />
             </div>
           )}
 
           {run.state.resolution && (
             <div className="mb-4">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Structured resolution
-              </p>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Structured resolution</p>
               <div className="rounded-md border border-border bg-card/40 p-3">
                 <StructuredResolutionDetails s={run.state} />
               </div>
@@ -457,36 +554,14 @@ function AuditList({ trail }: { trail: AuditEvent[] }) {
       {trail.map((e, i) => (
         <li key={i} className="rounded-md border border-border/60 bg-background/50 p-2.5 text-[11px]">
           <div className="flex items-center gap-1.5">
-            <span className="font-mono text-muted-foreground">
-              {new Date(e.timestamp).toLocaleTimeString()}
-            </span>
+            <span className="font-mono text-muted-foreground">{new Date(e.timestamp).toLocaleTimeString()}</span>
             <KindTag kind={e.kind} />
             <span className="font-medium">{e.actor}</span>
           </div>
           <p className="mt-0.5 text-muted-foreground">{e.summary}</p>
-          {e.detail && (
-            <p className="mt-1 border-l border-border pl-2 italic text-muted-foreground/80">{e.detail}</p>
-          )}
+          {e.detail && <p className="mt-1 border-l border-border pl-2 italic text-muted-foreground/80">{e.detail}</p>}
         </li>
       ))}
     </ol>
-  );
-}
-
-function LogoutButton() {
-  const { logout } = useAuth();
-  const router = useRouter();
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      title="Sign out"
-      onClick={async () => {
-        await logout();
-        router.replace("/login");
-      }}
-    >
-      <LogOut className="size-4" />
-    </Button>
   );
 }

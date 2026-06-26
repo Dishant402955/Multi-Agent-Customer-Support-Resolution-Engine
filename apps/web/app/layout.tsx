@@ -8,9 +8,9 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  // Light-mode only.
+  // Claude dark theme by default.
   return (
-    <html lang="en" style={{ colorScheme: "light" }}>
+    <html lang="en" className="dark" style={{ colorScheme: "dark" }}>
       <body>
         <AuthProvider>{children}</AuthProvider>
       </body>
