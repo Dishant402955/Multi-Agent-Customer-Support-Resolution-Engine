@@ -107,6 +107,86 @@
   .input {
     @apply w-full rounded-md border border-border bg-card px-3 py-2 text-sm outline-none transition-colors focus:border-ring/60 focus:ring-2 focus:ring-ring/20;
   }
+
+  /* Skeleton shimmer — a moving highlight over a muted base. */
+  .skeleton {
+    @apply relative overflow-hidden rounded-md bg-muted/60;
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      oklch(var(--foreground) / 0.06),
+      transparent
+    );
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  }
+}
+
+@layer utilities {
+  /* Minimal, professional motion primitives. */
+  @keyframes skeleton-shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  @keyframes thought-in {
+    from {
+      opacity: 0;
+      transform: translateX(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  /* Soft entrance for chat bubbles / cards. */
+  .animate-rise {
+    animation: rise-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  /* Each streamed "thought" line slides in. */
+  .animate-thought {
+    animation: thought-in 0.25s ease-out both;
+  }
+  /* Blinking caret shown while the assistant reply is still streaming in.
+     A slim cursor line feels closer to real token streaming (Anthropic-style). */
+  .stream-caret::after {
+    content: "";
+    display: inline-block;
+    margin-left: 1px;
+    vertical-align: text-bottom;
+    width: 2px;
+    height: 1em;
+    border-radius: 1px;
+    background-color: oklch(var(--primary) / 0.8);
+    animation: caret-blink 0.85s ease-in-out infinite;
+  }
+  @keyframes caret-blink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-rise,
+    .animate-thought,
+    .skeleton::after,
+    .stream-caret::after {
+      animation: none;
+    }
+  }
 }
 
 @layer base {

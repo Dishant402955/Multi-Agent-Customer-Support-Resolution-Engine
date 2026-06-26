@@ -6,7 +6,14 @@
 // "thought" so the chat trail can show *how* each step reasoned. Note: the LLM
 // steps (classify, agents, synthesize) fall back to deterministic logic if no
 // provider is configured or a call fails — `kind` reflects the designed path.
-import { audit, type AgentDomain, type AuditEvent, type PipelineState } from "./contracts/types";
+import {
+  audit,
+  type AgentDomain,
+  type AuditEvent,
+  type MessageCategory,
+  type PipelineState,
+  type Resolution,
+} from "./contracts/types";
 import { runGuard } from "./steps/guard";
 import { runClassifier } from "./steps/classifier";
 import { runSentiment } from "./steps/sentiment";
@@ -40,7 +47,30 @@ export async function guardNode(s: PipelineState): Promise<Partial<PipelineState
 
 export async function classifyNode(s: PipelineState): Promise<Partial<PipelineState>> {
   const classification = await runClassifier(s.message, s.history, s.run_id);
+  const category: MessageCategory = classification.category ?? "support";
   const top = classification.intents.map((i) => `${i.type} ${i.confidence.toFixed(2)}`).join(", ");
+
+  // Non-support messages stop here (no domain routing) — say so plainly.
+  if (category !== "support") {
+    return {
+      classification,
+      audit_trail: [
+        audit(
+          "classify",
+          "Intent classifier",
+          category === "greeting" ? "Greeting / small talk" : "Out of customer-support scope",
+          {
+            kind: "llm",
+            detail:
+              category === "greeting"
+                ? "The router judged this a greeting or small talk with no support request, so no domain routing or specialist work is needed."
+                : "The router judged this outside customer-support scope, so the engine will politely decline and run no specialists.",
+          }
+        ),
+      ],
+    };
+  }
+
   const why = classification.is_multi_issue
     ? "Two or more domains crossed the multi-issue threshold, so this is handled as a multi-issue ticket."
     : classification.fallback
@@ -76,6 +106,30 @@ export async function sentimentNode(s: PipelineState): Promise<Partial<PipelineS
 }
 
 export async function decomposeNode(s: PipelineState): Promise<Partial<PipelineState>> {
+  const category: MessageCategory = s.classification?.category ?? "support";
+
+  // Greetings and out-of-scope messages have nothing to investigate — emit zero
+  // sub-problems so NO specialist agent runs for them.
+  if (category !== "support") {
+    return {
+      sub_problems: [],
+      audit_trail: [
+        audit(
+          "decompose",
+          "Decomposer",
+          category === "greeting" ? "Greeting — no sub-problems" : "Out of scope — no sub-problems",
+          {
+            kind: "heuristic",
+            detail:
+              category === "greeting"
+                ? "The message is a greeting / small talk with no support request, so there is nothing to decompose and no specialist agents are needed."
+                : "The message is outside customer-support scope, so no sub-problems are created and no specialist agents run.",
+          }
+        ),
+      ],
+    };
+  }
+
   const { subProblems: sub_problems, method } = await runDecomposer(
     s.message,
     s.classification!,
@@ -110,6 +164,29 @@ export async function investigateNode(
   onAgentDone?: (agent: string, audit: AuditEvent[]) => void
 ): Promise<Partial<PipelineState>> {
   const subs = s.sub_problems || [];
+
+  // No sub-problems (greeting / out-of-scope) → no specialists run at all. Use a
+  // neutral "partial" investigation so severity stays low and nothing escalates,
+  // and the ticket status is never flipped to resolved by an empty turn.
+  if (subs.length === 0) {
+    const category: MessageCategory = s.classification?.category ?? "support";
+    return {
+      agent_reports: [],
+      investigation: { overall_status: "partial", conflicts: [] },
+      audit_trail: [
+        audit("orchestrate", "Orchestrator", "No specialist agents needed", {
+          kind: "heuristic",
+          detail:
+            category === "greeting"
+              ? "This message is a greeting, so no sub-problems were created and no specialist agents ran."
+              : category === "out_of_scope"
+                ? "This message is out of scope, so no specialist agents ran."
+                : "No sub-problems to investigate, so no specialist agents ran.",
+        }),
+      ],
+    };
+  }
+
   const { reports, investigation, timing } = await runOrchestrator(
     subs,
     s.message,
@@ -245,7 +322,52 @@ export async function escalationNode(s: PipelineState): Promise<Partial<Pipeline
   };
 }
 
+// Friendly opener when the customer just says hello / thanks.
+function greetingResolution(): Resolution {
+  return {
+    summary:
+      "Hi! I'm your support assistant. Tell me what's going on — for example a technical problem, a billing or payment question, or something about our policies — and I'll look into it right away.",
+    findings: [],
+    actions: [],
+    reasoning: "Greeting detected — no investigation needed.",
+    evidence: [],
+  };
+}
+
+// Polite, firm refusal for anything outside customer-support scope.
+function outOfScopeResolution(): Resolution {
+  return {
+    summary:
+      "Sorry, I can only help with customer-support questions about this product — things like technical issues, billing and payments, refunds, or our policies. I can't help with that particular request, but if you have a support question just describe it and I'll get right on it.",
+    findings: [],
+    actions: [],
+    reasoning: "Message classified as out of customer-support scope — declined.",
+    evidence: [],
+  };
+}
+
 export async function synthesizeNode(s: PipelineState): Promise<Partial<PipelineState>> {
+  const category: MessageCategory = s.classification?.category ?? "support";
+
+  // Greeting / out-of-scope never reach the specialist synthesizer — answer with
+  // a fixed, on-brand reply so we never fabricate support content or run the LLM
+  // merge over empty reports.
+  if (category === "greeting" || category === "out_of_scope") {
+    const resolution = category === "greeting" ? greetingResolution() : outOfScopeResolution();
+    return {
+      resolution,
+      audit_trail: [
+        audit("synthesize", "Response synthesizer", resolution.summary, {
+          kind: "heuristic",
+          detail:
+            category === "greeting"
+              ? "Recognized a greeting with no support request, so replied with a friendly prompt and skipped the specialist pipeline entirely."
+              : "The message was outside customer-support scope, so the engine politely declined instead of answering an unrelated question or running specialists.",
+        }),
+      ],
+    };
+  }
+
   const resolution = await runSynthesizer(s.agent_reports || [], s.escalation, {
     traceId: s.run_id,
     message: s.message,

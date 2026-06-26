@@ -2,35 +2,28 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
   Inbox,
   MessageSquare,
   Search,
+  Workflow,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetBody, SheetHeader } from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AdminHeader } from "@/components/admin-nav";
 import { getDashboardTicket, listDashboardTickets } from "@/lib/api";
 import { useRequireRole } from "@/lib/auth";
 import type {
-  AuditEvent,
   TicketDashboardDetail,
   TicketDashboardRow,
   TicketLifecycleStatus,
 } from "@/lib/types";
-import {
-  AgentReportDetails,
-  DebugPanel,
-  InvestigationSummary,
-  KindTag,
-  LifecycleStepper,
-  StructuredResolutionDetails,
-} from "@/components/views";
+import { LifecycleStepper } from "@/components/views";
 
 type StatusFilter = "all" | TicketLifecycleStatus;
 type SortKey = "recent" | "oldest" | "messages" | "runs";
@@ -259,9 +252,19 @@ export default function TicketsDashboardPage() {
             </thead>
             <tbody>
               {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-sm text-muted-foreground">Loading…</td>
-                </tr>
+                Array.from({ length: 8 }).map((_, i) => (
+                  <tr key={i} className="border-b border-border/60 last:border-0">
+                    <td className="px-4 py-3">
+                      <Skeleton className="h-3 w-16" />
+                      <Skeleton className="mt-1.5 h-3.5 w-48" />
+                    </td>
+                    <td className="px-4 py-3"><Skeleton className="h-3.5 w-24" /></td>
+                    <td className="px-4 py-3"><Skeleton className="h-5 w-16 rounded-full" /></td>
+                    <td className="hidden px-4 py-3 lg:table-cell"><Skeleton className="h-5 w-20 rounded-full" /></td>
+                    <td className="hidden px-4 py-3 md:table-cell"><Skeleton className="h-3.5 w-20" /></td>
+                    <td className="px-4 py-3"><Skeleton className="ml-auto h-3.5 w-14" /></td>
+                  </tr>
+                ))
               ) : paged.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-16 text-center">
@@ -284,6 +287,11 @@ export default function TicketsDashboardPage() {
                         {t.parent_ticket_id && <Badge variant="outline">linked</Badge>}
                       </div>
                       <p className="mt-0.5 max-w-[320px] truncate font-medium">{t.title}</p>
+                      {t.summary && (
+                        <p className="mt-0.5 max-w-[320px] truncate text-[11px] text-muted-foreground/70">
+                          {t.summary}
+                        </p>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{t.customer_name}</td>
                     <td className="px-4 py-3">
@@ -326,7 +334,20 @@ export default function TicketsDashboardPage() {
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen} side="right">
         {detailLoading || !detail ? (
           <SheetBody>
-            <p className="text-sm text-muted-foreground">{detailLoading ? "Loading ticket…" : "Ticket not found."}</p>
+            {detailLoading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-5 w-40" />
+                <Skeleton className="h-3.5 w-full" />
+                <Skeleton className="h-3.5 w-5/6" />
+                <div className="mt-4 space-y-2">
+                  <Skeleton className="h-20 w-full rounded-lg" />
+                  <Skeleton className="h-20 w-full rounded-lg" />
+                  <Skeleton className="h-20 w-full rounded-lg" />
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Ticket not found.</p>
+            )}
           </SheetBody>
         ) : (
           <TicketDetail detail={detail} />
@@ -449,119 +470,22 @@ function TicketDetail({ detail }: { detail: TicketDashboardDetail }) {
           </div>
         </section>
 
-        {/* Pipeline runs */}
+        {/* Pipeline trace */}
         <section>
-          <h3 className="mb-1 text-sm font-medium">
-            Pipeline runs <span className="text-xs font-normal text-muted-foreground">({runs.length})</span>
-          </h3>
-          <p className="mb-4 text-xs text-muted-foreground">
-            Each customer message triggers one run. Expand to see agent investigations and the full audit trace.
+          <h3 className="mb-1 text-sm font-medium">Pipeline trace</h3>
+          <p className="mb-3 text-xs text-muted-foreground">
+            {runs.length} run{runs.length === 1 ? "" : "s"} recorded · open the full agent trace in a
+            dedicated tab to keep this view focused.
           </p>
-          <div className="space-y-3">
-            {runs.length === 0 && <p className="text-sm text-muted-foreground">No pipeline runs recorded.</p>}
-            {runs.map((run, idx) => (
-              <RunTraceCard key={run.run_id} run={run} index={idx + 1} defaultOpen={idx === runs.length - 1} />
-            ))}
-          </div>
+          <Link href={`/trace/${encodeURIComponent(ticket.ticket_id)}`} target="_blank">
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <Workflow className="size-3.5" /> Open full trace in new tab
+              <ExternalLink className="size-3 opacity-60" />
+            </Button>
+          </Link>
         </section>
       </SheetBody>
     </>
   );
 }
 
-function RunTraceCard({
-  run,
-  index,
-  defaultOpen,
-}: {
-  run: TicketDashboardDetail["runs"][number];
-  index: number;
-  defaultOpen: boolean;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-
-  return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card">
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm hover:bg-secondary/30"
-      >
-        <ChevronDown className={"size-4 shrink-0 text-muted-foreground transition-transform " + (open ? "" : "-rotate-90")} />
-        <span className="flex size-5 shrink-0 items-center justify-center rounded bg-secondary text-[10px] font-semibold tabular-nums">
-          {index}
-        </span>
-        <span className="min-w-0 flex-1 truncate font-medium">
-          {run.message.slice(0, 70)}{run.message.length > 70 ? "…" : ""}
-        </span>
-        <span className="shrink-0 text-[11px] text-muted-foreground">{new Date(run.created_at).toLocaleTimeString()}</span>
-      </button>
-
-      {open && (
-        <div className="border-t border-border px-4 py-4">
-          <div className="mb-3 flex flex-wrap items-center gap-1.5">
-            <span className="font-mono text-[10px] text-muted-foreground/60">{run.run_id}</span>
-            {run.primary_intent && <Badge variant="outline">{run.primary_intent}</Badge>}
-            {run.severity && <Badge variant="outline">severity {run.severity}</Badge>}
-            {run.priority && <Badge variant="outline">{run.priority}</Badge>}
-            {run.escalated && <Badge variant="destructive">escalated</Badge>}
-          </div>
-
-          {run.agent_reports.length > 0 && (
-            <div className="mb-4">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Agent reports</p>
-              <div className="space-y-2">
-                {run.agent_reports.map((r) => (
-                  <AgentReportDetails key={r.sub_problem_id + r.agent} report={r} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {run.state.investigation && (
-            <div className="mb-4">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Investigation merge</p>
-              <InvestigationSummary s={run.state} />
-            </div>
-          )}
-
-          {run.state.resolution && (
-            <div className="mb-4">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Structured resolution</p>
-              <div className="rounded-md border border-border bg-card/40 p-3">
-                <StructuredResolutionDetails s={run.state} />
-              </div>
-            </div>
-          )}
-
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-            Audit trace ({run.audit_trail.length} steps)
-          </p>
-          <AuditList trail={run.audit_trail} />
-
-          <div className="mt-3">
-            <DebugPanel s={run.state} />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function AuditList({ trail }: { trail: AuditEvent[] }) {
-  if (!trail.length) return <p className="text-xs text-muted-foreground">No audit events.</p>;
-  return (
-    <ol className="space-y-2">
-      {trail.map((e, i) => (
-        <li key={i} className="rounded-md border border-border/60 bg-background/50 p-2.5 text-[11px]">
-          <div className="flex items-center gap-1.5">
-            <span className="font-mono text-muted-foreground">{new Date(e.timestamp).toLocaleTimeString()}</span>
-            <KindTag kind={e.kind} />
-            <span className="font-medium">{e.actor}</span>
-          </div>
-          <p className="mt-0.5 text-muted-foreground">{e.summary}</p>
-          {e.detail && <p className="mt-1 border-l border-border pl-2 italic text-muted-foreground/80">{e.detail}</p>}
-        </li>
-      ))}
-    </ol>
-  );
-}

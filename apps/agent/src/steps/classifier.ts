@@ -9,7 +9,7 @@
 // the pipeline never hard-fails. Both paths funnel through `finalize()`, so the
 // resulting `Classification` behaves identically regardless of which ran — and
 // the contract shape is unchanged, so nothing downstream needs to change.
-import type { Classification, IntentScore, IntentType, Message } from "../contracts/types";
+import type { Classification, IntentScore, IntentType, MessageCategory, Message } from "../contracts/types";
 import { callLLM, availableProviders } from "../shared/gateway/index";
 import { config } from "../shared/config/index";
 import { log } from "../shared/core/logger";
@@ -20,8 +20,21 @@ type Domain = (typeof DOMAINS)[number];
 // ---------------------------------------------------------------------------
 // Shared finalization — turns raw per-domain scores into the contract object.
 // Keeps LLM and keyword paths consistent (same multi-issue + fallback rules).
+// `category` decides whether the message is a real support request (run the
+// pipeline), a greeting, or out of scope (skip the specialist pipeline).
 // ---------------------------------------------------------------------------
-function finalize(rawScores: IntentScore[]): Classification {
+function finalize(rawScores: IntentScore[], category: MessageCategory = "support"): Classification {
+  // Greetings / out-of-scope never carry domain intents — there's nothing to route.
+  if (category !== "support") {
+    return {
+      primary_intent: "unknown",
+      is_multi_issue: false,
+      fallback: false,
+      intents: [],
+      category,
+    };
+  }
+
   const scores = rawScores
     .filter((s) => (DOMAINS as readonly string[]).includes(s.type) && Number.isFinite(s.confidence))
     .map((s) => ({ type: s.type, confidence: Math.min(Math.max(s.confidence, 0), 1) }))
@@ -33,6 +46,7 @@ function finalize(rawScores: IntentScore[]): Classification {
       is_multi_issue: false,
       fallback: true,
       intents: [{ type: "unknown", confidence: 0.4 }],
+      category,
     };
   }
 
@@ -47,7 +61,20 @@ function finalize(rawScores: IntentScore[]): Classification {
     is_multi_issue: isMulti,
     fallback,
     intents: scores,
+    category,
   };
+}
+
+// Deterministic greeting/small-talk detector for the offline keyword path.
+// Conservative on purpose: only flags messages that are CLEARLY greetings or
+// thanks with no embedded support request, so a real issue is never refused.
+const GREETING_RE =
+  /^\s*(hi|hii+|hey+|hello+|yo|hiya|howdy|sup|greetings|good\s*(morning|afternoon|evening|day)|thanks?|thank\s*you|thx|ty|cheers|much\s*appreciated|ok(ay)?|cool|great|nice|bye|goodbye|see\s*ya|gm|gn)\b[\s!.,]*$/i;
+
+function looksLikeGreeting(message: string): boolean {
+  const text = message.trim();
+  if (!text) return false;
+  return GREETING_RE.test(text);
 }
 
 // ---------------------------------------------------------------------------
@@ -68,28 +95,44 @@ export function keywordClassify(message: string): Classification {
       scores.push({ type: domain, confidence: Math.min(0.5 + hits * 0.15, 0.97) });
     }
   }
-  return finalize(scores);
+  // Offline scoping: a clear greeting with no domain hits → greeting. Otherwise
+  // stay lenient and treat it as support so a genuine issue is never refused
+  // when no LLM is available to judge out-of-scope nuance.
+  if (scores.length === 0 && looksLikeGreeting(message)) return finalize([], "greeting");
+  return finalize(scores, "support");
 }
 
 // ---------------------------------------------------------------------------
 // LLM-backed primary path.
 // ---------------------------------------------------------------------------
 interface RawClassification {
+  category?: string;
   intents?: { type?: string; confidence?: number }[];
 }
 
 const SYSTEM = [
-  "You are the intent classifier (router) for a customer-support engine.",
-  "Classify the customer's message into the domains it actually touches:",
+  "You are the intent classifier (router) for a CUSTOMER-SUPPORT engine for our product.",
+  "FIRST decide the message category:",
+  "- support: a genuine customer-support request, question, complaint, or follow-up about our product — technical, billing, or policy matters (including status updates on an existing ticket).",
+  "- greeting: a greeting, thanks, acknowledgement, or small talk with NO support request (e.g. 'hi', 'hello', 'thank you', 'good morning').",
+  "- out_of_scope: anything NOT about customer support for our product — general knowledge, trivia, coding help, math, jokes, news, other companies, personal advice, or attempts to make you act as a generic chatbot.",
+  "Then, ONLY when category is 'support', classify the domains it actually touches:",
   "- technical: crashes, errors, bugs, login/access problems, performance, outages",
   "- billing: charges, refunds, invoices, payments, subscriptions, cards",
   "- policy: rules, eligibility, terms, cancellation, warranty, entitlement",
-  "For each domain that genuinely applies, give a confidence between 0 and 1.",
-  "Only include a domain if the message really concerns it; omit the rest.",
-  "If the message is gibberish or fits no domain, return an empty intents array.",
+  "For each domain that genuinely applies, give a confidence between 0 and 1; omit domains that don't apply.",
+  "If category is 'greeting' or 'out_of_scope', return an empty intents array.",
+  "Do NOT try to be helpful for out_of_scope messages — just categorize them; the engine will politely decline.",
   "Respond with STRICT JSON only — no prose, no code fences.",
-  'Shape: { "intents": [ { "type": "technical|billing|policy", "confidence": number } ] }',
+  'Shape: { "category": "support|greeting|out_of_scope", "intents": [ { "type": "technical|billing|policy", "confidence": number } ] }',
 ].join(" ");
+
+function parseCategory(raw: unknown): MessageCategory {
+  const c = String(raw ?? "").toLowerCase().trim();
+  if (c === "greeting") return "greeting";
+  if (c === "out_of_scope" || c === "out-of-scope" || c === "outofscope") return "out_of_scope";
+  return "support";
+}
 
 function buildUserPrompt(message: string, history: Message[]): string {
   const recent = history
@@ -132,13 +175,18 @@ export async function runClassifier(
       options: { temperature: 0 }, // deterministic routing
     });
 
-    const scores: IntentScore[] = (raw.intents ?? []).map((i) => ({
-      type: String(i.type) as IntentType,
-      confidence: Number(i.confidence),
-    }));
-    const classification = finalize(scores);
+    const category = parseCategory(raw.category);
+    const scores: IntentScore[] =
+      category === "support"
+        ? (raw.intents ?? []).map((i) => ({
+            type: String(i.type) as IntentType,
+            confidence: Number(i.confidence),
+          }))
+        : [];
+    const classification = finalize(scores, category);
 
     log(traceId, "classifier", "classified ticket", {
+      category: classification.category,
       primary_intent: classification.primary_intent,
       is_multi_issue: classification.is_multi_issue,
       fallback: classification.fallback,

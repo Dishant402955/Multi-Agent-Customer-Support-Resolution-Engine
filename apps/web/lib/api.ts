@@ -6,8 +6,11 @@ import type {
   HumanAgent,
   HumanAgentAdmin,
   KbDoc,
+  Message,
   NotificationRecord,
   PipelineProgressEvent,
+  RunSessionDetail,
+  RunSessionRow,
   StoredUseCase,
   TicketDashboardDetail,
   TicketDashboardRow,
@@ -136,9 +139,12 @@ export async function submitTicketStream(
       if (!line) continue;
       const evt = JSON.parse(line.slice(6)) as PipelineProgressEvent;
       onProgress(evt);
-      if (evt.type === "complete" && evt.ticket_id) {
+      // `complete` always carries the result. Note: greeting / out-of-scope
+      // replies are ephemeral and intentionally have an empty ticket_id, so we
+      // must NOT gate on ticket_id here or those replies would be dropped.
+      if (evt.type === "complete") {
         result = {
-          ticket_id: evt.ticket_id,
+          ticket_id: evt.ticket_id ?? "",
           display_id: evt.display_id,
           status: evt.status,
           summary: evt.summary,
@@ -188,6 +194,32 @@ export async function getTicket(ticketId: string): Promise<TicketDetail | null> 
   }
 }
 
+/**
+ * Customer posts a message into an open escalation (live human chat). Returns
+ * the refreshed thread, or `{ needsPipeline: true }` when there's no open
+ * escalation so the caller can fall back to the AI pipeline.
+ */
+export async function postCustomerMessage(
+  ticketId: string,
+  text: string
+): Promise<{ messages?: Message[]; needsPipeline?: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API}/api/tickets/${encodeURIComponent(ticketId)}/messages`, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ text }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 409 || data?.error === "no_open_escalation") {
+      return { needsPipeline: true };
+    }
+    if (!res.ok) return { error: data?.error || "Could not send message" };
+    return { messages: (data?.messages ?? []) as Message[] };
+  } catch {
+    return { error: "Network error" };
+  }
+}
+
 /** Tickets for the sidebar, scoped to the signed-in customer. */
 export async function listTickets(): Promise<TicketSummary[]> {
   try {
@@ -224,6 +256,25 @@ export async function listEscalations(): Promise<{
     return (await res.json()) as { escalations: EscalationRecord[]; agents: HumanAgent[] };
   } catch {
     return { escalations: [], agents: [] };
+  }
+}
+
+/** The assigned human agent replies to the customer on an open case. */
+export async function postAgentReply(
+  escalationId: string,
+  text: string
+): Promise<{ messages?: Message[]; error?: string }> {
+  try {
+    const res = await fetch(`${API}/api/escalations/${encodeURIComponent(escalationId)}/reply`, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ text }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { error: data?.error || "Could not send reply" };
+    return { messages: (data?.messages ?? []) as Message[] };
+  } catch {
+    return { error: "Network error" };
   }
 }
 
@@ -307,6 +358,31 @@ export async function getDashboardTicket(ticketId: string): Promise<TicketDashbo
     });
     if (!res.ok) return null;
     return (await res.json()) as TicketDashboardDetail;
+  } catch {
+    return null;
+  }
+}
+
+// ---- Observability: agent run sessions -------------------------------------
+
+export async function listRunSessions(): Promise<RunSessionRow[]> {
+  try {
+    const res = await fetch(`${API}/api/observability/runs`, { headers: authHeaders() });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { runs: RunSessionRow[] };
+    return data.runs ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getRunSession(runId: string): Promise<RunSessionDetail | null> {
+  try {
+    const res = await fetch(`${API}/api/observability/runs/${encodeURIComponent(runId)}`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as RunSessionDetail;
   } catch {
     return null;
   }

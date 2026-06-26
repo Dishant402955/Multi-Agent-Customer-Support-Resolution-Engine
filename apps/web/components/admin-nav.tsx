@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutGrid, LogOut, RefreshCw, ShieldAlert, SlidersHorizontal } from "lucide-react";
+import { Activity, LayoutGrid, LogOut, RefreshCw, ShieldAlert, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/notification-bell";
 import { useAuth } from "@/lib/auth";
@@ -11,6 +11,7 @@ type Role = "admin" | "agent" | "user" | undefined;
 const NAV: { href: string; label: string; icon: typeof LayoutGrid; roles: Exclude<Role, undefined>[] }[] = [
   { href: "/tickets", label: "Tickets", icon: LayoutGrid, roles: ["admin"] },
   { href: "/escalations", label: "Escalations", icon: ShieldAlert, roles: ["admin", "agent"] },
+  { href: "/observability", label: "Observability", icon: Activity, roles: ["admin"] },
   { href: "/platform", label: "Platform", icon: SlidersHorizontal, roles: ["admin"] },
 ];
 

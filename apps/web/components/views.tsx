@@ -1,7 +1,15 @@
 "use client";
 import { useState } from "react";
-import { Bug, Check, ChevronRight, Loader2 } from "lucide-react";
-import type { AgentReport, AuditEvent, PipelineState, PipelineStepId, RunProgress, StepKind } from "@/lib/types";
+import { Bug, Check, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+import type {
+  AgentReport,
+  AuditEvent,
+  PipelineState,
+  PipelineStepId,
+  RunProgress,
+  StepKind,
+  TicketRunRecord,
+} from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 
 function statusVariant(status: string) {
@@ -687,6 +695,123 @@ export function ChatActivity({ s }: { s: PipelineState }) {
               ))}
             </ol>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Flat list of audit events for one run (timestamp · kind · actor · summary). */
+export function AuditList({ trail }: { trail: AuditEvent[] }) {
+  if (!trail.length) return <p className="text-xs text-muted-foreground">No audit events.</p>;
+  return (
+    <ol className="space-y-2">
+      {trail.map((e, i) => (
+        <li key={i} className="rounded-lg border border-border/60 bg-background/50 p-2.5 text-[11px]">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="font-mono text-muted-foreground">
+              {new Date(e.timestamp).toLocaleTimeString()}
+            </span>
+            <KindTag kind={e.kind} />
+            <span className="font-medium">{e.actor}</span>
+          </div>
+          <p className="mt-0.5 text-muted-foreground">{e.summary}</p>
+          {e.detail && (
+            <p className="mt-1 border-l border-border pl-2 italic text-muted-foreground/80">{e.detail}</p>
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/**
+ * Collapsible card for a single pipeline run — agent reports, investigation
+ * merge, structured resolution, full audit trace, and raw debug. Shared by the
+ * ops dashboard and the escalation case view so a human agent sees everything.
+ */
+export function RunTraceCard({
+  run,
+  index,
+  defaultOpen,
+}: {
+  run: TicketRunRecord;
+  index: number;
+  defaultOpen: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-2 px-4 py-3 text-left text-sm transition-colors hover:bg-secondary/30"
+      >
+        <ChevronDown
+          className={"size-4 shrink-0 text-muted-foreground transition-transform " + (open ? "" : "-rotate-90")}
+        />
+        <span className="flex size-5 shrink-0 items-center justify-center rounded bg-secondary text-[10px] font-semibold tabular-nums">
+          {index}
+        </span>
+        <span className="min-w-0 flex-1 truncate font-medium">
+          {run.message.slice(0, 70)}
+          {run.message.length > 70 ? "…" : ""}
+        </span>
+        <span className="shrink-0 text-[11px] text-muted-foreground">
+          {new Date(run.created_at).toLocaleTimeString()}
+        </span>
+      </button>
+
+      {open && (
+        <div className="border-t border-border px-4 py-4">
+          <div className="mb-3 flex flex-wrap items-center gap-1.5">
+            <span className="font-mono text-[10px] text-muted-foreground/60">{run.run_id}</span>
+            {run.primary_intent && <Badge variant="outline">{run.primary_intent}</Badge>}
+            {run.severity && <Badge variant="outline">severity {run.severity}</Badge>}
+            {run.priority && <Badge variant="outline">{run.priority}</Badge>}
+            {run.escalated && <Badge variant="destructive">escalated</Badge>}
+          </div>
+
+          {run.agent_reports.length > 0 && (
+            <div className="mb-4">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Agent reports
+              </p>
+              <div className="space-y-2">
+                {run.agent_reports.map((r) => (
+                  <AgentReportDetails key={r.sub_problem_id + r.agent} report={r} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {run.state.investigation && (
+            <div className="mb-4">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Investigation merge
+              </p>
+              <InvestigationSummary s={run.state} />
+            </div>
+          )}
+
+          {run.state.resolution && (
+            <div className="mb-4">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Structured resolution
+              </p>
+              <div className="rounded-lg border border-border bg-card/40 p-3">
+                <StructuredResolutionDetails s={run.state} />
+              </div>
+            </div>
+          )}
+
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Audit trace ({run.audit_trail.length} steps)
+          </p>
+          <AuditList trail={run.audit_trail} />
+
+          <div className="mt-3">
+            <DebugPanel s={run.state} />
+          </div>
         </div>
       )}
     </div>

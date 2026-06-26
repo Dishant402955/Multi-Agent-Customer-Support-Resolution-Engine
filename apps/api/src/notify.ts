@@ -3,7 +3,7 @@
 // if RESEND_API_KEY is unset or the call fails, we just log and move on.
 import { ENV } from "./env";
 import { createNotification, getTicketDisplayId } from "./db";
-import { getAccountByCustomerId } from "./auth";
+import { getAccountByCustomerId, getAccountByAgentId } from "./auth";
 
 async function sendEmail(to: string, subject: string, html: string): Promise<void> {
   if (!ENV.RESEND_API_KEY) {
@@ -60,4 +60,67 @@ export async function notifyTicketResolved(
        <p style="color:#666;font-size:13px">Reference: ${displayId}</p>
      </div>`
   );
+}
+
+const PREVIEW = (text: string, n = 140) =>
+  text.length > n ? `${text.slice(0, n).trim()}…` : text;
+
+/**
+ * Tell the customer that the human agent handling their case replied.
+ * Creates an in-app notification and fires an email (if configured).
+ */
+export async function notifyAgentReply(
+  customerId: string | null,
+  ticketId: string,
+  agentName: string,
+  text: string
+): Promise<void> {
+  if (!customerId) return;
+  const account = getAccountByCustomerId(customerId);
+  if (!account) return;
+
+  const displayId = getTicketDisplayId(ticketId);
+  const title = `New reply from ${agentName}`;
+  const body = PREVIEW(text);
+
+  createNotification({
+    account_id: account.id,
+    kind: "agent_reply",
+    title,
+    body,
+    ticket_id: ticketId,
+  });
+
+  void sendEmail(
+    account.email,
+    `[Support] ${title} · ${displayId}`,
+    `<div style="font-family:system-ui,sans-serif;line-height:1.5">
+       <h2 style="margin:0 0 8px">${title}</h2>
+       <p>${body}</p>
+       <p style="color:#666;font-size:13px">Reference: ${displayId}</p>
+     </div>`
+  );
+}
+
+/**
+ * Tell the assigned human agent that the customer replied on a live case.
+ * In-app notification only (agents work the dashboard, not email).
+ */
+export function notifyCustomerReply(
+  assigneeAgentId: string,
+  ticketId: string,
+  customerName: string,
+  text: string
+): void {
+  const account = getAccountByAgentId(assigneeAgentId);
+  if (!account) return;
+
+  const displayId = getTicketDisplayId(ticketId);
+  createNotification({
+    account_id: account.id,
+    kind: "customer_reply",
+    title: `${customerName} replied · ${displayId}`,
+    body: PREVIEW(text),
+    ticket_id: ticketId,
+  });
 }

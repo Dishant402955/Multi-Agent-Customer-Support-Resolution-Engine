@@ -24,9 +24,11 @@ import {
   getLatestRunContext,
   getMessages,
   getOpenEscalationForTicket,
+  getRunById,
   getTicketCustomer,
   getTicketDashboardRow,
   getTicketDisplayId,
+  listAllRuns,
   listEscalations,
   listRunsForTicket,
   listTickets,
@@ -62,7 +64,7 @@ import {
   type Account,
   type Role,
 } from "./auth";
-import { notifyTicketResolved } from "./notify";
+import { notifyTicketResolved, notifyAgentReply, notifyCustomerReply } from "./notify";
 import { agentAdmin } from "./agentAdmin";
 
 seedAccounts();
@@ -217,13 +219,47 @@ function finalizeTicketRun(opts: {
   state: any;
   ticketId: string;
   customerId: string | null;
+  parentTicketId?: string | null;
+  isNewTicket?: boolean;
   history: { role: string; text: string }[];
   message: string;
   isFollowUp: boolean;
   priorEsc: EscalationRecord | null;
   runId: string;
 }) {
-  const { state, ticketId, customerId, history, message, isFollowUp, priorEsc, runId } = opts;
+  const { state, ticketId, customerId, parentTicketId, isNewTicket, history, message, isFollowUp, priorEsc, runId } = opts;
+
+  const category: string = state?.classification?.category ?? "support";
+  const nonSupport = category === "greeting" || category === "out_of_scope";
+
+  // A brand-new conversation that opens with a greeting or an out-of-scope
+  // message does NOT create a ticket. Reply once, persist nothing.
+  if (isNewTicket && nonSupport) {
+    const now = new Date().toISOString();
+    const reply = state?.resolution?.summary ?? "Thanks for reaching out!";
+    return {
+      ticket_id: "",
+      display_id: "",
+      status: "active" as const,
+      summary: state?.resolution?.summary ?? null,
+      run: state,
+      messages: [
+        { role: "customer", text: message, timestamp: now },
+        { role: "system", text: reply, timestamp: now },
+      ],
+      escalation_id: null,
+      escalation_status: null,
+      ephemeral: true,
+    };
+  }
+
+  // Real support request on a new ticket → create + persist it now (deferred
+  // from executeTicketRun so greetings never reach this point).
+  if (isNewTicket) {
+    ensureTicket(ticketId, customerId, parentTicketId ?? null);
+    addMessage(ticketId, "customer", message);
+  }
+
   const displayId = getTicketDisplayId(ticketId);
   const firstCustomerMessage =
     history.find((m) => m.role === "customer")?.text ?? message;
@@ -261,7 +297,11 @@ function finalizeTicketRun(opts: {
     state.escalation = { ...(state.escalation ?? {}), escalate: true, assigned_agent: assignee };
   }
 
-  const reply = composeReply(state, displayId, assignee, escalationRecord, isFollowUp, firstCustomerMessage);
+  // Non-support turns on an existing ticket (e.g. a "thanks") get the plain
+  // assistant reply without the "ticket created / update" framing or escalation lines.
+  const reply = nonSupport
+    ? state?.resolution?.summary ?? "Thanks for reaching out!"
+    : composeReply(state, displayId, assignee, escalationRecord, isFollowUp, firstCustomerMessage);
   addMessage(ticketId, "system", reply);
   saveRun(runId, ticketId, state);
 
@@ -314,16 +354,21 @@ async function executeTicketRun(body: Record<string, unknown>, authCustomerId: s
     return { error: "Ticket does not belong to the selected customer", status: 403 as const };
   }
   const customerId = exists ? existingCustomer : requestedCustomer;
-  ensureTicket(ticketId, customerId, parentTicketId);
+
+  // Brand-new conversation: defer creating the ticket + persisting the message
+  // until AFTER the pipeline runs, so a greeting / out-of-scope opener never
+  // creates a ticket. Existing tickets persist the follow-up immediately.
+  const isNewTicket = !exists;
+  if (!isNewTicket) ensureTicket(ticketId, customerId, parentTicketId);
 
   // Agent contract: history is prior customer messages only. Full thread remains
   // available for display via getMessages(), while structured prior_context
   // carries the previous run's support response/reports/investigation.
-  const history = getCustomerHistory(ticketId);
+  const history = exists ? getCustomerHistory(ticketId) : [];
   const isFollowUp = history.length > 0;
   const priorContext = isFollowUp ? getLatestRunContext(ticketId) : null;
 
-  const priorEsc = getLatestEscalationForTicket(ticketId);
+  const priorEsc = exists ? getLatestEscalationForTicket(ticketId) : null;
   const ticketStatus = priorEsc
     ? {
         has_escalation: true,
@@ -334,8 +379,8 @@ async function executeTicketRun(body: Record<string, unknown>, authCustomerId: s
       }
     : { has_escalation: false };
 
-  addMessage(ticketId, "customer", message);
-  const messageCount = countCustomerMessages(ticketId);
+  if (!isNewTicket) addMessage(ticketId, "customer", message);
+  const messageCount = isNewTicket ? 1 : countCustomerMessages(ticketId);
   const runId = `R-${randomUUID().slice(0, 8)}`;
 
   const runReq: RunRequest = {
@@ -352,6 +397,8 @@ async function executeTicketRun(body: Record<string, unknown>, authCustomerId: s
   return {
     ticketId,
     customerId,
+    parentTicketId,
+    isNewTicket,
     history,
     isFollowUp,
     priorEsc,
@@ -380,6 +427,8 @@ app.post("/api/tickets", requireRole("user"), async (req: AuthedRequest, res) =>
       state,
       ticketId: prep.ticketId,
       customerId: prep.customerId,
+      parentTicketId: prep.parentTicketId,
+      isNewTicket: prep.isNewTicket,
       history: prep.history,
       message: prep.runReq.message,
       isFollowUp: prep.isFollowUp,
@@ -444,6 +493,8 @@ app.post("/api/tickets/stream", requireRole("user"), async (req: AuthedRequest, 
       state,
       ticketId: prep.ticketId,
       customerId: prep.customerId,
+      parentTicketId: prep.parentTicketId,
+      isNewTicket: prep.isNewTicket,
       history: prep.history,
       message: prep.runReq.message,
       isFollowUp: prep.isFollowUp,
@@ -525,6 +576,25 @@ app.post("/api/escalations/:id/handoff", requireRole("admin", "agent"), (req: Au
     });
   }
   res.json({ ok: true, assignee: manager });
+});
+
+// The assigned human agent (or an admin) replies directly to the customer on an
+// open case. Stored as an `agent` message and the customer is notified.
+app.post("/api/escalations/:id/reply", requireRole("admin", "agent"), (req: AuthedRequest, res) => {
+  const account = req.account!;
+  const esc = getEscalationById(req.params.id);
+  if (!esc) return res.status(404).json({ error: "Escalation not found" });
+  if (esc.status !== "open") return res.status(400).json({ error: "Case is already closed" });
+  if (account.role === "agent" && esc.assignee_id !== account.agent_id) {
+    return res.status(403).json({ error: "Not your case" });
+  }
+  const text = String(req.body?.text || "").trim();
+  if (!text) return res.status(400).json({ error: "Message is empty" });
+
+  addMessage(esc.ticket_id, "agent", text);
+  void notifyAgentReply(esc.customer_id, esc.ticket_id, account.name, text);
+
+  res.json({ ok: true, messages: getMessages(esc.ticket_id) });
 });
 
 // ---- Notifications (recipient-scoped) --------------------------------------
@@ -675,6 +745,23 @@ app.get("/api/dashboard/tickets", requireRole("admin"), (_req, res) => {
   res.json({ tickets });
 });
 
+// ---- Observability: agent run sessions -------------------------------------
+// Every pipeline run is a "session". Admins get a flat, searchable feed for
+// debugging the agent system end-to-end.
+app.get("/api/observability/runs", requireRole("admin"), (_req, res) => {
+  const runs = listAllRuns().map((r) => ({
+    ...r,
+    customer_name: displayCustomerName(getTicketCustomer(r.ticket_id)),
+  }));
+  res.json({ runs });
+});
+
+app.get("/api/observability/runs/:runId", requireRole("admin"), (req: AuthedRequest, res) => {
+  const run = getRunById(req.params.runId);
+  if (!run) return res.status(404).json({ error: "Run not found" });
+  res.json({ ...run, customer_name: displayCustomerName(getTicketCustomer(run.ticket_id)) });
+});
+
 app.get("/api/dashboard/tickets/:id", requireRole("admin", "agent"), (req: AuthedRequest, res) => {
   const account = req.account!;
   // Agents may only open a ticket that's escalated to them.
@@ -737,7 +824,30 @@ app.get("/api/tickets/:id", requireRole("user"), (req: AuthedRequest, res) => {
     messages,
     escalation_id: esc?.id ?? null,
     escalation_status: esc?.status ?? null,
+    escalation_assignee: esc && esc.status === "open" ? esc.assignee_name : null,
   });
+});
+
+// Customer posts a plain message on a ticket that has an OPEN escalation — i.e.
+// they're now talking to the assigned human agent, so we skip the AI pipeline
+// and just deliver the message + notify the agent. If there's no open
+// escalation we return 409 so the client can fall back to the pipeline.
+app.post("/api/tickets/:id/messages", requireRole("user"), (req: AuthedRequest, res) => {
+  const account = req.account!;
+  const customer = account.customer_id ?? "";
+  if (!canAccessTicket(req.params.id, customer)) {
+    return res.status(404).json({ error: "Ticket not found" });
+  }
+  const esc = getOpenEscalationForTicket(req.params.id);
+  if (!esc) return res.status(409).json({ error: "no_open_escalation" });
+
+  const text = String(req.body?.text || "").trim();
+  if (!text) return res.status(400).json({ error: "Message is empty" });
+
+  addMessage(req.params.id, "customer", text);
+  notifyCustomerReply(esc.assignee_id, req.params.id, account.name, text);
+
+  res.json({ ok: true, messages: getMessages(req.params.id) });
 });
 
 app.delete("/api/tickets/:id", requireRole("user"), (req: AuthedRequest, res) => {

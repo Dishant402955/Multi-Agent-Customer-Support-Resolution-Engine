@@ -101,8 +101,11 @@ export function friendlyId(seq: number | null | undefined, ticketId: string): st
   return seq ? `T-${String(seq).padStart(3, "0")}` : ticketId;
 }
 
+// Roles: customer = end user, system = AI assistant, agent = human support agent.
+export type MessageRole = "customer" | "system" | "agent";
+
 export interface StoredMessage {
-  role: "customer" | "system";
+  role: MessageRole;
   text: string;
   timestamp: string;
 }
@@ -287,7 +290,7 @@ export function countCustomerMessages(ticketId: string): number {
   return Number(row?.n ?? 0);
 }
 
-export function addMessage(ticketId: string, role: "customer" | "system", text: string): void {
+export function addMessage(ticketId: string, role: MessageRole, text: string): void {
   db.prepare("INSERT INTO messages (ticket_id, role, text, created_at) VALUES (?, ?, ?, ?)").run(
     ticketId,
     role,
@@ -352,6 +355,7 @@ export interface TicketDashboardRow {
   primary_intent: string | null;
   severity: string | null;
   priority: string | null;
+  summary: string | null;
   escalation_id: string | null;
   escalation_status: "open" | "resolved" | null;
 }
@@ -402,6 +406,7 @@ function rowFromDb(r: any): TicketDashboardRow {
     primary_intent: state?.classification?.primary_intent ?? null,
     severity: state?.severity?.level ?? null,
     priority: state?.severity?.priority ?? null,
+    summary: state?.resolution?.summary ?? null,
     escalation_id: r.escalation_id ?? null,
     escalation_status,
   };
@@ -470,6 +475,91 @@ export function getTicketDashboardRow(ticketId: string): TicketDashboardRow | nu
     )
     .get(ticketId) as any;
   return row ? rowFromDb(row) : null;
+}
+
+/** One row in the observability "sessions" table — a single pipeline run. */
+export interface RunSessionRow {
+  run_id: string;
+  ticket_id: string;
+  display_id: string;
+  created_at: string;
+  message: string;
+  category: string | null;
+  primary_intent: string | null;
+  is_multi_issue: boolean;
+  sentiment: string | null;
+  severity: string | null;
+  priority: string | null;
+  escalated: boolean;
+  guard_flagged: boolean;
+  overall_status: string | null;
+  agent_count: number;
+  step_count: number;
+  llm_steps: number;
+}
+
+function sessionRowFromRun(r: any): RunSessionRow {
+  let s: any = {};
+  try {
+    s = JSON.parse(r.state_json) || {};
+  } catch {
+    s = {};
+  }
+  const audit = Array.isArray(s.audit_trail) ? s.audit_trail : [];
+  return {
+    run_id: r.run_id,
+    ticket_id: r.ticket_id,
+    display_id: friendlyId(r.seq, r.ticket_id),
+    created_at: r.created_at,
+    message: s.message ?? "",
+    category: s.classification?.category ?? null,
+    primary_intent: s.classification?.primary_intent ?? null,
+    is_multi_issue: !!s.classification?.is_multi_issue,
+    sentiment: s.sentiment?.label ?? null,
+    severity: s.severity?.level ?? null,
+    priority: s.severity?.priority ?? null,
+    escalated: !!s.escalation?.escalate,
+    guard_flagged: !!s.guard?.force_escalation,
+    overall_status: s.investigation?.overall_status ?? (s.resolution ? "resolved" : null),
+    agent_count: Array.isArray(s.agent_reports) ? s.agent_reports.length : 0,
+    step_count: audit.length,
+    llm_steps: audit.filter((e: any) => e?.kind === "llm").length,
+  };
+}
+
+/** Every pipeline run across all tickets, newest first — observability table. */
+export function listAllRuns(): RunSessionRow[] {
+  const rows = db
+    .prepare(
+      `SELECT r.run_id, r.ticket_id, r.created_at, r.state_json, t.seq
+         FROM runs r
+         LEFT JOIN tickets t ON t.ticket_id = r.ticket_id
+         ORDER BY r.created_at DESC`
+    )
+    .all() as any[];
+  return rows.map(sessionRowFromRun);
+}
+
+/** A single run with its full pipeline state — powers the run detail + trace. */
+export function getRunById(
+  runId: string
+): { run_id: string; ticket_id: string; display_id: string; created_at: string; state: any } | null {
+  const row = db
+    .prepare(
+      `SELECT r.run_id, r.ticket_id, r.created_at, r.state_json, t.seq
+         FROM runs r
+         LEFT JOIN tickets t ON t.ticket_id = r.ticket_id
+         WHERE r.run_id = ?`
+    )
+    .get(runId) as any;
+  if (!row) return null;
+  return {
+    run_id: row.run_id,
+    ticket_id: row.ticket_id,
+    display_id: friendlyId(row.seq, row.ticket_id),
+    created_at: row.created_at,
+    state: JSON.parse(row.state_json),
+  };
 }
 
 /** Every pipeline run for a ticket, oldest first — powers the trace viewer. */

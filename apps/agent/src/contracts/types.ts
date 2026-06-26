@@ -3,13 +3,18 @@
 
 export type IntentType = "technical" | "billing" | "policy" | "mixed" | "unknown";
 export type AgentDomain = "technical" | "billing" | "policy";
+// How the engine should treat an inbound message:
+// - support: a real support request/question/complaint/follow-up → run the pipeline.
+// - greeting: a greeting, thanks, or small talk → friendly reply, no specialists, no ticket.
+// - out_of_scope: unrelated to customer support → polite refusal, no specialists, no ticket.
+export type MessageCategory = "support" | "greeting" | "out_of_scope";
 export type SentimentLabel = "neutral" | "frustrated" | "angry";
 export type AgentStatus = "resolved" | "needs_info" | "unresolved" | "failed";
 export type SeverityLevel = "low" | "medium" | "high";
 export type PriorityLevel = "P3" | "P2" | "P1";
 
 export interface Message {
-  role: "customer" | "system";
+  role: "customer" | "system" | "agent";
   text: string;
   timestamp: string;
 }
@@ -30,6 +35,8 @@ export interface Classification {
   is_multi_issue: boolean;
   fallback: boolean;
   intents: IntentScore[];
+  /** Whether this message is a support request, a greeting, or out of scope. */
+  category?: MessageCategory;
 }
 
 export interface Sentiment {

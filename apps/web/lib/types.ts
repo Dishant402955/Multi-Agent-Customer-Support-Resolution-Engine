@@ -11,7 +11,7 @@ export interface Account {
 
 // Mirror of the agent PipelineState (subset the UI renders).
 export interface Message {
-  role: "customer" | "system";
+  role: "customer" | "system" | "agent";
   text: string;
   timestamp?: string;
 }
@@ -30,6 +30,7 @@ export interface Classification {
   is_multi_issue: boolean;
   fallback: boolean;
   intents: IntentScore[];
+  category?: "support" | "greeting" | "out_of_scope";
 }
 export interface Sentiment { label: string; score: number; }
 export interface SubProblem { id: string; domain: string; description: string; }
@@ -215,6 +216,7 @@ export interface TicketDashboardRow {
   primary_intent: string | null;
   severity: string | null;
   priority: string | null;
+  summary: string | null;
   escalation_id: string | null;
   escalation_status: "open" | "resolved" | null;
 }
@@ -241,6 +243,38 @@ export interface TicketDashboardDetail {
   escalation: EscalationRecord | null;
 }
 
+/** One agent run in the observability feed (a "session"). */
+export interface RunSessionRow {
+  run_id: string;
+  ticket_id: string;
+  display_id: string;
+  created_at: string;
+  customer_name: string;
+  message: string;
+  category: string | null;
+  primary_intent: string | null;
+  is_multi_issue: boolean;
+  sentiment: string | null;
+  severity: string | null;
+  priority: string | null;
+  escalated: boolean;
+  guard_flagged: boolean;
+  overall_status: string | null;
+  agent_count: number;
+  step_count: number;
+  llm_steps: number;
+}
+
+/** Full detail for one run — the complete pipeline state for the trace view. */
+export interface RunSessionDetail {
+  run_id: string;
+  ticket_id: string;
+  display_id: string;
+  created_at: string;
+  customer_name: string;
+  state: PipelineState;
+}
+
 // Response for a single ticket: the latest run (details) + full chat thread.
 export interface TicketDetail {
   ticket_id: string;
@@ -254,6 +288,8 @@ export interface TicketDetail {
   messages: Message[];
   escalation_id?: string | null;
   escalation_status?: "open" | "resolved" | null;
+  /** Name of the human agent handling an open escalation (live chat mode). */
+  escalation_assignee?: string | null;
 }
 
 export type PipelineStepId =
