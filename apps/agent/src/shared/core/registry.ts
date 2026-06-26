@@ -33,4 +33,9 @@ export class Registry {
   get size(): number {
     return this.handlers.size;
   }
+
+  /** Drop all handlers. Used by hot-reload before re-loading from disk. */
+  clear(): void {
+    this.handlers.clear();
+  }
 }

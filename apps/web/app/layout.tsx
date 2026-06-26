@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { AuthProvider } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Multi-Agent Support Engine",
@@ -7,10 +8,12 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  // `dark` is hard-set — this app is dark-mode only.
+  // Light-mode only.
   return (
-    <html lang="en" className="dark" style={{ colorScheme: "dark" }}>
-      <body>{children}</body>
+    <html lang="en" style={{ colorScheme: "light" }}>
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

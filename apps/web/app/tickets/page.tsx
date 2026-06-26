@@ -1,20 +1,31 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
-  ArrowLeft,
   ChevronDown,
   ChevronRight,
   ExternalLink,
+  LogOut,
   MessageSquare,
   RefreshCw,
   Search,
+  SlidersHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { NotificationBell } from "@/components/notification-bell";
 import { getDashboardTicket, listDashboardTickets } from "@/lib/api";
+import { useAuth, useRequireRole } from "@/lib/auth";
 import type { AuditEvent, TicketDashboardDetail, TicketDashboardRow, TicketLifecycleStatus } from "@/lib/types";
-import { AgentReportDetails, InvestigationSummary, KindTag, StructuredResolutionDetails } from "@/components/views";
+import {
+  AgentReportDetails,
+  DebugPanel,
+  InvestigationSummary,
+  KindTag,
+  LifecycleStepper,
+  StructuredResolutionDetails,
+} from "@/components/views";
 
 type StatusFilter = "all" | TicketLifecycleStatus;
 
@@ -25,6 +36,7 @@ function statusVariant(s: TicketLifecycleStatus) {
 }
 
 export default function TicketsDashboardPage() {
+  const account = useRequireRole("admin");
   const [tickets, setTickets] = useState<TicketDashboardRow[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [detail, setDetail] = useState<TicketDashboardDetail | null>(null);
@@ -32,6 +44,7 @@ export default function TicketsDashboardPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<StatusFilter>("all");
+  const [customerFilter, setCustomerFilter] = useState("all");
 
   async function loadList() {
     setLoading(true);
@@ -60,19 +73,34 @@ export default function TicketsDashboardPage() {
     if (selectedId) void loadDetail(selectedId);
   }, [selectedId]);
 
+  // Distinct customers present in the ticket set, for the "filter by user" menu.
+  const customers = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const t of tickets) {
+      const key = t.customer_id ?? "__guest__";
+      m.set(key, t.customer_name || "Guest");
+    }
+    return [...m.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [tickets]);
+
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return tickets.filter((t) => {
       if (filter !== "all" && t.status !== filter) return false;
+      if (customerFilter !== "all") {
+        const key = t.customer_id ?? "__guest__";
+        if (key !== customerFilter) return false;
+      }
       if (!q) return true;
       return (
         t.ticket_id.toLowerCase().includes(q) ||
+        t.display_id.toLowerCase().includes(q) ||
         t.title.toLowerCase().includes(q) ||
         t.customer_name.toLowerCase().includes(q) ||
         (t.primary_intent ?? "").toLowerCase().includes(q)
       );
     });
-  }, [tickets, query, filter]);
+  }, [tickets, query, filter, customerFilter]);
 
   const stats = useMemo(() => {
     const escalated = tickets.filter((t) => t.status === "escalated").length;
@@ -81,18 +109,29 @@ export default function TicketsDashboardPage() {
     return { total: tickets.length, escalated, resolved, active };
   }, [tickets]);
 
+  if (!account) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background text-sm text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
+
   return (
     <div className="flex h-screen flex-col bg-background text-foreground">
       <header className="flex shrink-0 items-center gap-3 border-b border-border px-4 py-3">
-        <Link href="/">
-          <Button variant="ghost" size="icon" title="Back to chat">
-            <ArrowLeft className="size-4" />
-          </Button>
-        </Link>
+        <span className="flex size-7 items-center justify-center rounded bg-foreground text-xs font-bold text-background">
+          SE
+        </span>
         <div className="flex-1">
           <h1 className="text-base font-semibold tracking-tight">Tickets dashboard</h1>
           <p className="text-xs text-muted-foreground">All conversations, statuses, and pipeline traces</p>
         </div>
+        <Link href="/platform">
+          <Button variant="outline" size="sm" className="gap-2">
+            <SlidersHorizontal className="size-3.5" /> Platform
+          </Button>
+        </Link>
         <Link href="/escalations">
           <Button variant="outline" size="sm">
             Escalations
@@ -101,6 +140,8 @@ export default function TicketsDashboardPage() {
         <Button variant="outline" size="sm" className="gap-2" onClick={() => void loadList()}>
           <RefreshCw className={"size-3.5 " + (loading ? "animate-spin" : "")} /> Refresh
         </Button>
+        <NotificationBell />
+        <LogoutButton />
       </header>
 
       <div className="flex min-h-0 flex-1">
@@ -138,6 +179,18 @@ export default function TicketsDashboardPage() {
                 </button>
               ))}
             </div>
+            <select
+              value={customerFilter}
+              onChange={(e) => setCustomerFilter(e.target.value)}
+              className="w-full rounded-md border border-border bg-card px-2 py-1.5 text-xs outline-none focus:border-foreground/40"
+            >
+              <option value="all">All customers</option>
+              {customers.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="flex-1 overflow-y-auto">
@@ -159,7 +212,8 @@ export default function TicketsDashboardPage() {
                   <Badge variant={statusVariant(t.status)}>{t.status}</Badge>
                 </div>
                 <p className="mt-1 truncate text-xs text-muted-foreground">
-                  {t.customer_name} · <span className="font-mono">{t.ticket_id}</span>
+                  {t.customer_name} · <span className="font-mono">{t.display_id}</span>
+                  {t.parent_ticket_id && <span className="ml-1 text-[10px]">· linked</span>}
                 </p>
                 <div className="mt-1.5 flex flex-wrap gap-1">
                   {t.primary_intent && <Badge variant="outline">{t.primary_intent}</Badge>}
@@ -205,17 +259,25 @@ function MiniStat({ label, value }: { label: string; value: number }) {
 
 function TicketDetailPanel({ detail }: { detail: TicketDashboardDetail }) {
   const { ticket, messages, runs, escalation } = detail;
+  const latestState = runs.length ? runs[runs.length - 1].state : null;
 
   return (
     <div className="p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold">{ticket.title}</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            <span className="font-mono">{ticket.ticket_id}</span> · {ticket.customer_name}
-            {ticket.customer_id && (
-              <span className="ml-1 font-mono text-xs">({ticket.customer_id})</span>
-            )}
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="rounded bg-secondary px-2 py-0.5 font-mono text-sm font-semibold">
+              {ticket.display_id}
+            </span>
+            <h2 className="truncate text-lg font-semibold">{ticket.title}</h2>
+          </div>
+          {/* Rich, developer-facing identifier line. */}
+          <p className="mt-1 font-mono text-[11px] text-muted-foreground">
+            {ticket.ticket_id} · {ticket.customer_name}
+            {ticket.customer_id ? ` (${ticket.customer_id})` : " (guest)"} ·{" "}
+            {ticket.message_count} msg · {ticket.run_count} run{ticket.run_count === 1 ? "" : "s"} ·{" "}
+            created {new Date(ticket.created_at).toLocaleString()}
+            {ticket.parent_ticket_id ? ` · linked from ${ticket.parent_ticket_id}` : ""}
           </p>
           <div className="mt-2 flex flex-wrap gap-1.5">
             <Badge variant={statusVariant(ticket.status)}>{ticket.status}</Badge>
@@ -247,6 +309,12 @@ function TicketDetailPanel({ detail }: { detail: TicketDashboardDetail }) {
           </p>
           <p className="mt-1 text-xs text-muted-foreground">{escalation.reason}</p>
         </div>
+      )}
+
+      {latestState && (
+        <section className="mt-6">
+          <LifecycleStepper s={latestState} />
+        </section>
       )}
 
       {/* Conversation thread */}
@@ -372,6 +440,10 @@ function RunTraceCard({
             Audit trace ({run.audit_trail.length} steps)
           </p>
           <AuditList trail={run.audit_trail} />
+
+          <div className="mt-3">
+            <DebugPanel s={run.state} />
+          </div>
         </div>
       )}
     </div>
@@ -398,5 +470,23 @@ function AuditList({ trail }: { trail: AuditEvent[] }) {
         </li>
       ))}
     </ol>
+  );
+}
+
+function LogoutButton() {
+  const { logout } = useAuth();
+  const router = useRouter();
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      title="Sign out"
+      onClick={async () => {
+        await logout();
+        router.replace("/login");
+      }}
+    >
+      <LogOut className="size-4" />
+    </Button>
   );
 }

@@ -1,30 +1,117 @@
 import type {
+  Account,
+  ConfigAuditRecord,
   EscalationRecord,
+  HttpToolSpec,
   HumanAgent,
+  HumanAgentAdmin,
+  KbDoc,
+  NotificationRecord,
   PipelineProgressEvent,
+  StoredUseCase,
   TicketDashboardDetail,
   TicketDashboardRow,
   TicketDetail,
   TicketSummary,
-  UserPresence,
+  ToolInfo,
 } from "./types";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4100";
+
+// ---- Token storage ---------------------------------------------------------
+// Opaque session token kept in localStorage and attached as a Bearer header.
+const TOKEN_KEY = "se_token";
+
+export function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(TOKEN_KEY);
+}
+export function setToken(token: string): void {
+  if (typeof window !== "undefined") localStorage.setItem(TOKEN_KEY, token);
+}
+export function clearToken(): void {
+  if (typeof window !== "undefined") localStorage.removeItem(TOKEN_KEY);
+}
+
+function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
+  const token = getToken();
+  return token ? { ...extra, Authorization: `Bearer ${token}` } : extra;
+}
+
+// ---- Auth ------------------------------------------------------------------
+
+export async function apiLogin(
+  email: string,
+  password: string
+): Promise<{ ok: boolean; error?: string; token?: string; account?: Account }> {
+  try {
+    const res = await fetch(`${API}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: data?.error || "Login failed" };
+    return { ok: true, token: data.token, account: data.account };
+  } catch {
+    return { ok: false, error: "Network error — is the API running?" };
+  }
+}
+
+export async function apiSignup(
+  name: string,
+  email: string,
+  password: string
+): Promise<{ ok: boolean; error?: string; token?: string; account?: Account }> {
+  try {
+    const res = await fetch(`${API}/api/auth/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, password }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: data?.error || "Sign up failed" };
+    return { ok: true, token: data.token, account: data.account };
+  } catch {
+    return { ok: false, error: "Network error — is the API running?" };
+  }
+}
+
+export async function apiLogout(): Promise<void> {
+  try {
+    await fetch(`${API}/api/auth/logout`, { method: "POST", headers: authHeaders() });
+  } catch {
+    // best-effort
+  }
+}
+
+export async function getMe(): Promise<Account | null> {
+  try {
+    const res = await fetch(`${API}/api/auth/me`, { headers: authHeaders() });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { account: Account };
+    return data.account ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ---- Tickets (customer-facing) ---------------------------------------------
 
 /** Create a ticket or add a follow-up with live pipeline progress (SSE). */
 export async function submitTicketStream(
   message: string,
   onProgress: (evt: PipelineProgressEvent) => void,
   ticketId?: string,
-  customerId?: string
+  linkTo?: string
 ): Promise<TicketDetail> {
   const res = await fetch(`${API}/api/tickets/stream`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({
       message,
       ticket_id: ticketId || undefined,
-      customer_id: customerId || undefined,
+      link_to: linkTo || undefined,
     }),
   });
 
@@ -52,6 +139,9 @@ export async function submitTicketStream(
       if (evt.type === "complete" && evt.ticket_id) {
         result = {
           ticket_id: evt.ticket_id,
+          display_id: evt.display_id,
+          status: evt.status,
+          summary: evt.summary,
           run: evt.run ?? null,
           messages: evt.messages ?? [],
           escalation_id: evt.escalation_id,
@@ -69,15 +159,15 @@ export async function submitTicketStream(
 export async function submitTicket(
   message: string,
   ticketId?: string,
-  customerId?: string
+  linkTo?: string
 ): Promise<TicketDetail> {
   const res = await fetch(`${API}/api/tickets`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders({ "Content-Type": "application/json" }),
     body: JSON.stringify({
       message,
       ticket_id: ticketId || undefined,
-      customer_id: customerId || undefined,
+      link_to: linkTo || undefined,
     }),
   });
   const data = await res.json();
@@ -86,10 +176,11 @@ export async function submitTicket(
 }
 
 /** Latest run + full message thread for one ticket (used to reopen a chat). */
-export async function getTicket(ticketId: string, customerId?: string): Promise<TicketDetail | null> {
+export async function getTicket(ticketId: string): Promise<TicketDetail | null> {
   try {
-    const qs = customerId ? `?customer=${encodeURIComponent(customerId)}` : "";
-    const res = await fetch(`${API}/api/tickets/${encodeURIComponent(ticketId)}${qs}`);
+    const res = await fetch(`${API}/api/tickets/${encodeURIComponent(ticketId)}`, {
+      headers: authHeaders(),
+    });
     if (!res.ok) return null;
     return (await res.json()) as TicketDetail;
   } catch {
@@ -97,11 +188,10 @@ export async function getTicket(ticketId: string, customerId?: string): Promise<
   }
 }
 
-/** Tickets for the sidebar, scoped to the selected customer (or guest). */
-export async function listTickets(customerId?: string): Promise<TicketSummary[]> {
+/** Tickets for the sidebar, scoped to the signed-in customer. */
+export async function listTickets(): Promise<TicketSummary[]> {
   try {
-    const qs = customerId ? `?customer=${encodeURIComponent(customerId)}` : "";
-    const res = await fetch(`${API}/api/tickets${qs}`);
+    const res = await fetch(`${API}/api/tickets`, { headers: authHeaders() });
     if (!res.ok) return [];
     const data = (await res.json()) as { tickets: TicketSummary[] };
     return data.tickets ?? [];
@@ -111,58 +201,14 @@ export async function listTickets(customerId?: string): Promise<TicketSummary[]>
 }
 
 /** Permanently delete a ticket and its history. */
-export async function deleteTicket(ticketId: string, customerId?: string): Promise<void> {
+export async function deleteTicket(ticketId: string): Promise<void> {
   try {
-    const qs = customerId ? `?customer=${encodeURIComponent(customerId)}` : "";
-    await fetch(`${API}/api/tickets/${encodeURIComponent(ticketId)}${qs}`, { method: "DELETE" });
+    await fetch(`${API}/api/tickets/${encodeURIComponent(ticketId)}`, {
+      method: "DELETE",
+      headers: authHeaders(),
+    });
   } catch {
     // best-effort; the list refresh will reflect server truth
-  }
-}
-
-// ---- Identity / presence ---------------------------------------------------
-
-/** Customers you can act as, with live occupancy for this session. */
-export async function listUsers(sessionId: string): Promise<UserPresence[]> {
-  try {
-    const res = await fetch(`${API}/api/users?session=${encodeURIComponent(sessionId)}`);
-    if (!res.ok) return [];
-    const data = (await res.json()) as { users: UserPresence[] };
-    return data.users ?? [];
-  } catch {
-    return [];
-  }
-}
-
-/** Claim (or renew) a customer for this session. Returns the fresh roster. */
-export async function claimUser(
-  userId: string,
-  sessionId: string
-): Promise<{ ok: boolean; reason?: string; users: UserPresence[] }> {
-  try {
-    const res = await fetch(`${API}/api/users/${encodeURIComponent(userId)}/claim`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session: sessionId }),
-    });
-    const data = await res.json().catch(() => ({}));
-    return { ok: res.ok, reason: data?.error, users: data?.users ?? [] };
-  } catch {
-    return { ok: false, reason: "network", users: [] };
-  }
-}
-
-/** Release a customer this session holds (best-effort). */
-export async function releaseUser(userId: string, sessionId: string): Promise<void> {
-  try {
-    await fetch(`${API}/api/users/${encodeURIComponent(userId)}/release`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session: sessionId }),
-      keepalive: true,
-    });
-  } catch {
-    // best-effort; the TTL lock frees it anyway
   }
 }
 
@@ -173,7 +219,7 @@ export async function listEscalations(): Promise<{
   agents: HumanAgent[];
 }> {
   try {
-    const res = await fetch(`${API}/api/escalations`);
+    const res = await fetch(`${API}/api/escalations`, { headers: authHeaders() });
     if (!res.ok) return { escalations: [], agents: [] };
     return (await res.json()) as { escalations: EscalationRecord[]; agents: HumanAgent[] };
   } catch {
@@ -183,9 +229,61 @@ export async function listEscalations(): Promise<{
 
 export async function resolveEscalation(id: string): Promise<void> {
   try {
-    await fetch(`${API}/api/escalations/${encodeURIComponent(id)}/resolve`, { method: "POST" });
+    await fetch(`${API}/api/escalations/${encodeURIComponent(id)}/resolve`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
   } catch {
     // best-effort; the list refresh will reflect server truth
+  }
+}
+
+// Hand a case up to the department manager, with an optional short note.
+export async function handoffEscalation(id: string, note: string): Promise<{ error?: string }> {
+  try {
+    const res = await fetch(`${API}/api/escalations/${encodeURIComponent(id)}/handoff`, {
+      method: "POST",
+      headers: { ...authHeaders(), "Content-Type": "application/json" },
+      body: JSON.stringify({ note }),
+    });
+    if (!res.ok) return { error: ((await res.json().catch(() => ({}))) as any)?.error || "Handoff failed" };
+    return {};
+  } catch {
+    return { error: "Network error" };
+  }
+}
+
+// ---- Notifications ---------------------------------------------------------
+
+export async function getNotifications(): Promise<{
+  notifications: NotificationRecord[];
+  unread: number;
+}> {
+  try {
+    const res = await fetch(`${API}/api/notifications`, { headers: authHeaders() });
+    if (!res.ok) return { notifications: [], unread: 0 };
+    return (await res.json()) as { notifications: NotificationRecord[]; unread: number };
+  } catch {
+    return { notifications: [], unread: 0 };
+  }
+}
+
+export async function markNotificationRead(id: string): Promise<void> {
+  try {
+    await fetch(`${API}/api/notifications/${encodeURIComponent(id)}/read`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
+  } catch {
+    // best-effort
+  }
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  try {
+    await fetch(`${API}/api/notifications/read-all`, { method: "POST", headers: authHeaders() });
+  } catch {
+    // best-effort
   }
 }
 
@@ -193,7 +291,7 @@ export async function resolveEscalation(id: string): Promise<void> {
 
 export async function listDashboardTickets(): Promise<TicketDashboardRow[]> {
   try {
-    const res = await fetch(`${API}/api/dashboard/tickets`);
+    const res = await fetch(`${API}/api/dashboard/tickets`, { headers: authHeaders() });
     if (!res.ok) return [];
     const data = (await res.json()) as { tickets: TicketDashboardRow[] };
     return data.tickets ?? [];
@@ -204,10 +302,69 @@ export async function listDashboardTickets(): Promise<TicketDashboardRow[]> {
 
 export async function getDashboardTicket(ticketId: string): Promise<TicketDashboardDetail | null> {
   try {
-    const res = await fetch(`${API}/api/dashboard/tickets/${encodeURIComponent(ticketId)}`);
+    const res = await fetch(`${API}/api/dashboard/tickets/${encodeURIComponent(ticketId)}`, {
+      headers: authHeaders(),
+    });
     if (!res.ok) return null;
     return (await res.json()) as TicketDashboardDetail;
   } catch {
     return null;
   }
 }
+
+// ---- Platform: live config store (admin) -----------------------------------
+
+async function pf(method: string, path: string, body?: unknown): Promise<any> {
+  const res = await fetch(`${API}/api/platform${path}`, {
+    method,
+    headers: authHeaders(body === undefined ? {} : { "Content-Type": "application/json" }),
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || "Request failed");
+  return data;
+}
+
+export const platform = {
+  listKb: () => pf("GET", "/kb") as Promise<{ docs: KbDoc[] }>,
+  putKb: (file: string, content: string) => pf("PUT", `/kb/${encodeURIComponent(file)}`, { content }),
+  deleteKb: (file: string) => pf("DELETE", `/kb/${encodeURIComponent(file)}`),
+
+  listUseCases: () =>
+    pf("GET", "/usecases") as Promise<{ agents: string[]; usecases: StoredUseCase[] }>,
+  putUseCase: (agent: string, def: unknown) => pf("PUT", `/usecases/${encodeURIComponent(agent)}`, def),
+  deleteUseCase: (agent: string, id: string) =>
+    pf("DELETE", `/usecases/${encodeURIComponent(agent)}/${encodeURIComponent(id)}`),
+
+  listTools: () =>
+    pf("GET", "/tools") as Promise<{ builtins: ToolInfo[]; declarative: HttpToolSpec[] }>,
+  putTool: (name: string, spec: unknown) => pf("PUT", `/tools/${encodeURIComponent(name)}`, spec),
+  deleteTool: (name: string) => pf("DELETE", `/tools/${encodeURIComponent(name)}`),
+
+  listAudit: () => pf("GET", "/audit") as Promise<{ audit: ConfigAuditRecord[] }>,
+};
+
+// ---- Admin: human-agent management -----------------------------------------
+
+async function adm(method: string, path: string, body?: unknown): Promise<any> {
+  const res = await fetch(`${API}/api/admin${path}`, {
+    method,
+    headers: authHeaders(body === undefined ? {} : { "Content-Type": "application/json" }),
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || "Request failed");
+  return data;
+}
+
+export const adminAgents = {
+  list: () => adm("GET", "/agents") as Promise<{ agents: HumanAgentAdmin[]; departments: string[] }>,
+  create: (body: {
+    name: string;
+    title: string;
+    department: string;
+    email: string;
+    password?: string;
+    level?: "agent" | "manager";
+  }) => adm("POST", "/agents", body),
+};

@@ -18,4 +18,7 @@ import { fileURLToPath } from "node:url";
 
 export const ENV = {
   AGENT_PORT: Number(process.env.AGENT_PORT || 5000),
+  // Shared secret the API sends to reach the agent's /admin/* config routes.
+  // Only the API should call these; the browser never talks to the agent.
+  ADMIN_TOKEN: process.env.AGENT_ADMIN_TOKEN || "dev-admin-token",
 };

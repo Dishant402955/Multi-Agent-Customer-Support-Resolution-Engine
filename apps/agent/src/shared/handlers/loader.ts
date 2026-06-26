@@ -23,7 +23,7 @@ const paramSpec = z.object({
   prompt_if_missing: z.string().optional(),
 });
 
-const defSchema = z
+export const defSchema = z
   .object({
     use_case_id: z.string(),
     version: z.number().optional(),

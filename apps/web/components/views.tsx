@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Check, ChevronRight, Loader2 } from "lucide-react";
+import { Bug, Check, ChevronRight, Loader2 } from "lucide-react";
 import type { AgentReport, AuditEvent, PipelineState, PipelineStepId, RunProgress, StepKind } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
 
@@ -369,6 +369,170 @@ export function RunDetails({ s }: { s: PipelineState }) {
         <Section title="Structured Resolution">
           <StructuredResolutionDetails s={s} />
         </Section>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Lifecycle stepper — the vertical "where is this ticket in its journey" path.
+// Shown to both users and admins. Derives stages from the latest run state.
+// ---------------------------------------------------------------------------
+
+type StageTone = "neutral" | "red" | "green";
+
+export function LifecycleStepper({ s }: { s: PipelineState }) {
+  const escalated = !!s.escalation?.escalate;
+  const resolved = s.investigation?.overall_status === "resolved" && !escalated;
+
+  const stages: { label: string; done: boolean; hint?: string; tone?: StageTone }[] = [
+    { label: "Created", done: true },
+    {
+      label: "Understood",
+      done: !!s.classification,
+      hint: s.classification?.primary_intent,
+    },
+    {
+      label: "Investigated",
+      done: (s.agent_reports?.length ?? 0) > 0 || !!s.investigation,
+      hint: s.investigation?.overall_status,
+    },
+    {
+      label: "Assessed",
+      done: !!s.severity,
+      hint: s.severity ? `${s.severity.level} · ${s.severity.priority}` : undefined,
+    },
+    {
+      label: escalated ? "Escalated to human" : resolved ? "Resolved" : "Awaiting outcome",
+      done: escalated || resolved,
+      hint: escalated ? s.escalation?.recommended_team ?? undefined : undefined,
+      tone: escalated ? "red" : resolved ? "green" : "neutral",
+    },
+  ];
+
+  // The "current" stage is the last one that's done.
+  let currentIdx = 0;
+  stages.forEach((st, i) => {
+    if (st.done) currentIdx = i;
+  });
+
+  return (
+    <div className="rounded-lg border border-border bg-card/50 p-4">
+      <p className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        Lifecycle
+      </p>
+      <div>
+        {stages.map((st, idx) => {
+          const isCurrent = idx === currentIdx;
+          const last = idx === stages.length - 1;
+          const toneRing =
+            st.tone === "red"
+              ? "border-red-500 text-red-600"
+              : st.tone === "green"
+                ? "border-emerald-500 text-emerald-600"
+                : "border-foreground text-foreground";
+          return (
+            <div key={st.label} className="flex gap-3">
+              <div className="flex flex-col items-center">
+                {st.done ? (
+                  <span
+                    className={
+                      "flex size-5 items-center justify-center rounded-full " +
+                      (isCurrent
+                        ? `border-2 ${toneRing} bg-background`
+                        : "bg-foreground text-background")
+                    }
+                  >
+                    <Check className="size-3" />
+                  </span>
+                ) : (
+                  <span className="flex size-5 items-center justify-center rounded-full border border-border">
+                    <span className="size-1.5 rounded-full bg-muted-foreground/40" />
+                  </span>
+                )}
+                {!last && <span className="w-px flex-1 bg-border" style={{ minHeight: 20 }} />}
+              </div>
+              <div className={"flex-1 pb-4 " + (st.done ? "" : "opacity-50")}>
+                <p
+                  className={
+                    "text-sm " +
+                    (isCurrent ? "font-semibold text-foreground" : "font-medium text-foreground/90")
+                  }
+                >
+                  {st.label}
+                  {isCurrent && <span className="ml-2 text-[10px] text-muted-foreground">current</span>}
+                </p>
+                {st.hint && <p className="mt-0.5 text-xs capitalize text-muted-foreground">{st.hint}</p>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Developer debug — per-step timings + the raw run state JSON.
+// ---------------------------------------------------------------------------
+
+export function DebugPanel({ s }: { s: PipelineState }) {
+  const [open, setOpen] = useState(false);
+  const trail = s.audit_trail || [];
+  const t0 = trail.length ? new Date(trail[0].timestamp).getTime() : 0;
+  const tEnd = trail.length ? new Date(trail[trail.length - 1].timestamp).getTime() : 0;
+  const totalMs = tEnd - t0;
+
+  return (
+    <div className="rounded-md border border-dashed border-border bg-card/40">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <Bug className="size-3.5" />
+        <span className="font-medium">Developer debug</span>
+        {totalMs > 0 && <span className="text-[10px]">· {totalMs}ms total</span>}
+        <ChevronRight className={"ml-auto size-3.5 transition-transform " + (open ? "rotate-90" : "")} />
+      </button>
+
+      {open && (
+        <div className="space-y-3 border-t border-border px-3 py-3">
+          {trail.length > 0 && (
+            <div>
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Step timings
+              </p>
+              <div className="space-y-1">
+                {trail.map((e, i) => {
+                  const at = new Date(e.timestamp).getTime();
+                  const prev = i > 0 ? new Date(trail[i - 1].timestamp).getTime() : at;
+                  const delta = at - prev;
+                  return (
+                    <div
+                      key={i}
+                      className="grid grid-cols-[1fr_auto_auto] items-center gap-2 text-[11px]"
+                    >
+                      <span className="truncate text-muted-foreground">
+                        <span className="font-medium text-foreground">{e.actor}</span> · {e.step}
+                      </span>
+                      <KindTag kind={e.kind} />
+                      <span className="tabular-nums text-muted-foreground">+{delta}ms</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Raw run state
+            </p>
+            <pre className="max-h-72 overflow-auto rounded bg-background/70 p-2 text-[10px] leading-relaxed text-muted-foreground">
+              {JSON.stringify(s, null, 2)}
+            </pre>
+          </div>
+        </div>
       )}
     </div>
   );

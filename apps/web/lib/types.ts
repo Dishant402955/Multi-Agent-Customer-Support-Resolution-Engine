@@ -1,3 +1,14 @@
+// Authenticated account (user = customer, admin = admin+developer, agent = human support agent).
+export type Role = "user" | "admin" | "agent";
+export interface Account {
+  id: string;
+  email: string;
+  role: Role;
+  name: string;
+  customer_id: string | null;
+  agent_id: string | null;
+}
+
 // Mirror of the agent PipelineState (subset the UI renders).
 export interface Message {
   role: "customer" | "system";
@@ -80,9 +91,12 @@ export interface PriorRunContext {
 // Sidebar list item (server-backed).
 export interface TicketSummary {
   ticket_id: string;
+  display_id: string;
   title: string;
   message_count: number;
   updated_at: string;
+  status: TicketLifecycleStatus;
+  parent_ticket_id: string | null;
 }
 
 // A customer you can act as, with live presence info.
@@ -95,11 +109,13 @@ export interface UserPresence {
 }
 
 // Human support agent + a persisted escalation case (for the dashboard).
+export type AgentLevel = "agent" | "manager";
 export interface HumanAgent {
   id: string;
   name: string;
   title: string;
   department: string;
+  level: AgentLevel;
 }
 export interface EscalationRecord {
   id: string;
@@ -114,7 +130,70 @@ export interface EscalationRecord {
   assignee_id: string;
   assignee_name: string;
   assignee_title: string;
+  assignee_level?: string | null;
+  handoff_note?: string | null;
   status: "open" | "resolved";
+  created_at: string;
+}
+
+// In-app notification addressed to the signed-in account.
+export interface NotificationRecord {
+  id: string;
+  account_id: string;
+  kind: string;
+  title: string;
+  body: string | null;
+  ticket_id: string | null;
+  read: number;
+  created_at: string;
+}
+
+// ---- Live config store (platform admin) ------------------------------------
+export interface KbDoc {
+  file: string;
+  content: string;
+  bytes: number;
+}
+export interface StoredUseCase {
+  agent: string;
+  file: string;
+  def: Record<string, unknown> & {
+    use_case_id: string;
+    description?: string;
+    example_utterances?: string[];
+    enabled?: boolean;
+    capabilities?: { tools?: string[]; knowledge_base?: { knowledge_file: string }[] };
+  };
+}
+export interface HttpToolSpec {
+  name: string;
+  description: string;
+  method: "GET" | "POST" | "PUT" | "DELETE";
+  url_template: string;
+  allowed_hosts?: string[];
+  headers?: Record<string, string>;
+  timeout_ms?: number;
+}
+export interface ToolInfo {
+  name: string;
+  description: string;
+}
+export interface HumanAgentAdmin {
+  id: string;
+  name: string;
+  title: string;
+  department: string;
+  level: AgentLevel;
+  email: string | null;
+  counts: { open: number; resolved: number; total: number };
+}
+export interface ConfigAuditRecord {
+  id: string;
+  actor_id: string;
+  actor_name: string;
+  action: string;
+  target: string;
+  detail: string | null;
   created_at: string;
 }
 
@@ -123,8 +202,10 @@ export type TicketLifecycleStatus = "active" | "escalated" | "resolved";
 /** Row in the tickets ops dashboard. */
 export interface TicketDashboardRow {
   ticket_id: string;
+  display_id: string;
   title: string;
   customer_id: string | null;
+  parent_ticket_id: string | null;
   customer_name: string;
   created_at: string;
   updated_at: string;
@@ -163,6 +244,10 @@ export interface TicketDashboardDetail {
 // Response for a single ticket: the latest run (details) + full chat thread.
 export interface TicketDetail {
   ticket_id: string;
+  display_id?: string;
+  status?: TicketLifecycleStatus;
+  parent_ticket_id?: string | null;
+  summary?: string | null;
   run: PipelineState | null;
   messages: Message[];
   escalation_id?: string | null;
@@ -188,6 +273,9 @@ export interface PipelineProgressEvent {
   snapshot?: Partial<PipelineState>;
   state?: PipelineState;
   ticket_id?: string;
+  display_id?: string;
+  status?: TicketLifecycleStatus;
+  summary?: string | null;
   run?: PipelineState;
   messages?: Message[];
   escalation_id?: string | null;

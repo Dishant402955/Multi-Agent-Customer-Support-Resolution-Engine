@@ -12,6 +12,7 @@ import { subscriptionLookup } from "./subscriptionLookup.js";
 import { paymentStatus } from "./paymentStatus.js";
 import { accountStatus } from "./accountStatus.js";
 import { serviceStatus } from "./serviceStatus.js";
+import { reloadHttpTools } from "./http-store.js";
 
 let done = false;
 
@@ -23,6 +24,7 @@ export function registerAllTools(): void {
   registerTool(paymentStatus);
   registerTool(accountStatus);
   registerTool(serviceStatus);
-  // Add more shared tools here: refundCalc, getContractMetadata, etc.
+  // Admin-defined declarative HTTP tools (live config store).
+  reloadHttpTools();
   done = true;
 }

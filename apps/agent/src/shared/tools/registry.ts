@@ -18,6 +18,19 @@ export function registerTool(tool: Tool): void {
   tools.set(tool.name, tool);
 }
 
+/** Register or replace a tool by name. Used by the live config store (reload). */
+export function upsertTool(tool: Tool): void {
+  tools.set(tool.name, tool);
+}
+
+export function unregisterTool(name: string): void {
+  tools.delete(name);
+}
+
+export function hasTool(name: string): boolean {
+  return tools.has(name);
+}
+
 export function getTool(name: string): Tool | undefined {
   return tools.get(name);
 }

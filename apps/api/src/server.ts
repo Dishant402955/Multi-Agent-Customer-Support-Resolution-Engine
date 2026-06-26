@@ -7,52 +7,132 @@ import {
   addMessage,
   countCustomerMessages,
   countOpenByAssignee,
+  countUnread,
   createEscalation,
+  createNotification,
   deleteTicket,
   ensureTicket,
   getCustomerHistory,
+  getEscalationById,
   getLatestEscalationForTicket,
+  listConfigAudit,
+  listNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  recordConfigAudit,
   getLatestRun,
   getLatestRunContext,
   getMessages,
   getOpenEscalationForTicket,
   getTicketCustomer,
   getTicketDashboardRow,
+  getTicketDisplayId,
   listEscalations,
   listRunsForTicket,
   listTickets,
   listTicketsDashboard,
+  reassignEscalation,
   resolveEscalation,
   saveRun,
   ticketExists,
   type EscalationRecord,
 } from "./db";
 import { runAgentPipeline, runAgentPipelineStream, type RunRequest } from "./agentClient";
-import { claimUser, listUsers, PRESENCE_STORE, PRESENCE_TTL_MS, releaseUser, userName } from "./users";
-import { HUMAN_AGENTS, pickAssignee, type Department } from "./humans";
+import { userName } from "./users";
+import {
+  createHumanAgent,
+  getHumanAgent,
+  listHumanAgents,
+  pickAssignee,
+  pickManager,
+  seedHumanAgents,
+  DEPARTMENTS,
+  type Department,
+} from "./humans";
+import {
+  accountForToken,
+  assertEmailAvailable,
+  createAgentAccount,
+  deleteSession,
+  getAccountByAgentId,
+  getAccountByCustomerId,
+  login,
+  seedAccounts,
+  signup,
+  type Account,
+  type Role,
+} from "./auth";
+import { notifyTicketResolved } from "./notify";
+import { agentAdmin } from "./agentAdmin";
+
+seedAccounts();
+seedHumanAgents();
+
+/** Friendly display name for a customer id — prefers the account, else roster. */
+function displayCustomerName(customerId: string | null): string {
+  if (!customerId) return "Guest";
+  return getAccountByCustomerId(customerId)?.name ?? userName(customerId);
+}
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 
-app.get("/health", (_req, res) =>
-  res.json({
-    ok: true,
-    service: "api",
-    presence: {
-      store: PRESENCE_STORE,
-      ttl_ms: PRESENCE_TTL_MS,
-      note:
-        PRESENCE_STORE === "sqlite"
-          ? "Presence locks are stored in SQLite and shared by API instances using the same DB file."
-          : "Presence locks are process-local.",
-    },
-  })
-);
-
-function requestedCustomerId(value: unknown): string | null {
-  return value && String(value).trim() ? String(value).trim() : null;
+// ---- Auth middleware -------------------------------------------------------
+// Every request carries an optional Bearer token; we resolve it to an account
+// once and stash it on the request. Role guards then gate individual routes.
+interface AuthedRequest extends express.Request {
+  account?: Account | null;
 }
+
+function tokenFromReq(req: express.Request): string | null {
+  const header = req.headers.authorization || "";
+  return header.startsWith("Bearer ") ? header.slice(7).trim() || null : null;
+}
+
+app.use((req: AuthedRequest, _res, next) => {
+  req.account = accountForToken(tokenFromReq(req));
+  next();
+});
+
+function requireRole(...roles: Role[]) {
+  return (req: AuthedRequest, res: express.Response, next: express.NextFunction) => {
+    const account = req.account;
+    if (!account) return res.status(401).json({ error: "Not signed in" });
+    if (roles.length && !roles.includes(account.role)) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    next();
+  };
+}
+
+app.get("/health", (_req, res) => res.json({ ok: true, service: "api" }));
+
+// ---- Auth routes -----------------------------------------------------------
+app.post("/api/auth/login", (req, res) => {
+  const { email, password } = req.body || {};
+  const result = login(String(email || ""), String(password || ""));
+  if (!result.ok) return res.status(401).json({ error: "Invalid email or password" });
+  res.json({ token: result.token, account: result.account });
+});
+
+app.post("/api/auth/signup", (req, res) => {
+  const { email, password, name } = req.body || {};
+  const result = signup(String(email || ""), String(password || ""), String(name || ""));
+  if (!result.ok) return res.status(400).json({ error: result.message || "Could not create account" });
+  res.json({ token: result.token, account: result.account });
+});
+
+app.post("/api/auth/logout", (req: AuthedRequest, res) => {
+  const token = tokenFromReq(req);
+  if (token) deleteSession(token);
+  res.json({ ok: true });
+});
+
+app.get("/api/auth/me", (req: AuthedRequest, res) => {
+  if (!req.account) return res.status(401).json({ error: "Not signed in" });
+  res.json({ account: req.account });
+});
 
 function canAccessTicket(ticketId: string, customerId: string | null): boolean {
   if (!ticketExists(ticketId)) return false;
@@ -76,14 +156,14 @@ type Assignee = { id: string; name: string; title: string; department: string };
 // lists concrete next steps, and surfaces escalation status (new, open, or resolved).
 function composeReply(
   state: any,
-  ticketId: string,
+  displayId: string,
   assignee: Assignee | undefined,
   priorEsc: EscalationRecord | null,
   isFollowUp: boolean,
   firstCustomerMessage: string
 ): string {
   const r = state?.resolution;
-  const header = isFollowUp ? `Update on ticket ${ticketId}.` : `Ticket ${ticketId} has been created.`;
+  const header = isFollowUp ? `Update on ticket ${displayId}.` : `Ticket ${displayId} has been created.`;
   const lines: string[] = [header];
 
   if (r?.summary) lines.push("", r.summary);
@@ -144,6 +224,7 @@ function finalizeTicketRun(opts: {
   runId: string;
 }) {
   const { state, ticketId, customerId, history, message, isFollowUp, priorEsc, runId } = opts;
+  const displayId = getTicketDisplayId(ticketId);
   const firstCustomerMessage =
     history.find((m) => m.role === "customer")?.text ?? message;
 
@@ -162,7 +243,7 @@ function finalizeTicketRun(opts: {
       escalationRecord = createEscalation({
         ticket_id: ticketId,
         customer_id: customerId,
-        customer_name: userName(customerId),
+        customer_name: displayCustomerName(customerId),
         subject: firstCustomerMessage.slice(0, 140),
         department: dept,
         team: state.escalation.recommended_team ?? null,
@@ -180,12 +261,23 @@ function finalizeTicketRun(opts: {
     state.escalation = { ...(state.escalation ?? {}), escalate: true, assigned_agent: assignee };
   }
 
-  const reply = composeReply(state, ticketId, assignee, escalationRecord, isFollowUp, firstCustomerMessage);
+  const reply = composeReply(state, displayId, assignee, escalationRecord, isFollowUp, firstCustomerMessage);
   addMessage(ticketId, "system", reply);
   saveRun(runId, ticketId, state);
 
+  const status = escalationRecord
+    ? escalationRecord.status === "open"
+      ? "escalated"
+      : "resolved"
+    : state?.investigation?.overall_status === "resolved"
+      ? "resolved"
+      : "active";
+
   return {
     ticket_id: ticketId,
+    display_id: displayId,
+    status,
+    summary: state?.resolution?.summary ?? null,
     run: state,
     messages: getMessages(ticketId),
     escalation_id: escalationRecord?.id ?? null,
@@ -193,23 +285,36 @@ function finalizeTicketRun(opts: {
   };
 }
 
-async function executeTicketRun(body: Record<string, unknown>) {
-  const { ticket_id, message, customer_id } = body || {};
+async function executeTicketRun(body: Record<string, unknown>, authCustomerId: string) {
+  const { ticket_id, message, link_to } = body || {};
   if (!message || typeof message !== "string" || !message.trim()) {
     return { error: "Please enter a message", status: 400 as const };
   }
 
-  const ticketId =
-    ticket_id && String(ticket_id).trim() ? String(ticket_id) : `T-${randomUUID().slice(0, 8)}`;
+  // "Start a new linked ticket" branches off a resolved ticket: a brand-new
+  // ticket that records its parent. Otherwise continue/create as normal.
+  let parentTicketId: string | null = null;
+  let ticketId: string;
+  if (link_to && String(link_to).trim()) {
+    const parent = String(link_to).trim();
+    if (!ticketExists(parent) || getTicketCustomer(parent) !== authCustomerId) {
+      return { error: "Linked ticket not found", status: 404 as const };
+    }
+    parentTicketId = parent;
+    ticketId = `T-${randomUUID().slice(0, 8)}`;
+  } else {
+    ticketId =
+      ticket_id && String(ticket_id).trim() ? String(ticket_id) : `T-${randomUUID().slice(0, 8)}`;
+  }
 
-  const requestedCustomer = requestedCustomerId(customer_id);
+  const requestedCustomer = authCustomerId;
   const exists = ticketExists(ticketId);
   const existingCustomer = getTicketCustomer(ticketId);
   if (exists && existingCustomer !== requestedCustomer) {
     return { error: "Ticket does not belong to the selected customer", status: 403 as const };
   }
   const customerId = exists ? existingCustomer : requestedCustomer;
-  ensureTicket(ticketId, customerId);
+  ensureTicket(ticketId, customerId, parentTicketId);
 
   // Agent contract: history is prior customer messages only. Full thread remains
   // available for display via getMessages(), while structured prior_context
@@ -256,9 +361,9 @@ async function executeTicketRun(body: Record<string, unknown>) {
 }
 
 // Create a ticket OR add a follow-up message, then run the pipeline.
-app.post("/api/tickets", async (req, res) => {
+app.post("/api/tickets", requireRole("user"), async (req: AuthedRequest, res) => {
   try {
-    const prep = await executeTicketRun(req.body || {});
+    const prep = await executeTicketRun(req.body || {}, req.account!.customer_id ?? "");
     if ("error" in prep) return res.status(prep.status).json({ error: prep.error });
 
     let state: any;
@@ -289,9 +394,9 @@ app.post("/api/tickets", async (req, res) => {
 });
 
 /** Same as POST /api/tickets but streams real pipeline step events (SSE). */
-app.post("/api/tickets/stream", async (req, res) => {
+app.post("/api/tickets/stream", requireRole("user"), async (req: AuthedRequest, res) => {
   try {
-    const prep = await executeTicketRun(req.body || {});
+    const prep = await executeTicketRun(req.body || {}, req.account!.customer_id ?? "");
     if ("error" in prep) return res.status(prep.status).json({ error: prep.error });
 
     res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
@@ -358,65 +463,227 @@ app.post("/api/tickets/stream", async (req, res) => {
   }
 });
 
-// List tickets for the sidebar, scoped to the selected customer (?customer=).
-// No customer → anonymous/guest tickets. Server-backed, survives browser swaps.
-app.get("/api/tickets", (req, res) => {
-  const customer = req.query.customer ? String(req.query.customer) : null;
-  res.json({ tickets: listTickets(customer) });
-});
-
-// ---- Identity / presence ---------------------------------------------------
-// Customers you can "act as". A simple TTL lock keeps two instances off the
-// same customer at once.
-app.get("/api/users", (req, res) => {
-  const session = req.query.session ? String(req.query.session) : undefined;
-  res.json({
-    users: listUsers(session),
-    presence: { store: PRESENCE_STORE, ttl_ms: PRESENCE_TTL_MS },
-  });
-});
-
-app.post("/api/users/:id/claim", (req, res) => {
-  const session = String((req.body && req.body.session) || "");
-  if (!session) return res.status(400).json({ error: "session required" });
-  const result = claimUser(req.params.id, session);
-  if (!result.ok) {
-    const status = result.reason === "occupied" ? 409 : 404;
-    return res.status(status).json({
-      error: result.reason,
-      users: listUsers(session),
-      presence: { store: PRESENCE_STORE, ttl_ms: PRESENCE_TTL_MS },
-    });
-  }
-  res.json({ ok: true, users: listUsers(session), presence: { store: PRESENCE_STORE, ttl_ms: PRESENCE_TTL_MS } });
-});
-
-app.post("/api/users/:id/release", (req, res) => {
-  const session = String((req.body && req.body.session) || "");
-  if (session) releaseUser(req.params.id, session);
-  res.json({ ok: true });
+// List tickets for the sidebar, scoped to the signed-in customer.
+app.get("/api/tickets", requireRole("user"), (req: AuthedRequest, res) => {
+  res.json({ tickets: listTickets(req.account!.customer_id ?? "") });
 });
 
 // ---- Escalation dashboard --------------------------------------------------
-app.get("/api/escalations", (_req, res) => {
-  res.json({ escalations: listEscalations(), agents: HUMAN_AGENTS });
+// Admins see every case; agents see only the cases assigned to them.
+app.get("/api/escalations", requireRole("admin", "agent"), (req: AuthedRequest, res) => {
+  const account = req.account!;
+  const all = listEscalations();
+  const escalations =
+    account.role === "agent" ? all.filter((e) => e.assignee_id === account.agent_id) : all;
+  res.json({ escalations, agents: listHumanAgents(), me: account });
 });
 
-app.post("/api/escalations/:id/resolve", (req, res) => {
+app.post("/api/escalations/:id/resolve", requireRole("admin", "agent"), (req: AuthedRequest, res) => {
+  const account = req.account!;
+  const esc = getEscalationById(req.params.id);
+  if (!esc) return res.status(404).json({ error: "Escalation not found" });
+  if (account.role === "agent" && esc.assignee_id !== account.agent_id) {
+    return res.status(403).json({ error: "Not your case" });
+  }
   resolveEscalation(req.params.id);
+  // Tell the customer their case is resolved (in-app + email). Best-effort.
+  if (esc.customer_id) {
+    void notifyTicketResolved(esc.customer_id, esc.ticket_id, esc.subject);
+  }
   res.json({ ok: true });
 });
 
+// Hand a case up to the department manager when the agent can't resolve it.
+// The agent may attach a short note describing what they tried / what's needed.
+app.post("/api/escalations/:id/handoff", requireRole("admin", "agent"), (req: AuthedRequest, res) => {
+  const account = req.account!;
+  const esc = getEscalationById(req.params.id);
+  if (!esc) return res.status(404).json({ error: "Escalation not found" });
+  if (esc.status !== "open") return res.status(400).json({ error: "Case is already closed" });
+  if (account.role === "agent" && esc.assignee_id !== account.agent_id) {
+    return res.status(403).json({ error: "Not your case" });
+  }
+  if ((esc.assignee_level ?? "agent") === "manager") {
+    return res.status(400).json({ error: "Case is already with a manager" });
+  }
+  const manager = pickManager(esc.department as Department);
+  if (!manager) {
+    return res.status(409).json({ error: `No manager configured for ${esc.department}` });
+  }
+  const note = String(req.body?.note || "").trim() || null;
+  reassignEscalation(req.params.id, manager, "manager", note);
+
+  // Let the manager know a case has landed with them (in-app bell). Best-effort.
+  const managerAccount = getAccountByAgentId(manager.id);
+  if (managerAccount) {
+    createNotification({
+      account_id: managerAccount.id,
+      kind: "escalation_handoff",
+      title: `Case handed up: ${esc.subject || esc.ticket_id}`,
+      body: note ? `From ${account.name}: ${note}` : `Handed up by ${account.name}.`,
+      ticket_id: esc.ticket_id,
+    });
+  }
+  res.json({ ok: true, assignee: manager });
+});
+
+// ---- Notifications (recipient-scoped) --------------------------------------
+app.get("/api/notifications", requireRole("user", "admin", "agent"), (req: AuthedRequest, res) => {
+  const account = req.account!;
+  res.json({
+    notifications: listNotifications(account.id),
+    unread: countUnread(account.id),
+  });
+});
+
+app.post("/api/notifications/:id/read", requireRole("user", "admin", "agent"), (req: AuthedRequest, res) => {
+  markNotificationRead(req.params.id, req.account!.id);
+  res.json({ ok: true, unread: countUnread(req.account!.id) });
+});
+
+app.post("/api/notifications/read-all", requireRole("user", "admin", "agent"), (req: AuthedRequest, res) => {
+  markAllNotificationsRead(req.account!.id);
+  res.json({ ok: true, unread: 0 });
+});
+
+// ---- Platform: live config store (admin only) ------------------------------
+// Every mutation proxies to the agent's config store AND records who-did-what.
+function audit(req: AuthedRequest, action: string, target: string, detail?: string) {
+  const a = req.account!;
+  recordConfigAudit({ actor_id: a.id, actor_name: a.name, action, target, detail: detail ?? null });
+}
+
+async function platform(res: any, fn: () => Promise<any>) {
+  try {
+    res.json(await fn());
+  } catch (e) {
+    res.status(400).json({ error: (e as Error).message });
+  }
+}
+
+// KB docs
+app.get("/api/platform/kb", requireRole("admin"), (_req, res) => platform(res, () => agentAdmin.listKb()));
+app.put("/api/platform/kb/:file", requireRole("admin"), (req: AuthedRequest, res) =>
+  platform(res, async () => {
+    const out = await agentAdmin.putKb(req.params.file, String((req.body ?? {}).content ?? ""));
+    audit(req, "kb.upsert", req.params.file);
+    return out;
+  })
+);
+app.delete("/api/platform/kb/:file", requireRole("admin"), (req: AuthedRequest, res) =>
+  platform(res, async () => {
+    const out = await agentAdmin.deleteKb(req.params.file);
+    audit(req, "kb.delete", req.params.file);
+    return out;
+  })
+);
+
+// Use cases
+app.get("/api/platform/usecases", requireRole("admin"), (_req, res) =>
+  platform(res, () => agentAdmin.listUseCases())
+);
+app.put("/api/platform/usecases/:agent", requireRole("admin"), (req: AuthedRequest, res) =>
+  platform(res, async () => {
+    const out = await agentAdmin.putUseCase(req.params.agent, req.body);
+    audit(req, "usecase.upsert", `${req.params.agent}/${(req.body ?? {}).use_case_id ?? "?"}`);
+    return out;
+  })
+);
+app.delete("/api/platform/usecases/:agent/:id", requireRole("admin"), (req: AuthedRequest, res) =>
+  platform(res, async () => {
+    const out = await agentAdmin.deleteUseCase(req.params.agent, req.params.id);
+    audit(req, "usecase.delete", `${req.params.agent}/${req.params.id}`);
+    return out;
+  })
+);
+
+// Declarative HTTP tools
+app.get("/api/platform/tools", requireRole("admin"), (_req, res) =>
+  platform(res, () => agentAdmin.listTools())
+);
+app.put("/api/platform/tools/:name", requireRole("admin"), (req: AuthedRequest, res) =>
+  platform(res, async () => {
+    const out = await agentAdmin.putTool(req.params.name, req.body);
+    audit(req, "tool.upsert", req.params.name, JSON.stringify(req.body?.url_template ?? ""));
+    return out;
+  })
+);
+app.delete("/api/platform/tools/:name", requireRole("admin"), (req: AuthedRequest, res) =>
+  platform(res, async () => {
+    const out = await agentAdmin.deleteTool(req.params.name);
+    audit(req, "tool.delete", req.params.name);
+    return out;
+  })
+);
+
+// Audit feed
+app.get("/api/platform/audit", requireRole("admin"), (_req, res) => {
+  res.json({ audit: listConfigAudit(200) });
+});
+
+// ---- Admin: human-agent management -----------------------------------------
+app.get("/api/admin/departments", requireRole("admin"), (_req, res) => {
+  res.json({ departments: DEPARTMENTS });
+});
+
+// List every human agent with their login email + escalation counts.
+app.get("/api/admin/agents", requireRole("admin"), (_req, res) => {
+  const escalations = listEscalations();
+  const agents = listHumanAgents().map((a) => {
+    const cases = escalations.filter((e) => e.assignee_id === a.id);
+    const open = cases.filter((e) => e.status === "open").length;
+    return {
+      ...a,
+      email: getAccountByAgentId(a.id)?.email ?? null,
+      counts: { open, resolved: cases.length - open, total: cases.length },
+    };
+  });
+  res.json({ agents, departments: DEPARTMENTS });
+});
+
+// Create a human agent + their login account in one step.
+app.post("/api/admin/agents", requireRole("admin"), (req: AuthedRequest, res) => {
+  const { name, title, department, email, password, level } = req.body || {};
+  try {
+    // Validate the email up front so we never create an agent without a login.
+    assertEmailAvailable(String(email || ""));
+    const agent = createHumanAgent({
+      name: String(name || ""),
+      title: String(title || ""),
+      department: String(department || "") as Department,
+      level: level === "manager" ? "manager" : "agent",
+    });
+    const account = createAgentAccount({
+      name: agent.name,
+      email: String(email || ""),
+      password: password ? String(password) : undefined,
+      agentId: agent.id,
+    });
+    audit(req, "human_agent.create", `${agent.name} (${agent.department} · ${agent.level})`, account.email);
+    res.json({ agent, account });
+  } catch (e) {
+    res.status(400).json({ error: (e as Error).message });
+  }
+});
+
 // ---- Tickets dashboard (all conversations + traces) --------------------------
-app.get("/api/dashboard/tickets", (_req, res) => {
+app.get("/api/dashboard/tickets", requireRole("admin"), (_req, res) => {
   const tickets = listTicketsDashboard().map((t) => ({
     ...t,
-    customer_name: userName(t.customer_id),
+    customer_name: displayCustomerName(t.customer_id),
   }));
   res.json({ tickets });
 });
 
-app.get("/api/dashboard/tickets/:id", (req, res) => {
+app.get("/api/dashboard/tickets/:id", requireRole("admin", "agent"), (req: AuthedRequest, res) => {
+  const account = req.account!;
+  // Agents may only open a ticket that's escalated to them.
+  if (account.role === "agent") {
+    const esc = getLatestEscalationForTicket(req.params.id);
+    if (!esc || esc.assignee_id !== account.agent_id) {
+      return res.status(403).json({ error: "Not your case" });
+    }
+  }
   const row = getTicketDashboardRow(req.params.id);
   if (!row) return res.status(404).json({ error: "Ticket not found" });
 
@@ -437,15 +704,15 @@ app.get("/api/dashboard/tickets/:id", (req, res) => {
   const esc = getLatestEscalationForTicket(req.params.id);
 
   res.json({
-    ticket: { ...row, customer_name: userName(row.customer_id) },
+    ticket: { ...row, customer_name: displayCustomerName(row.customer_id) },
     messages: getMessages(req.params.id),
     runs,
     escalation: esc,
   });
 });
 
-app.get("/api/tickets/:id", (req, res) => {
-  const customer = requestedCustomerId(req.query.customer);
+app.get("/api/tickets/:id", requireRole("user"), (req: AuthedRequest, res) => {
+  const customer = req.account!.customer_id ?? "";
   if (!canAccessTicket(req.params.id, customer)) {
     return res.status(404).json({ error: "Ticket not found" });
   }
@@ -453,8 +720,13 @@ app.get("/api/tickets/:id", (req, res) => {
   const messages = getMessages(req.params.id);
   if (!run && messages.length === 0) return res.status(404).json({ error: "Ticket not found" });
   const esc = getLatestEscalationForTicket(req.params.id);
+  const row = getTicketDashboardRow(req.params.id);
   res.json({
     ticket_id: req.params.id,
+    display_id: getTicketDisplayId(req.params.id),
+    status: row?.status ?? "active",
+    parent_ticket_id: row?.parent_ticket_id ?? null,
+    summary: run?.resolution?.summary ?? null,
     run,
     messages,
     escalation_id: esc?.id ?? null,
@@ -462,8 +734,8 @@ app.get("/api/tickets/:id", (req, res) => {
   });
 });
 
-app.delete("/api/tickets/:id", (req, res) => {
-  const customer = requestedCustomerId(req.query.customer);
+app.delete("/api/tickets/:id", requireRole("user"), (req: AuthedRequest, res) => {
+  const customer = req.account!.customer_id ?? "";
   if (!canAccessTicket(req.params.id, customer)) {
     return res.status(404).json({ error: "Ticket not found" });
   }

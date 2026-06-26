@@ -2,33 +2,37 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Dark-only palette (zinc). The app forces `dark` on <html>, but we also set
-   :root to the same values so it never renders unstyled. */
-/* Monochrome, dark-only. A true black-and-white tool: no hue anywhere, status is
-   conveyed by weight/border/fill rather than color. Calm and editorial. */
+/* Light, minimal palette (zinc/slate). Clean white surfaces, soft grey borders,
+   near-black text. Status is conveyed by subtle tinted badges, not heavy hue. */
 @layer base {
-  :root,
-  .dark {
-    --background: 0 0% 4%;
-    --foreground: 0 0% 95%;
-    --card: 0 0% 7%;
-    --card-foreground: 0 0% 95%;
-    --popover: 0 0% 7%;
-    --popover-foreground: 0 0% 95%;
-    --primary: 0 0% 94%;
-    --primary-foreground: 0 0% 8%;
-    --secondary: 0 0% 13%;
-    --secondary-foreground: 0 0% 92%;
-    --muted: 0 0% 12%;
-    --muted-foreground: 0 0% 58%;
-    --accent: 0 0% 15%;
-    --accent-foreground: 0 0% 95%;
-    --destructive: 0 0% 78%;
-    --destructive-foreground: 0 0% 8%;
-    --border: 0 0% 16%;
-    --input: 0 0% 18%;
-    --ring: 0 0% 45%;
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 10%;
+    --primary: 240 9% 12%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 6% 20%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 46%;
+    --accent: 240 5% 94%;
+    --accent-foreground: 240 6% 20%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+    --ring: 240 5% 65%;
     --radius: 0.5rem;
+  }
+}
+
+@layer components {
+  /* Shared form control used across the platform admin console. */
+  .input {
+    @apply w-full rounded-md border border-border bg-card px-3 py-2 text-sm outline-none focus:border-foreground/40;
   }
 }
 
@@ -46,14 +50,14 @@
   /* Slim, unobtrusive scrollbars for the panes. */
   * {
     scrollbar-width: thin;
-    scrollbar-color: hsl(0 0% 22%) transparent;
+    scrollbar-color: hsl(240 5% 80%) transparent;
   }
   *::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
   *::-webkit-scrollbar-thumb {
-    background: hsl(0 0% 20%);
+    background: hsl(240 5% 82%);
     border-radius: 9999px;
   }
 }

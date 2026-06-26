@@ -5,12 +5,16 @@ import cors from "cors";
 import { ENV } from "./env";
 import { buildInput, runPipeline } from "./run";
 import { runPipelineLinearWithProgress } from "./pipeline-events";
+import { adminRouter } from "./admin";
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
 
 app.get("/health", (_req, res) => res.json({ ok: true, service: "agent" }));
+
+// Live config store (KB / use cases / HTTP tools) — secret-gated, API-only.
+app.use("/admin", adminRouter);
 
 function parseRunBody(body: Record<string, unknown> | null | undefined) {
   const { ticket_id, run_id, message, message_count, customer_id, ticket_status, prior_context, history } = body || {};

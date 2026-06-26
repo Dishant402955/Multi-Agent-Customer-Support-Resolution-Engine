@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch --ignore \"src/agents/**/usecases/**\" --ignore \"src/shared/kb/library/**\" src/server.ts",
     "start": "tsx src/server.ts",
     "pipeline": "tsx src/cli.ts pipeline",
     "step": "tsx src/cli.ts step",
