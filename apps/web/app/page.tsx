@@ -20,6 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { HelpWidget } from "@/components/help-widget";
 import {
   deleteTicket,
   getTicket,
@@ -607,6 +608,11 @@ function Home() {
           </>
         )}
       </main>
+      <HelpWidget
+        onTalkToSupport={(t) => {
+          if (t) setInput(t);
+        }}
+      />
     </div>
   );
 }

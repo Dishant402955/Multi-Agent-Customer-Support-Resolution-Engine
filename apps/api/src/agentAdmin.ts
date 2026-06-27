@@ -48,4 +48,9 @@ export const agentAdmin = {
   createFaq: (body: unknown) => call("POST", "/faq", body),
   putFaq: (id: string, body: unknown) => call("PUT", `/faq/${encodeURIComponent(id)}`, body),
   deleteFaq: (id: string) => call("DELETE", `/faq/${encodeURIComponent(id)}`),
+  // Help Center (customer-facing self-service articles)
+  listHelp: () => call("GET", "/helpcenter"),
+  putHelp: (file: string, content: string) =>
+    call("PUT", `/helpcenter/${encodeURIComponent(file)}`, { content }),
+  deleteHelp: (file: string) => call("DELETE", `/helpcenter/${encodeURIComponent(file)}`),
 };

@@ -152,6 +152,23 @@ router.put("/sla", requireRole("admin"), (req: AuthedRequest, res) => {
   }
 });
 
+// Help Center (customer-facing self-service articles)
+router.get("/helpcenter", requireRole("admin"), (_req, res) => platform(res, () => agentAdmin.listHelp()));
+router.put("/helpcenter/:file", requireRole("admin"), (req: AuthedRequest, res) =>
+  platform(res, async () => {
+    const out = await agentAdmin.putHelp(req.params.file, String((req.body ?? {}).content ?? ""));
+    audit(req, "helpcenter.upsert", req.params.file);
+    return out;
+  })
+);
+router.delete("/helpcenter/:file", requireRole("admin"), (req: AuthedRequest, res) =>
+  platform(res, async () => {
+    const out = await agentAdmin.deleteHelp(req.params.file);
+    audit(req, "helpcenter.delete", req.params.file);
+    return out;
+  })
+);
+
 // Audit feed
 router.get("/audit", requireRole("admin"), (_req, res) => {
   res.json({ audit: listConfigAudit(200) });

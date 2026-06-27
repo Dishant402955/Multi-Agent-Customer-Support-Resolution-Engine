@@ -59,7 +59,12 @@ function readAll(): FaqEntry[] {
     for (const item of arr) {
       const parsed = faqEntrySchema.safeParse(item);
       if (parsed.success) {
-        out.push({ ...parsed.data, id: parsed.data.id || randomUUID() });
+        out.push({
+          ...parsed.data,
+          id: parsed.data.id || randomUUID(),
+          enabled: parsed.data.enabled ?? true,
+          match: parsed.data.match ?? "contains",
+        });
       }
     }
     cache = out;

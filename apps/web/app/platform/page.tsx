@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { BookOpen, Bot, FileJson, HelpCircle, History, MessageCircleQuestion, PanelLeftClose, PanelLeftOpen, Scale, Timer, Users, Wrench, X } from "lucide-react";
+import { BookOpen, Bot, FileJson, HelpCircle, History, LifeBuoy, MessageCircleQuestion, PanelLeftClose, PanelLeftOpen, Scale, Timer, Users, Wrench, X } from "lucide-react";
 import { AdminHeader } from "@/components/admin-nav";
 import { useRequireRole } from "@/lib/auth";
 import { KbTab } from "./tabs/kb";
@@ -12,8 +12,9 @@ import { FaqTab } from "./tabs/faq";
 import { PoliciesTab } from "./tabs/policies";
 import { AuditTab } from "./tabs/audit";
 import { SlaTab } from "./tabs/sla";
+import { HelpCenterTab } from "./tabs/helpcenter";
 
-type Tab = "kb" | "usecases" | "tools" | "specialists" | "policies" | "faq" | "agents" | "sla" | "audit";
+type Tab = "kb" | "usecases" | "tools" | "specialists" | "policies" | "faq" | "helpcenter" | "agents" | "sla" | "audit";
 
 type TabDef = { id: Tab; label: string; icon: typeof BookOpen; description: string };
 
@@ -31,6 +32,7 @@ const GROUPS: { name: string; tabs: TabDef[] }[] = [
       { id: "kb", label: "Knowledge base", icon: BookOpen, description: "Markdown documents the agents can retrieve answers from at runtime." },
       { id: "faq", label: "FAQ", icon: MessageCircleQuestion, description: "Canned answers matched by trigger phrases before the agents run — fast paths for common questions." },
       { id: "tools", label: "HTTP tools", icon: Wrench, description: "HTTP endpoints the agents can call to fetch or act on live data." },
+      { id: "helpcenter", label: "Help Center", icon: LifeBuoy, description: "Customer-facing self-service articles. The Help widget answers customers from these (and only these) via semantic search, before any ticket is raised." },
     ],
   },
   {
@@ -121,6 +123,7 @@ export default function PlatformPage() {
             {tab === "usecases"   && <UseCasesTab />}
             {tab === "policies"   && <PoliciesTab />}
             {tab === "faq"        && <FaqTab />}
+            {tab === "helpcenter" && <HelpCenterTab />}
             {tab === "kb"         && <KbTab />}
             {tab === "tools"      && <ToolsTab />}
             {tab === "agents"     && <HumanAgentsTab />}

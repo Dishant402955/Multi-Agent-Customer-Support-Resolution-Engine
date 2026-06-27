@@ -21,6 +21,7 @@ import { authMiddleware, requireRole, displayCustomerName, canAccessTicket, toke
 import platformRouter from "./routes/platform";
 import escalationRouter from "./routes/escalations";
 import adminRouter from "./routes/admin";
+import helpRouter from "./routes/help";
 
 seedAccounts();
 seedHumanAgents();
@@ -305,6 +306,7 @@ app.delete("/api/tickets/:id", requireRole("user"), (req: AuthedRequest, res) =>
 // ---- Mount routers ----------------------------------------------------------
 app.use("/api/escalations", escalationRouter);
 app.use("/api/platform", platformRouter);
+app.use("/api/help", helpRouter);
 app.use("/api", adminRouter);
 
 app.listen(ENV.API_PORT, () => {

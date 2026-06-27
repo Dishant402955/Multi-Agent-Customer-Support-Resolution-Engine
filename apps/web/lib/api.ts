@@ -6,6 +6,8 @@ import type {
   EscalationRecord,
   FaqEntry,
   FeedbackRow,
+  HelpAnswer,
+  HelpArticle,
   HttpToolSpec,
   HumanAgent,
   HumanAgentAdmin,
@@ -468,6 +470,11 @@ export const platform = {
   getSla: () => pf("GET", "/sla") as Promise<SlaConfig>,
   putSla: (cfg: SlaConfig) => pf("PUT", "/sla", cfg) as Promise<SlaConfig>,
 
+  listHelp: () => pf("GET", "/helpcenter") as Promise<{ articles: HelpArticle[] }>,
+  putHelp: (file: string, content: string) =>
+    pf("PUT", `/helpcenter/${encodeURIComponent(file)}`, { content }) as Promise<{ article: HelpArticle }>,
+  deleteHelp: (file: string) => pf("DELETE", `/helpcenter/${encodeURIComponent(file)}`),
+
   listSpecialists: () =>
     pf("GET", "/specialists") as Promise<{ agents: SpecialistAgentRecord[] }>,
   putSpecialist: (name: string, body: Omit<SpecialistAgentRecord, "builtin">) =>
@@ -481,6 +488,19 @@ export const platform = {
     pf("PUT", `/faq/${encodeURIComponent(id)}`, body) as Promise<{ faq: FaqEntry }>,
   deleteFaq: (id: string) => pf("DELETE", `/faq/${encodeURIComponent(id)}`),
 };
+
+// ---- Help Center: customer self-service (signed-in users) ------------------
+
+export async function askHelp(message: string): Promise<HelpAnswer> {
+  const res = await fetch(`${API}/api/help/ask`, {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ message }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || "Help is unavailable");
+  return data as HelpAnswer;
+}
 
 // ---- Admin: human-agent management -----------------------------------------
 

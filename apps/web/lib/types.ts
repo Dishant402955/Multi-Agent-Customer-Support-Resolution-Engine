@@ -164,6 +164,23 @@ export interface SlaConfig {
   warn_pct: number;
 }
 
+// Customer-facing Help Center article (self-service knowledge).
+export interface HelpArticle {
+  file: string;
+  title: string;
+  content: string;
+  bytes: number;
+}
+
+// One self-service answer from the Help Center (read-only; no ticket).
+export interface HelpAnswer {
+  answer: string;
+  answered: boolean;
+  source: "faq" | "kb" | "none";
+  sources: { title: string; file: string }[];
+  suggestEscalation: boolean;
+}
+
 // In-app notification addressed to the signed-in account.
 export interface NotificationRecord {
   id: string;

@@ -27,6 +27,7 @@ import {
   upsertAgentRecord,
 } from "./shared/policies/agents";
 import { deleteFaq, listFaqs, upsertFaq } from "./shared/policies/faq";
+import { deleteHelpArticle, listHelpArticles, writeHelpArticle } from "./shared/help/store";
 
 export const adminRouter = Router();
 
@@ -187,6 +188,27 @@ adminRouter.post("/faq", (req, res) => {
 adminRouter.delete("/faq/:id", (req, res) => {
   try {
     deleteFaq(req.params.id);
+    res.json({ ok: true });
+  } catch (e) {
+    fail(res, e);
+  }
+});
+
+// ---- Help Center (customer-facing self-service articles) -------------------
+adminRouter.get("/helpcenter", (_req, res) => res.json({ articles: listHelpArticles() }));
+
+adminRouter.put("/helpcenter/:file", (req, res) => {
+  try {
+    const content = String((req.body ?? {}).content ?? "");
+    res.json({ article: writeHelpArticle(req.params.file, content) });
+  } catch (e) {
+    fail(res, e);
+  }
+});
+
+adminRouter.delete("/helpcenter/:file", (req, res) => {
+  try {
+    deleteHelpArticle(req.params.file);
     res.json({ ok: true });
   } catch (e) {
     fail(res, e);
