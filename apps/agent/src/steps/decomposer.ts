@@ -82,9 +82,9 @@ export function heuristicDecompose(message: string, classification: Classificati
   if (!classification.is_multi_issue) return singleSubProblem(message, classification);
 
   // Multi-issue → one sub-problem per confident, concrete domain.
-  const domains = new Set(listDomains());
+  const knownDomains = new Set(listDomains());
   const confidentDomains = classification.intents
-    .filter((i) => i.confidence >= 0.6 && domains.has(i.type))
+    .filter((i) => i.confidence >= 0.6 && knownDomains.has(i.type))
     .map((i) => i.type as AgentDomain);
 
   // Dedupe while preserving order (intents arrive sorted by confidence desc).
