@@ -1,220 +1,265 @@
-# Multi-Agent Customer Support Engine
+# User Flow
 
-**V1 — User Flow & Experience**
+End-to-end journeys through the system, from the customer's perspective and the
+admin/agent perspective.
 
-Simple description of what the user sees, does, and gets from the product.
-
-
----
-
-## What can the user do?
-
-| Capability | In simple words | Rubric it supports |
-|------------|-----------------|-------------------|
-| **Submit a ticket** | Paste or type a customer message and run the system | Demo |
-| **See classification + confidence** | Intent label and how sure the system is | Classification **3** |
-| **See fallback when unsure** | Low confidence → safe route (e.g. policy review), not a wild guess | Classification **3** |
-| **Watch parallel investigation** | Mixed tickets split; agents run in parallel; results merged | Decomposition **3** |
-| **See named specialists** | Technical, Billing, Policy, Orders, Products, Escalation — each visibly different | Agents **2** |
-| **Read structured resolution** | Summary, actions, **reasoning**, **evidence** | Output **3** |
-| **See customer sentiment** | Frustration / tone detected; may affect urgency | Stretch **2** |
-| **Check structured audit trail** | Timeline of every step and which agent did what | Logs **2** |
-| **Follow up on a ticket** | Same ticket ID keeps prior context | Output / flow |
-| **Get clear errors** | Empty or bad input → message, no crash | Edge cases **2** |
+**Docs chain:** `README.md` → `user-flow.md` → `technical-spec.md` → `lld.md`
 
 ---
 
-## User flow (step by step)
+## 1. Customer — single-issue ticket
 
-### Step 1 — Submit
+```
+Customer opens http://localhost:3100
+  └─ types: "My order hasn't arrived."
 
-**User does:** Opens the app, pastes  message, clicks submit.  
-Optional: same ticket ID/conversation  for a follow-up.
+  UI shows live step progress (SSE streaming):
+    ● Screening for hard signals        [rule]
+    ● Classifying intent                [LLM]  → orders (0.91)
+    ● Reading sentiment                 [LLM]  → neutral (0.1)
+    ● Splitting into sub-problems       [LLM]  → 1 sub-problem
+    ● Orders agent investigating        [LLM]  → tools: orderLookup
+    ● Assessing severity                [rule] → low / P3
+    ● Checking escalation               [rule] → none needed
+    ● Composing your reply              [LLM]
 
----
+  AI reply displayed with:
+    - Resolution summary
+    - Collapsible "1 agent · 8 steps" thought trail
+    - 👍 / 👎 feedback bar
 
-### Step 2 — Classification (must feel smart)
-
-**User sees:**
-- Intent: **technical** / **billing** / **policy** / **orders** / **products** / **mixed** / **unknown**
-- **Confidence score** per intent (e.g. Billing 0.92)
-- If **mixed** → message that ticket will be split
-- If **low confidence** → **fallback** visible (e.g. “Routed to Policy for review” or “Needs manual review”) — never silent wrong routing
-
-**User experience:** “I trust how it classified this — and I see when it’s unsure.”
-
----
-
-### Step 3 — Investigation (parallel when needed)
-
-**Single issue — user sees:**
-- One **named** specialist (e.g. “Billing Agent investigating…”)
-
-**Multiple issues — user sees:**
-1. **Sub-problems** listed (e.g. “Crash after login” + “Duplicate charge”)
-2. **Parallel** agents running (Technical + Billing at the same time — visible in flow)
-3. **Merge** step — “Combining findings…”
-4. Each agent is clearly **different** (not one generic bot)
-
-**User experience:** “Real specialists worked on separate parts, then it came back together.”
-
----
-
-### Step 4 — Sentiment, severity & escalation
-
-**User sees:**
-- **Sentiment** (stretch): neutral / frustrated / angry — shown on ticket or in flow
-- **Severity & priority** (low / medium / high, P3–P1)
-- **Escalation** if triggered — why, and what happens next
-- Sentiment may **raise** severity (e.g. angry + billing issue → higher priority)
-
-**User experience:** “I know how upset the customer is and how urgent this is.”
-
----
-
-### Step 5 — Resolution (structured output)
-
-**User sees one unified, customer-ready answer:**
-
-| Section | What it contains |
-|---------|------------------|
-| **Summary** | What the customer reported |
-| **Findings** | Per issue (if mixed) |
-| **Actions** | What to do next |
-| **Reasoning** | Why this resolution — required |
-| **Evidence** | Invoice IDs, error codes, policy refs — traceable facts |
-
-**User experience:** “I can send this to the customer and defend every line if asked.”
-
----
-
-### Step 6 — Audit trail (structured)
-
-**User sees a timeline** — not raw console logs:
-
-| Event | Example |
-|-------|---------|
-| Ticket received | — |
-| Intent classified | billing 0.94, technical 0.12 |
-| Decomposed | SP-1 technical, SP-2 billing |
-| Agent completed | Technical Agent — findings + reasoning |
-| Agent completed | Billing Agent — findings + reasoning |
-| Findings merged | — |
-| Sentiment detected | frustrated |
-| Severity assessed | medium / P2 |
-| Escalation | yes/no + reason |
-| Response synthesized | — |
-
-**User experience:** “I can trace any sentence in the answer back to a step and an agent.”
-
----
-
-## End-to-end flow (user view)
-
-```mermaid
-flowchart TD
-    A[Paste customer message] --> B[See intent + confidence]
-    B --> C{Mixed?}
-    C -->|No| D[See one specialist agent]
-    C -->|Yes| E[See sub-problems]
-    E --> F[See parallel agents]
-    F --> G[See merge]
-    D --> H[See sentiment + severity]
-    G --> H
-    H --> I[See escalation if needed]
-    I --> J[Read resolution: reasoning + evidence]
-    J --> K[Review audit trail]
-    K --> L{Follow-up?}
-    L -->|Yes| A
-    L -->|No| M[Done]
+  Customer submits feedback → stored in DB
 ```
 
 ---
 
-## Scenarios the user must experience (demo-aligned)
+## 2. Customer — multi-issue ticket (parallel agents)
 
-### 1. Billing-only (simple path)
+```
+Customer types: "My checkout keeps failing and I was charged twice."
 
-> *"I was charged twice this month."*
+  Classify → technical (0.82) + billing (0.78) → is_multi_issue: true
+  Decompose → SP-1: technical · SP-2: billing
+  Investigate (Promise.all):
+    ├─ Technical agent → lookupErrorCode("CART-422") → checkout error found
+    └─ Billing agent   → subscriptionLookup() → duplicate charge confirmed
+  Merge → overall_status: partial (technical resolved, billing unresolved)
+  Severity → medium / P2 (findings contain "duplicate charge")
+  Escalate → frustration_repeat rule → NOT triggered (first message, neutral tone)
+  Synthesize → unified reply covering both issues
 
-- Classification: **Billing**, high confidence  
-- **Billing Agent** only  
-- Resolution with refund reasoning + evidence (e.g. invoice refs)  
-- Audit trail end-to-end  
-
----
-
-### 2. Mixed ticket — hero demo
-
-> *"App crashes after login and I was charged twice."*
-
-- Classification: **Mixed**, confidence per intent  
-- Sub-problems shown  
-- **Technical + Billing agents in parallel**  
-- **Merge** visible  
-- One answer covering **both** issues + reasoning + evidence  
-- Audit shows both agents  
+  Admin sees in Trace → Agents tab:
+    Fan-out diagram  [ ticket ] →→→ [ Technical ✓ ]
+                              └→→→ [ Billing ⚠ ]  →→→ [ merged: partial ]
+```
 
 ---
 
-### 3. Low-confidence / ambiguous
+## 3. Customer — frustrated, repeat contact
 
-> *"Something feels wrong with my account."*
+```
+Turn 1: "My refund is still pending."
+  → Sentiment: neutral · P3 · no escalation
 
-- Low confidence visible  
-- **Fallback** path shown (policy review / unknown — not forced billing or technical)  
-- Logged in audit trail  
+Turn 2: "THIS IS STILL NOT RESOLVED!! talk to a manager!!"
+  → Guard: force_escalation (matched "talk to a manager")
+  → Sentiment: angry (0.82) · frustration: true · trend: rising
+  → Severity: high / P1
+  → Escalation: triggered (force_escalation + frustration_repeat)
+    └─ Assigned to: Maya Fernandez (Billing) — least-loaded agent
 
----
+  Customer sees: "A human agent will contact you shortly."
 
-### 4. Frustrated customer (stretch)
+  Agent (Maya) receives:
+    - In-app notification bell
+    - Case appears in /escalations as P1
+    - Case sheet shows: customer mood card, suggested resolution, conversation
 
-> *"THIS IS THE THIRD TIME!!! Still charged twice!!!"*
-
-- **Sentiment:** frustrated / angry  
-- Severity may increase  
-- Escalation more likely  
-- Still full resolution + audit  
-
----
-
-### 5. Follow-up (same ticket)
-
-> *"Refund still not received."*
-
-- Same ticket ID  
-- Prior context used  
-- Updated resolution — not starting from scratch  
+  Agent replies → customer receives notification → sees reply in chat poll
+  Agent can: Reply · Handoff to manager · Resolve
+```
 
 ---
 
-### 6. Bad input (edge cases)
+## 4. Customer — FAQ match
 
-| Input | User sees |
-|-------|-----------|
-| Empty message | *"Please enter a message"* — no crash |
-| Nonsense / very short | Graceful message or low-confidence path — no crash |
-| System / API error | Clear error + can retry — no white screen |
+```
+Customer types: "What is your return policy?"
 
----
+  FAQ check runs before classifier
+    matchFaq("What is your return policy?") → matches "return policy" (contains)
+    category: "faq" · faq_answer: "We accept returns within 30 days..."
 
-## Screens (minimum)
+  Classifier short-circuited — no LLM call, no specialist agent
+  Synthesizer returns faq_answer directly
 
-| Section | User must see |
-|---------|----------------|
-| **Submit** | Message, ticket ID, submit |
-| **Classification** | Intent, confidence, fallback if unsure |
-| **Processing / flow** | Sub-problems, **parallel** agents, **merge**, named specialists |
-| **Sentiment & severity** | Tone, priority, escalation flag |
-| **Resolution** | Structured: summary, findings, actions, **reasoning**, **evidence** |
-| **Audit trail** | Structured timeline — step, actor, summary |
-
-Can be one page with sections or tabs — but all sections must be visible in demo without opening a terminal.
+  Observability: category shown as "faq" (violet badge)
+  No ticket created (non-support category)
+```
 
 ---
 
-## One-line summary
+## 5. Customer — low-confidence / ambiguous
 
-**User pastes a problem → sees how it was classified (with confidence) → watches named specialists work in parallel when needed → reads one reasoned, evidence-backed answer → reviews a full audit trail → can follow up on the same ticket.**
+```
+Customer types: "Something feels off with my account."
 
-That’s the v1 experience.
+  Classify → all intents below threshold → fallback: true
+  Route → policy agent (safe catch-all)
+  Agent → policy review, asks for more detail
+  Severity → low / P3
+
+  UI shows: fallback badge visible in Trace → Pipeline Flow
+```
+
+---
+
+## 6. Admin — working the escalation queue
+
+```
+Admin/agent logs in → role: "agent" → redirected to /escalations
+
+My Cases list (filtered to assignee_id = me):
+  - P1 · billing · Maya Fernandez · "Double charge, very angry"
+
+Click row → Case sheet slides in:
+  - Customer mood: Angry · rising · "strong negative wording; repeat contact"
+  - Suggested resolution: "Refund has been confirmed by Billing agent…"
+  - Conversation thread (polled every 6s)
+  - Team notes section
+
+  Agent types a reply → POST /api/escalations/:id/reply
+    → Customer notified
+    → Team activity emitted: "Maya replied to …"
+    → Collaboration dashboard shows the event live
+
+  Agent adds a note: "Checked the transaction logs — charge ID 9982 confirmed duplicate"
+    → POST /api/escalations/:id/note
+    → Visible to team on /collaboration, not to customer
+
+  Agent resolves → POST /api/escalations/:id/resolve
+    → Customer notified "Your case is resolved"
+    → Activity: "Maya resolved …"
+```
+
+---
+
+## 7. Admin — real-time team view
+
+```
+Admin opens /collaboration
+
+  Roster (grouped by department):
+    Billing
+      ● Maya Fernandez   [■■■□□] 3 open   online
+      ● Tom Becker       [■□□□□] 1 open   online
+      ○ Priya Nair       [□□□□□] 0 open   5m ago
+    Technical
+      ● Sofia Rossi      [■■□□□] 2 open   online
+
+  Live activity feed (SSE):
+    ↗ New P1 case → Maya Fernandez (Billing)    just now
+    💬 Maya replied to John Smith               2m ago
+    ✓  Tom resolved #0041                       5m ago
+
+  Team notes (recent):
+    Maya: "Checked transaction ID 9982 — confirmed dup"   3m ago
+```
+
+---
+
+## 8. Admin — suggested KB article
+
+```
+Admin goes to /platform → Knowledge Base
+
+  "Suggest an article from a resolved ticket"
+  Selects: #0039 — "Checkout error + double charge" (status: resolved)
+  Clicks "Generate draft"
+
+  → POST /api/platform/kb/suggest { ticket_id: "..." }
+  → Agent assembles KbSource from run: question + resolution + findings + actions
+  → callLLM generates clean Markdown article
+  → Draft loaded into editor:
+      filename: checkout_payment_errors.md
+      title: "Checkout Errors and Duplicate Charge Resolution"
+      content: "# Overview\n Customers may encounter..."
+
+  Admin edits → clicks Save
+  → PUT /api/platform/kb/:file → writes to library/
+  → Article live on next ticket retrieval
+```
+
+---
+
+## 9. Admin — observability + trace
+
+```
+Admin opens /observability
+
+  Table of all pipeline runs:
+    ID     | Message preview    | Category | Mood      | Intent  | Agents | Steps
+    #0042  | "checkout failing" | support  | 😠 Angry  | billing |   2    |   9
+
+  Click row → sheet slides in:
+    Signals: intent · multi-issue · sentiment · severity · priority · LLM calls
+    Pipeline flow: animated step graph (all 8 steps with status + details)
+    Agent verdicts: Technical ✓ 88% · Billing ⚠ 72%
+    Resolution summary
+
+  "Open full trace in new tab" → /trace/:ticketId
+
+  Trace page:
+    Ticket summary band (title, customer, runs, badges incl. mood)
+    Lifecycle stepper: Created → Understood → Investigated → Assessed → Escalated
+
+    Run #1 — Agent Collaboration Flow
+    [Pipeline Flow tab]    [Agents tab]         [Audit tab]
+    Step graph:            Fan-out diagram       Full typed audit trail
+      guard ✓              ticket → Technical    + step timings
+      classify ✓                 → Billing       + raw state JSON
+      sentiment ✓          → merged: partial
+      decompose ✓
+      investigate ✓        Agent report cards
+      severity ✓           (findings/actions/
+      escalation ✓          reasoning/evidence)
+      synthesize ✓
+
+    Below: All runs collapsible list (RunTraceCard)
+```
+
+---
+
+## 10. Admin — platform policy control
+
+```
+Admin opens /platform → Policies
+
+  Hard checks (guard signals):
+    ✅ talk to a manager   ✅ chargeback   ✅ legal action   ✅ data breach
+
+  Escalation rules:
+    ✅ High severity      ✅ Unresolved   ✅ Conflicts
+    ✅ Specialist handoff ✅ Frustration + repeat
+
+  Intent thresholds:
+    technical   0.35  billing  0.40  policy  0.30  orders  0.35  products  0.30
+
+Admin opens /platform → FAQ
+
+  Label: "Return policy"
+  Match: contains
+  Triggers: ["return policy", "can I return", "refund my order"]
+  Answer: "We accept returns within 30 days of purchase…"
+  Enabled ✅
+
+Admin opens /platform → Specialists
+
+  technical · billing · policy · orders · products  (built-in)
+  [+ Add custom agent]
+    Name: "Loyalty"   Domain: loyalty
+    Description: "Handles loyalty points, rewards, tier status"
+    Keywords: points, rewards, tier, loyalty
+    Team: Customer Success
+  → Materialized at runtime, appears in classifier and router immediately
+```

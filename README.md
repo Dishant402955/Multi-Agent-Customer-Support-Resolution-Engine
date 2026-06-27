@@ -1,385 +1,339 @@
-# Multi-Agent Customer Support Resolution Engine — Base
+# Multi-Agent Customer Support Resolution Engine
 
-An **e-commerce** customer-support engine. It takes a shopper's message,
-classifies intent, splits multi-issue tickets, runs specialist agents **in
-parallel**, assesses severity, escalates when needed, and returns one
-customer-ready resolution with reasoning + evidence — plus a full audit trail.
-
-Five specialist domains cover the store journey: **Technical** (login,
-checkout/site errors), **Billing** (charges, refunds, payments), **Policy**
-(returns, cancellation, warranty), **Orders** (status, tracking, delivery,
-cancel/change), and **Products** (availability, price, variants, specs).
-
-Specialist agents are **LLM-backed** through a small shared framework: each agent
-is described by **declarative JSON use cases** with a scoped knowledge base and a
-tool pool, all routed through a **single LLM gateway** (Azure OpenAI by default).
-Every pipeline step is a typed function you can run on its own, and the whole
-thing **degrades to deterministic heuristics when no LLM key is set** — so it
-runs offline too.
-
-```
-Next.js (web, dark UI)  →  Express API + SQLite  →  Agent System (LangGraph, TS)
-                                                         │
-                                          shared/ framework: LLM gateway · KB · tools
-```
-
-Pipeline: `guard → classify → sentiment → decompose → investigate (parallel) →
-severity → escalation → respond → audit`.
+An **e-commerce** customer-support engine that classifies, decomposes, investigates, and resolves customer tickets through coordinated specialist AI agents — with a full-featured ops console, real-time collaboration, sentiment detection, and live KB generation.
 
 ---
 
-## Prerequisites
+## System architecture
 
-- **Node.js 22.5+ (24.x recommended)** — uses the built-in `node:sqlite` module,
-  global `fetch`, and ESM. No native build tools required.
-- **npm 9+**
-
-> Node prints a one-line `ExperimentalWarning` for `node:sqlite` — expected and harmless.
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  Browser (Next.js 15, shadcn/ui, dark-only)                         │
+│                                                                     │
+│  Customer chat  │  Tickets  │  Escalations  │  Team  │  Platform   │
+│  (streaming)    │  (admin)  │  (agent)      │(collab)│  (config)   │
+└───────────────────────────────────┬─────────────────────────────────┘
+                                    │ REST + SSE
+┌───────────────────────────────────▼─────────────────────────────────┐
+│  Express API  (port 4100)                                           │
+│                                                                     │
+│  Auth · Tickets · Escalations · Notifications · Feedback           │
+│  Observability · Platform-config proxy · Team/Collab SSE           │
+│                                                                     │
+│  SQLite (node:sqlite, no native build)                             │
+│  tables: tickets · messages · runs · escalations · human_agents   │
+│          notifications · feedback · agent_presence · team_activity │
+│          case_notes · config_audit_log · faqs                      │
+└───────────────────────────────────┬─────────────────────────────────┘
+                                    │ HTTP (admin-token)
+┌───────────────────────────────────▼─────────────────────────────────┐
+│  Agent System  (port 5000)   — LangGraph StateGraph                │
+│                                                                     │
+│  Pipeline (8 steps, each a typed pure function):                   │
+│  guard → classify → sentiment → decompose → investigate(parallel)  │
+│         → severity → escalation → synthesize                       │
+│                                                                     │
+│  Specialist agents (5):  Technical · Billing · Policy · Orders     │
+│                          · Products  (+ runtime-addable)           │
+│                                                                     │
+│  Shared framework:                                                  │
+│    gateway/   single LLM door (OpenAI-compat / Azure / Groq …)    │
+│    handlers/  declarative JSON use-case runner                     │
+│    kb/        TF-IDF retriever + markdown library + LLM generator │
+│    tools/     orderLookup · productLookup · lookupErrorCode …     │
+│    policies/  live-editable config (guard, escalation, intent)    │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Run it
+## Quick start
 
 ```bash
 cd C:\dishant\techathon
 npm install
-copy .env.example .env      # optional; sensible defaults are baked in
-npm run dev:all             # starts agent (5000), api (4100), web (3100)
+
+# Optional: copy env template and add your LLM key.
+# Without a key, all steps fall back to deterministic heuristics — runs offline too.
+copy .env.example .env
+
+npm run dev:all          # starts all three services
 ```
 
-Open **http://localhost:3100**.
-
-Prefer separate terminals?
-
-```bash
-npm run dev:agent   # Agent System  → http://localhost:5000
-npm run dev:api     # Application API → http://localhost:4100
-npm run dev:web     # Frontend       → http://localhost:3100
-```
-
-| Service        | URL                     | Command            |
-|----------------|-------------------------|--------------------|
-| Frontend (web) | http://localhost:3100   | `npm run dev:web`     |
-| API + SQLite   | http://localhost:4100   | `npm run dev:api`     |
-| Agent System   | http://localhost:5000   | `npm run dev:agent`   |
-
-Ports avoid 3000/4000/4500. Change them in `.env` (`API_PORT`, `AGENT_PORT`),
-the web port in `apps/web/package.json`, and the browser→API URL in
-`apps/web/.env.local`.
+| Service          | URL                      | Command              |
+|------------------|--------------------------|----------------------|
+| Frontend (web)   | http://localhost:3100    | `npm run dev:web`    |
+| API + SQLite     | http://localhost:4100    | `npm run dev:api`    |
+| Agent System     | http://localhost:5000    | `npm run dev:agent`  |
 
 ---
 
 ## LLM setup (company endpoint)
 
-The agents call an LLM through one gateway (`apps/agent/src/shared/gateway`). The
-company gateway is **OpenAI-compatible** (model in the body, base URL ending at
-`/v1`, bearer-token auth), so you set exactly **three** values in `.env`:
+Three env vars, matching the company curl exactly:
 
 ```bash
-LLM_ENDPOINT=https://openaiqc.gep.com/summerintern/openai/v1  # base URL up to /v1
-LLM_MODEL=gpt-5.2                                             # model sent in the body
-LLM_API_KEY=your-bearer-token                                # Authorization: Bearer <token>
+LLM_ENDPOINT=https://openaiqc.gep.com/summerintern/openai/v1   # base URL up to /v1
+LLM_MODEL=gpt-5.2                                               # model in the body
+LLM_API_KEY=your-bearer-token                                   # Authorization: Bearer …
 ```
 
-This maps 1:1 to the curl: the SDK appends `/chat/completions` to `LLM_ENDPOINT`,
-puts `LLM_MODEL` in the request body, and sends `LLM_API_KEY` as a bearer header.
-When `LLM_ENDPOINT` is set the engine selects this endpoint automatically (no
-`LLM_PROVIDER` needed) and uses a normal chat-completions body (it accepts
-`temperature` for a `gpt-5.x` model name).
+Standard OpenAI, Anthropic, Groq, Gemini, and native Azure are also supported — see `.env.example`.
 
-**No key? It still runs.** With no provider configured, intent routing, agent
-answers, and final synthesis fall back to deterministic heuristics (keyword
-routing + KB/tool-grounded templates) — handy for offline demos. Standard
-OpenAI/Anthropic/Groq/Gemini and native Azure are also supported (see
-`.env.example`).
+**No key configured?** Every pipeline step degrades to a deterministic heuristic. Classification uses keyword scoring; agents return KB-grounded template answers; synthesis produces a structured template merge. The system never hard-fails.
 
 ---
 
-## Developing agents independently
+## Pipeline steps
 
-A hard requirement of the design: **each agent and each step is an importable
-unit** with typed input/output you can build and test in isolation, without
-running the rest of the system. Steps (`guard`, `classify`, …) are pure
-functions; each specialist agent is a self-contained framework agent (its own
-use cases + KB scope) you can invoke on its own.
+| # | Step | Kind | What it does |
+|---|------|------|--------------|
+| 1 | **Guard** | rule | Detects hard-signal phrases (`"talk to a manager"`, `"chargeback"`) → sets `force_escalation` |
+| 2 | **Classify** | LLM + rule fallback | Intent + confidence per domain; `is_multi_issue`; low-confidence `fallback` flag |
+| 3 | **Sentiment** | LLM + heuristic fallback | Conversation-aware tone: `label`, `score`, `frustration`, `drivers`, `trend` |
+| 4 | **Decompose** | LLM + rule fallback | Splits mixed ticket into independent sub-problems (one per domain) |
+| 5 | **Investigate** | LLM per agent | `Promise.all` fan-out to specialists; each returns `findings`, `actions`, `reasoning`, `evidence`, `confidence` |
+| 6 | **Severity** | rule | Severity from agent findings (not wording); priority = severity + capped sentiment nudge |
+| 7 | **Escalation** | rule + LLM | Gate checks 5 policies (guard, severity, unresolved, conflicts, frustration+repeat); builds handoff plan |
+| 8 | **Synthesize** | LLM + template fallback | Merges all reports into one customer-ready reply with reasoning + evidence |
 
-### Run a single agent (LLM-backed specialist)
+Every step appends a typed event to `audit_trail[]` — you can trace every word of the final answer back to its source.
+
+---
+
+## Specialist agents (5)
+
+| Domain | Handles | Tools | KB files |
+|--------|---------|-------|----------|
+| **Technical** | Login errors, checkout/payment-page issues, site errors | `lookupErrorCode` | `troubleshooting.md` |
+| **Billing** | Charges, double payments, refunds, invoices | `subscriptionLookup`, `dbQuery` | `billing_policy.md`, `refund_policy.md` |
+| **Policy** | Returns, cancellation, warranty, data/privacy | `dbQuery` | `refund_policy.md`, `cancellation_policy.md`, `amendment_policy.md` |
+| **Orders** | Status, tracking, delivery, cancel/change | `orderLookup` | `shipping_delivery.md` |
+| **Products** | Availability, stock, price, variants, specs | `productLookup` | `product_catalog.md` |
+
+Each agent = `createAgent({ useCasesDir: "./usecases" })` pointed at its own declarative JSON use cases. Adding a new agent requires one `index.ts` + a `usecases/` folder + one line in `registry.ts`. Adding a new use case requires only a JSON file — no code.
+
+Platform admins can **add custom specialist agents at runtime** from the admin console without restarting.
+
+---
+
+## Feature overview
+
+### Core capabilities
+
+- **Intent classification** — LLM-backed with confidence per domain; keyword fallback for offline
+- **Multi-agent decomposition + parallel fan-out** — `Promise.all` across specialists; wall-clock vs sum-of-parts timing logged
+- **Unified resolution with reasoning** — merged findings, actions, evidence, all traceable to agents
+- **Severity + priority assessment** — from findings (not customer wording), with sentiment nudge
+- **Escalation handling** — 5 configurable rules; human agent assignment by department + least-load balancing
+- **Context across follow-ups** — `prior_context` passes resolution + history; message count drives repeat-contact logic
+- **Full audit trail** — every step emits a typed `AuditEvent` (timestamp, actor, kind `llm|rule|heuristic`, summary, detail)
+
+### Stretch goals (all implemented)
+
+| Goal | Where |
+|------|-------|
+| **Sentiment analysis + frustration detection** | `steps/sentiment.ts` — LLM-first, conversation-aware; `frustration` flag, `drivers`, `trend`; shown on Tickets, Escalations, Observability |
+| **Suggested KB article generation** | `shared/kb/generate.ts` + Platform → Knowledge Base → "Generate draft"; LLM draft from resolved ticket, editable before saving |
+| **Real-time agent collaboration dashboard** | `/collaboration` — SSE live feed, presence (heartbeats), roster with load bars, activity stream, team case-notes (internal, not customer-visible) |
+
+### Admin console pages
+
+| URL | Who | What |
+|-----|-----|------|
+| `/tickets` | admin | All tickets with sentiment, intent, severity; searchable/filterable; click → side sheet + lifecycle stepper |
+| `/escalations` | admin, agent | Open/resolved cases; reply, handoff, resolve; internal team notes; 6s poll for live replies |
+| `/collaboration` | admin, agent | Live team roster + presence + load bars; SSE activity feed; recent case notes |
+| `/observability` | admin | All pipeline runs; filter by category/sentiment/outcome; click → pipeline flow + agent verdicts + audit trail |
+| `/trace/:ticketId` | admin, agent | Full-page trace viewer: pipeline step graph + classification/decomp/agents/audit tabs; fan-out diagram |
+| `/feedback` | admin | Customer thumbs-up/down on AI replies; KPIs; filterable table |
+| `/platform` | admin | Policies · Specialists · FAQ · Knowledge Base · Audit log · Human agents |
+
+### Platform controls (admin)
+
+- **Policies** — hard-check guard signals (on/off + phrase), escalation rules (5 toggles), intent confidence thresholds
+- **Specialists** — view built-in agents; add custom runtime agents (name, description, keywords, team)
+- **FAQ** — add/edit/delete canned answers checked before the LLM classifier; match modes: `contains` / `exact` / `regex`
+- **Knowledge Base** — CRUD over `*.md` files; **AI article suggestion** from a resolved ticket (LLM draft, review then save)
+- **Audit log** — every admin config change with actor, action, target, timestamp
+
+---
+
+## Running a single part
 
 ```bash
-npm --workspace apps/agent run agent -- billing "I was charged twice"
-npm --workspace apps/agent run agent -- technical "Checkout keeps failing"
-npm --workspace apps/agent run agent -- policy "What is your return policy?"
-npm --workspace apps/agent run agent -- orders "Where is my order ORD-1001?"
-npm --workspace apps/agent run agent -- products "Is the Wireless Earbuds Pro in stock?"
-```
+# Run one specialist agent directly
+npm --workspace apps/agent run agent -- billing    "I was charged twice"
+npm --workspace apps/agent run agent -- technical  "Checkout keeps failing"
+npm --workspace apps/agent run agent -- orders     "Where is ORD-1001?"
+npm --workspace apps/agent run agent -- products   "Is the Wireless Earbuds Pro in stock?"
 
-### Run a single pipeline step
-
-```bash
-npm --workspace apps/agent run step -- classify  "App crashes and I was charged twice"
-npm --workspace apps/agent run step -- guard      "I want to talk to a manager"
+# Run one pipeline step
+npm --workspace apps/agent run step -- classify   "App crashes and I was charged twice"
 npm --workspace apps/agent run step -- sentiment  "THIS IS THE THIRD TIME!!!"
 npm --workspace apps/agent run step -- decompose  "Crash on login and double charge"
-npm --workspace apps/agent run step -- investigate "Crash on login and double charge"
-```
 
-### Run the whole pipeline (no API/web)
-
-```bash
+# Run the whole pipeline (no API/web)
 npm --workspace apps/agent run pipeline -- "App crashes after login and I was charged twice"
 ```
-
-### Import an agent as a function
-
-Each specialist is a framework agent exposed through an adapter to the pipeline
-contract:
-
-```ts
-import { getAgent } from "apps/agent/src/agents/registry";
-
-const report = await getAgent("billing").run(
-  { id: "SP-1", domain: "billing", description: "charged twice" },
-  { message: "I was charged twice", history: [] }
-);
-```
-
-Under the hood `apps/agent/src/agents/billing/index.ts` is just
-`createAgent({ name: "billing", useCasesDir: "./usecases" })` — the shared
-factory pointed at this agent's own JSON use cases.
-
-**To add a new use case:** drop a JSON file in `apps/agent/src/agents/<domain>/
-usecases/` (id, description, example utterances, prompt, allowed tools + KB
-files). The classifier and execution graph pick it up automatically — no code.
-
-**To add a new agent (domain):** copy `agents/billing/index.ts`, point it at a
-new `usecases/` folder, and add one line to `apps/agent/src/agents/registry.ts`
-via `adaptAgent(...)`. The orchestrator routes to it by domain.
-
----
-
-## Build plan — 6 logical components
-
-The system is split into **6 logical components**. Each is ownable by one person,
-talks to the others only through the **shared pipeline-state JSON** (so nothing is
-imported across boundaries except types), and is testable in isolation with the
-`agent` / `step` / `pipeline` CLI. Build order is roughly top-to-bottom, but with
-mock state any component can be built in parallel.
-
-> **Golden rule:** a component only *reads* fields earlier steps added and only
-> *writes* its own fields onto the same state object. Never delete another
-> component's fields.
-
----
-
-### 1. Intent Router
-
-**Job:** Read the raw message and decide what it is and where it goes. Detect
-intent (`technical | billing | policy | orders | products | mixed | unknown`), attach a confidence
-per intent, set `is_multi_issue`, and raise `fallback: true` when confidence is
-low (route to a safe path instead of guessing). Also owns the hard-signal
-**guard** (explicit phrases like "talk to a manager", "chargeback" → set
-`force_escalation`, but never stop the pipeline).
-
-- **Owns:** `apps/agent/src/steps/classifier.ts`, `apps/agent/src/steps/guard.ts`
-- **Reads:** `message`
-- **Writes:** `classification`, `guard`
-- **Run alone:** `npm --workspace apps/agent run step -- classify "…"` /
-  `… run step -- guard "…"`
-- **Done when:** clear single-intent → high confidence; mixed message →
-  `is_multi_issue: true`; gibberish → `fallback: true`; manager/chargeback phrase
-  → `guard.force_escalation: true`.
-
----
-
-### 2. Parallel Decomposer
-
-**Job:** Turn the classification into the work plan. Split a mixed ticket into
-independent **sub-problems** (one domain each, `SP-1`, `SP-2`, …); for a single
-issue, emit one sub-problem. This is what makes the parallel fan-out possible.
-
-- **Owns:** `apps/agent/src/steps/decomposer.ts` (+ the fan-out half of
-  `apps/agent/src/steps/orchestrator.ts`)
-- **Reads:** `message`, `classification`
-- **Writes:** `sub_problems[]`
-- **Run alone:** `npm --workspace apps/agent run step -- decompose "…"`
-- **Done when:** "crash on login and charged twice" → two sub-problems
-  (technical + billing); single issue → exactly one; unknown → one safe (policy)
-  sub-problem.
-
----
-
-### 3. Specialized Agents
-
-**Job:** Investigate one sub-problem in one domain and return a structured report
-(`findings`, `actions`, `reasoning`, `evidence`, `status`, `confidence`). Each
-agent is an **LLM-backed framework agent**: it routes the sub-ticket to one of
-its **declarative JSON use cases**, gathers grounding from its scoped **tools**
-and **knowledge base**, then asks the LLM (via the shared gateway) for a
-structured answer. Follow-up history and the specific sub-problem are passed in
-as focus. With no LLM key it falls back to keyword routing + KB/tool-grounded
-templates, so the signature and contract never change.
-
-- **Owns:** `apps/agent/src/agents/<domain>/{index.ts,usecases/*.json}`,
-  `agents/{adapter,registry,base}.ts`, and the `apps/agent/src/shared/` framework
-  (gateway, core, handlers, tools, kb)
-- **Reads:** a `SubProblem` + `{ message, history }`
-- **Writes:** one `AgentReport` (collected into `agent_reports[]`)
-- **Run alone:** `npm --workspace apps/agent run agent -- billing "…"`
-- **Add a use case:** a JSON file in the agent's `usecases/`. **Add an agent:**
-  one `createAgent` + a `usecases/` folder + a line in `registry.ts`.
-- **Done when:** each domain returns relevant findings + evidence refs (tool/KB
-  sources) and sets an honest `status`.
-
----
-
-### 4. Output Combiner
-
-**Job:** Take all the agent reports and produce the final answer. Merge findings,
-detect conflicts, compute an `overall_status`, and synthesize **one**
-customer-ready `resolution` that always includes reasoning + evidence (and the
-escalation note when present). Synthesis is **LLM-backed** (the gateway merges
-overlapping points into one coherent, empathetic reply) with a deterministic
-template merge as fallback; reasoning + evidence always come from the agents,
-never invented by the model.
-
-- **Owns:** the merge half of `apps/agent/src/steps/orchestrator.ts` +
-  `apps/agent/src/steps/synthesizer.ts`
-- **Reads:** `agent_reports[]`, `escalation`
-- **Writes:** `investigation`, `resolution`
-- **Run alone:** `npm --workspace apps/agent run step -- investigate "…"` (merge),
-  full `pipeline` for the synthesized resolution
-- **Done when:** a mixed ticket yields one coherent answer covering both issues
-  with combined evidence; conflicting agent outcomes surface in
-  `investigation.conflicts`.
-
----
-
-### 5. Severity & Escalation Engine
-
-**Job:** Decide how urgent this is and whether a human is needed. Detect
-**sentiment** (tone only), score **severity** from the agent *findings* (impact —
-not customer wording) and **priority** (severity + a capped sentiment nudge), then
-run the **escalation gate** (force-signal, high impact, unresolved, conflict, or
-frustration-with-repeat-contact) and build the handoff plan.
-
-- **Owns:** `apps/agent/src/steps/sentiment.ts`, `severity.ts`, `escalation.ts`
-- **Reads:** `message`, `agent_reports[]`, `investigation`, `guard`,
-  `message_count`
-- **Writes:** `sentiment`, `severity`, `escalation`
-- **Run alone:** `npm --workspace apps/agent run step -- sentiment "…"`
-- **Done when:** duplicate-charge → medium/P2; "locked out / all users" → high/P1;
-  manager/chargeback or unresolved+repeat → `escalation.escalate: true` with a
-  team + urgency; frustration alone on a solved issue does **not** escalate.
-
----
-
-### 6. Orchestration & Audit Backbone
-
-**Job:** Wire everything together and make it traceable. Owns the LangGraph graph,
-the shared state object, the order of steps, the per-step **audit trail**, and the
-API-side persistence/context that lets follow-ups reuse a ticket's history.
-
-- **Owns:** `apps/agent/src/{nodes,graph,pipeline,run,server}.ts` +
-  `apps/api/src/{server,db,agentClient}.ts`
-- **Reads/Writes:** assembles the whole `PipelineState`; appends to
-  `audit_trail[]` on every step; persists runs + messages
-- **Run alone:** `npm run dev:agent` then `POST /run`, or
-  `npm --workspace apps/agent run pipeline -- "…"`
-- **Done when:** every step emits an audit event you can trace the final answer
-  back to; follow-ups on the same `ticket_id` carry prior history; a node error
-  falls back to the linear runner instead of crashing.
-
----
-
-### Who reads / writes what (shared state)
-
-| Field added | Component |
-|-------------|-----------|
-| `guard`, `classification` | 1 · Intent Router |
-| `sub_problems` | 2 · Parallel Decomposer |
-| `agent_reports[]` | 3 · Specialized Agents |
-| `investigation`, `resolution` | 4 · Output Combiner |
-| `sentiment`, `severity`, `escalation` | 5 · Severity & Escalation Engine |
-| `audit_trail`, persistence, run order | 6 · Orchestration & Audit Backbone |
-
----
-
-## Project structure
-
-```text
-techathon/
-├── apps/
-│   ├── web/                  # Next.js + shadcn/ui (dark-only)
-│   │   ├── app/              # layout, page, globals.css
-│   │   ├── components/ui/    # shadcn primitives (button, card, badge, tabs, …)
-│   │   └── components/views.tsx
-│   ├── api/                  # Express API + node:sqlite (tickets, runs, audit)
-│   │   └── src/{server,db,agentClient,env}.ts
-│   └── agent/                # LangGraph (TS) agent pipeline
-│       └── src/
-│           ├── steps/        # guard, classifier, sentiment, decomposer,
-│           │                 #   orchestrator, severity, escalation, synthesizer
-│           ├── agents/       # technical/ billing/ policy/ orders/ products/
-│           │                 #   (index + usecases/*.json) + adapter, registry, base
-│           ├── shared/       # the LLM agent framework:
-│           │   ├── gateway/  #   single LLM door (azure/openai/… adapters)
-│           │   ├── core/     #   per-agent classify → graph → report
-│           │   ├── handlers/ #   one declarative handler runs any JSON use case
-│           │   ├── tools/    #   shared tool pool (mocked data sources)
-│           │   ├── kb/       #   central knowledge base + retriever
-│           │   └── config/   #   single env reader
-│           ├── nodes.ts      # pipeline nodes (shared)
-│           ├── graph.ts      # LangGraph StateGraph wiring
-│           ├── pipeline.ts   # linear fallback runner
-│           ├── run.ts        # entry (graph → linear fallback)
-│           ├── server.ts     # POST /run
-│           └── cli.ts        # pipeline | step | agent
-└── .env.example
-```
-
----
-
-## How the backend handles the agent
-
-`POST /api/tickets` (Express) validates input, creates/loads the ticket in
-SQLite, builds the pipeline-entry JSON (with prior history + message count for
-follow-ups), calls the Agent System over HTTP (`POST /run`), saves the full
-pipeline result + audit, and returns it to the frontend. `GET /api/tickets/:id`
-returns the latest saved run.
-
-The Agent System runs the LangGraph `StateGraph`; if the graph executor ever
-fails to load it transparently falls back to an identical linear runner, so a
-run never hard-fails.
 
 ---
 
 ## Demo scenarios
 
-| Message | What you see |
-|---------|--------------|
-| `I was charged twice this month.` | Billing-only → one agent → refund + invoice evidence |
-| `Checkout keeps failing and I was charged twice.` | **Mixed** → split → Technical + Billing **in parallel** → merged |
-| `Where is my order and is the keyboard back in stock?` | **Mixed** → split → Orders + Products **in parallel** → merged |
-| `Something feels wrong with my account.` | Low confidence → **fallback** (policy review) |
-| `THIS IS THE THIRD TIME!!! … talk to a manager!` | Sentiment + hard-signal guard → **escalation** |
-| Submit again with same ticket id | **Follow-up** keeps context (message count rises) |
-| Empty message | Graceful error, no crash |
+| Message | What to show |
+|---------|-------------|
+| `I was charged twice this month.` | Billing-only → 1 agent → Trace: single agent report + evidence |
+| `Checkout keeps failing and I was charged twice.` | **Multi-agent** → Trace: fan-out diagram, 2 parallel agents, merged result |
+| `Where is my order and is the keyboard back in stock?` | **Multi-agent** → Orders + Products in parallel |
+| `Something feels wrong with my account.` | Low-confidence → **fallback** path visible in classification |
+| `THIS IS THE THIRD TIME!!! talk to a manager!` | Hard-signal guard + angry sentiment → escalated; Escalations page |
+| Submit again on same ticket | **Follow-up** — message count rises, `prior_context` shown in audit |
+| (empty message) | Graceful validation error |
+| Add an FAQ in Platform | FAQ match short-circuits LLM; `faq` category in Observability |
+| Open Collaboration tab while working case | Heartbeat → online in Team roster; team note → activity feed |
+| Resolve a ticket → Platform → KB → Generate | AI article draft from resolution |
 
 ---
 
-## Notes / limitations
+## Project structure
 
-- Agents are **LLM-backed** through the shared gateway (Azure OpenAI by default).
-  With no key configured the system falls back to deterministic heuristics, so it
-  always runs.
-- **Tools are mocked.** The shared tool pool (`shared/tools`) returns realistic
-  in-memory data rather than calling live external services — there are no
-  outbound network APIs to stand up. Swap a tool's `run()` for a real call later;
-  the use cases and pipeline don't change.
-- The **knowledge base** ships markdown policies under `shared/kb/library` with
-  tiered (keyword/TF-IDF) retrieval; embeddings can slot in behind the same
-  interface.
-- SQLite is Node's built-in `node:sqlite` (no `better-sqlite3`, no compiler).
-- Every agent interaction is logged to a durable JSONL **audit trail**
-  (`logs/audit.jsonl`; set `AUDIT_LOG=off` to disable the file).
-- Dark mode only by design.
+```
+techathon/
+├── apps/
+│   ├── web/                        Next.js 15, shadcn/ui, dark-only
+│   │   ├── app/
+│   │   │   ├── page.tsx            Customer chat (streaming SSE)
+│   │   │   ├── tickets/            Admin ticket dashboard
+│   │   │   ├── escalations/        Escalation case management
+│   │   │   ├── collaboration/      Real-time team dashboard
+│   │   │   ├── observability/      Pipeline run browser
+│   │   │   ├── trace/[ticketId]/   Full-page visual trace viewer
+│   │   │   ├── feedback/           Thumbs-up/down admin view
+│   │   │   └── platform/           Admin config (policies/FAQ/KB/agents)
+│   │   ├── components/
+│   │   │   ├── flow.tsx            PipelineFlow (step graph, SSE-driven)
+│   │   │   ├── views.tsx           RunDetails, RunTraceCard, AgentReportDetails …
+│   │   │   ├── sentiment-badge.tsx Mood pill (label + score + trend)
+│   │   │   └── admin-nav.tsx       Shared nav + NotificationBell
+│   │   └── app/platform/
+│   │       ├── page.tsx            Tab shell (imports tab components)
+│   │       ├── ui.tsx              Shared UI atoms: Field, Toggle, ThresholdField
+│   │       └── tabs/               One file per tab (kb/usecases/tools/specialists/faq/policies/audit)
+│   │
+│   ├── api/                        Express + node:sqlite  (port 4100)
+│   │   └── src/
+│   │       ├── server.ts           App setup + auth + ticket routes
+│   │       ├── routes/
+│   │       │   ├── middleware.ts   Auth middleware + requireRole + helpers
+│   │       │   ├── tickets.ts      (ticket logic lives in server.ts)
+│   │       │   ├── escalations.ts  Escalation management routes
+│   │       │   ├── platform.ts     Platform config proxy routes
+│   │       │   └── admin.ts        Dashboard, observability, feedback, collab
+│   │       ├── db/
+│   │       │   ├── schema.ts       DDL + migrations + db instance
+│   │       │   ├── tickets.ts      Ticket/message/run queries
+│   │       │   ├── escalations.ts  Escalation queries
+│   │       │   ├── notifications.ts Notifications, feedback, config audit
+│   │       │   ├── collab.ts       Presence, team activity, case notes
+│   │       │   ├── agents.ts       Human agent DB rows
+│   │       │   └── index.ts        Re-exports everything
+│   │       ├── collab.ts           In-memory SSE broker (collab events)
+│   │       ├── agentAdmin.ts       Proxy to agent admin routes
+│   │       ├── humans.ts           Human agent roster + dept routing
+│   │       └── notify.ts           In-app + email notifications
+│   │
+│   └── agent/                      LangGraph TS pipeline  (port 5000)
+│       └── src/
+│           ├── graph.ts            LangGraph StateGraph definition
+│           ├── nodes.ts            One async function per pipeline step
+│           ├── pipeline.ts         Linear fallback runner (same contract)
+│           ├── contracts/types.ts  All shared TypeScript types
+│           ├── steps/              guard · classifier · sentiment · decomposer
+│           │                       orchestrator · severity · escalation · synthesizer
+│           ├── agents/             technical/ billing/ policy/ orders/ products/
+│           │                       (index.ts + usecases/*.json per domain)
+│           └── shared/
+│               ├── gateway/        Single LLM door (callLLM, provider adapters)
+│               ├── core/           guardrails, logger, types
+│               ├── handlers/       Declarative JSON use-case runner
+│               ├── kb/             store · retriever (TF-IDF) · generate (LLM)
+│               ├── tools/          orderLookup · productLookup · lookupErrorCode …
+│               └── policies/       store · agents (live config) · faq
+└── .env.example
+```
+
+---
+
+## Requirements status
+
+| Goal | Status | Notes |
+|------|--------|-------|
+| **FG1** Accept support requests | ✅ | REST + streaming SSE; channel-agnostic API |
+| **FG2** Classify intent + route | ✅ | 5 domains; confidence scores; FAQ short-circuit; offline keyword fallback |
+| **FG3** Decompose + parallel fan-out | ✅ | `Promise.all` across specialists; fan-out diagram in Trace |
+| **FG4** Specialized agents (5) | ✅ | Technical · Billing · Policy · Orders · Products; declarative JSON use cases |
+| **FG5** Severity + escalation | ✅ | 5 configurable rules; least-load agent assignment; handoff to manager |
+| **FG6** Unified customer response | ✅ | Merged findings + actions + evidence; LLM synthesis + template fallback |
+| **FG7** Context across follow-ups | ✅ | `prior_context`, `message_count`, full history per ticket |
+| **FG8** Audit every step | ✅ | Typed `AuditEvent[]` per step; full trace in Observability + Trace viewer |
+| **SG1** Sentiment + frustration | ✅ | LLM-first, conversation-aware; `frustration` flag, `drivers[]`, `trend` |
+| **SG2** KB article generation | ✅ | LLM draft from resolved ticket; admin reviews before saving |
+| **SG3** Real-time collab dashboard | ✅ | SSE feed, presence heartbeats, roster with load bars, team notes |
+
+---
+
+## Decision log
+
+| Decision | Chosen | Rejected / why not |
+|----------|--------|--------------------|
+| **Orchestration** | LangGraph `StateGraph` (TS) + identical linear fallback | CrewAI/AutoGen — Python-only; adding TS wrapper would split the codebase |
+| **Database** | `node:sqlite` (built-in, Node 22+) | `better-sqlite3` — requires native compilation; PostgreSQL — overkill for demo |
+| **LLM gateway** | Single `callLLM()` abstraction over OpenAI-compat + adapters | Vendor SDK imports — prevents hot-switching provider; breaks offline mode |
+| **Offline / no-key mode** | Every step has a deterministic heuristic fallback | Hard-fail on missing key — demo-breaking; judges can't test without a key |
+| **Agent definition format** | Declarative JSON use cases (`id`, `description`, `prompt`, `tools`, `knowledge_base`) | Code-only agents — adding a use case would require code change + redeploy |
+| **Knowledge base retrieval** | TF-IDF section scorer (keyword match) | Vector/embedding search — no embedding server dependency; fast to demo offline |
+| **Real-time transport** | SSE (pipeline streaming + collab feed) | WebSocket — SSE is simpler, works through HTTP/2 proxies, sufficient for demo |
+| **Frontend** | Next.js 15 + shadcn/ui dark theme | CRA / Vite — less routing and component infrastructure; shadcn gives polished UI fast |
+| **Sentiment approach** | LLM-first, conversation-aware; heuristic fallback | LLM-only — fails offline; heuristic-only — misses context across turns |
+| **Ticketing integration** | Not integrated (out of scope for demo) | Zendesk/Linear/Jira — see Roadmap; API is channel-agnostic, integration is additive |
+
+---
+
+## Known limitations
+
+- **Tools are mocked.** `orderLookup`, `productLookup`, `lookupErrorCode` return realistic in-memory data. Swap a tool's `run()` for a real API call; the pipeline and use cases don't change.
+- **Knowledge base retrieval is keyword-based (TF-IDF).** Embedding/vector search can slot in behind the same `retrieveFromScope` interface.
+- **Single-process, single-node.** SQLite and the in-memory collab broker are not distributed. Suitable for demo; production would use Postgres + Redis pub/sub.
+- **No Zendesk/Linear/Jira integration.** The intake API is channel-agnostic — see Roadmap for how this extends.
+- **Email notifications are best-effort** via Resend (optional). In-app notifications always work.
+- **No automated test suite.** Steps are pure functions testable in isolation via the CLI; a test suite is a natural next step.
+
+---
+
+## Roadmap — multi-channel intake
+
+The API intake endpoint (`POST /api/tickets`) is already **channel-agnostic**: it accepts `{ message, customer_id?, ticket_id? }` as plain JSON. Adding a new channel is purely additive — no pipeline or agent code changes:
+
+| Channel | Work required |
+|---------|--------------|
+| **Email** | A webhook receiver (SendGrid/Postmark inbound) that parses the email body → `POST /api/tickets`. Attachments become KB context. |
+| **Voice transcript** | A Whisper / Deepgram webhook that transcribes audio → plain text → `POST /api/tickets`. |
+| **Zendesk / Freshdesk / Jira** | An inbound webhook from the platform → `POST /api/tickets` (creates a local mirror); resolution → write-back via platform API (`PUT /tickets/:id`). |
+| **Linear** | Same pattern: Linear webhook on issue creation → classify + resolve → post comment back via Linear API. |
+| **Slack** | Slack Events API `message` event → `POST /api/tickets`; resolution → Slack reply thread. |
+
+The audit trail, observability dashboard, and escalation flow all work identically regardless of channel.
+
+---
+
+## Team contributions
+
+| Member | Contribution |
+|--------|-------------|
+| **Dishant** | Base system setup · API server · SQLite schema · frontend (chat UI + admin console) · end-to-end integration |
+| **Pawan** | Priority and severity assessment pipeline step (`steps/severity.ts`) |
+| **Abhinav** | Intent router and classification (`steps/classifier.ts`, confidence scoring, fallback routing) |
+| **Faraaz** | Ticket decomposition and multi-agent fan-out (`steps/decomposer.ts`, `Promise.all` orchestration, fan-out diagram) |
+| **Bargawa** | Agent orchestration integration · audit trail design (`AuditEvent[]`, per-step logging) · FAQ pipeline |
+| **Niharika** | Specialist agents (Technical · Billing · Policy · Orders · Products) · management dashboard (Platform tab) |

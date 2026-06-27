@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AdminHeader } from "@/components/admin-nav";
 import { getRunSession, listRunSessions } from "@/lib/api";
 import { SentimentBadge } from "@/components/sentiment-badge";
+import { PipelineFlow } from "@/components/flow";
 import { useRequireRole } from "@/lib/auth";
 import type { RunSessionDetail, RunSessionRow } from "@/lib/types";
 
@@ -531,6 +532,16 @@ function RunDetail({
               </section>
             )}
 
+            {/* Pipeline flow visualization */}
+            <section className="mb-5">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Pipeline flow
+              </p>
+              <div className="rounded-xl border border-border bg-card/40">
+                <PipelineFlow s={s} />
+              </div>
+            </section>
+
             {s.agent_reports && s.agent_reports.length > 0 && (
               <section className="mb-5">
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -544,13 +555,16 @@ function RunDetail({
                     >
                       <span className="flex items-center gap-1.5">
                         <Bot className="size-3.5 text-primary" />
-                        <span className="font-medium">{a.agent}</span>
+                        <span className="font-medium capitalize">{a.agent}</span>
                       </span>
                       <span className="flex items-center gap-2 text-muted-foreground">
-                        <span className="capitalize">{a.status}</span>
+                        <Badge variant={a.status === "resolved" ? "success" : a.status === "unresolved" ? "destructive" : "warning"}>
+                          {a.status}
+                        </Badge>
                         <span className="font-mono tabular-nums">
                           {Math.round((a.confidence ?? 0) * 100)}%
                         </span>
+                        {a.duration_ms != null && <span>{a.duration_ms}ms</span>}
                       </span>
                     </div>
                   ))}
