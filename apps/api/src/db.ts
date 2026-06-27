@@ -105,6 +105,7 @@ export function friendlyId(seq: number | null | undefined, ticketId: string): st
 export type MessageRole = "customer" | "system" | "agent";
 
 export interface StoredMessage {
+  id?: number;
   role: MessageRole;
   text: string;
   timestamp: string;
@@ -160,9 +161,9 @@ export function getCustomerHistory(ticketId: string): StoredMessage[] {
 /** Full conversation (both roles), ordered — used for display + agent context. */
 export function getMessages(ticketId: string): StoredMessage[] {
   const rows = db
-    .prepare("SELECT role, text, created_at FROM messages WHERE ticket_id = ? ORDER BY id ASC")
+    .prepare("SELECT id, role, text, created_at FROM messages WHERE ticket_id = ? ORDER BY id ASC")
     .all(ticketId) as any[];
-  return rows.map((r) => ({ role: r.role, text: r.text, timestamp: r.created_at }));
+  return rows.map((r) => ({ id: r.id, role: r.role, text: r.text, timestamp: r.created_at }));
 }
 
 export interface TicketSummary {
@@ -355,6 +356,9 @@ export interface TicketDashboardRow {
   primary_intent: string | null;
   severity: string | null;
   priority: string | null;
+  sentiment: string | null;
+  sentiment_score: number | null;
+  frustration: boolean;
   summary: string | null;
   escalation_id: string | null;
   escalation_status: "open" | "resolved" | null;
@@ -406,6 +410,9 @@ function rowFromDb(r: any): TicketDashboardRow {
     primary_intent: state?.classification?.primary_intent ?? null,
     severity: state?.severity?.level ?? null,
     priority: state?.severity?.priority ?? null,
+    sentiment: state?.sentiment?.label ?? null,
+    sentiment_score: typeof state?.sentiment?.score === "number" ? state.sentiment.score : null,
+    frustration: !!state?.sentiment?.frustration,
     summary: state?.resolution?.summary ?? null,
     escalation_id: r.escalation_id ?? null,
     escalation_status,
@@ -488,6 +495,9 @@ export interface RunSessionRow {
   primary_intent: string | null;
   is_multi_issue: boolean;
   sentiment: string | null;
+  sentiment_score: number | null;
+  frustration: boolean;
+  sentiment_trend: string | null;
   severity: string | null;
   priority: string | null;
   escalated: boolean;
@@ -516,6 +526,9 @@ function sessionRowFromRun(r: any): RunSessionRow {
     primary_intent: s.classification?.primary_intent ?? null,
     is_multi_issue: !!s.classification?.is_multi_issue,
     sentiment: s.sentiment?.label ?? null,
+    sentiment_score: typeof s.sentiment?.score === "number" ? s.sentiment.score : null,
+    frustration: !!s.sentiment?.frustration,
+    sentiment_trend: s.sentiment?.trend ?? null,
     severity: s.severity?.level ?? null,
     priority: s.severity?.priority ?? null,
     escalated: !!s.escalation?.escalate,
@@ -805,6 +818,275 @@ export function recordConfigAudit(rec: {
 export function listConfigAudit(limit = 100): ConfigAuditRecord[] {
   return db
     .prepare("SELECT * FROM config_audit ORDER BY created_at DESC LIMIT ?")
+    .all(limit) as any[];
+}
+
+// ---- Feedback (thumbs up/down on AI replies) -------------------------------
+// One row per (message). Re-rating a message replaces the previous row, so a
+// customer's latest sentiment on a reply is what's stored and shown.
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS feedback (
+    id          TEXT PRIMARY KEY,
+    ticket_id   TEXT NOT NULL,
+    message_id  INTEGER NOT NULL,
+    customer_id TEXT,
+    rating      TEXT NOT NULL,
+    comment     TEXT,
+    question    TEXT,
+    answer      TEXT,
+    created_at  TEXT NOT NULL,
+    UNIQUE(message_id)
+  );
+`);
+
+export interface FeedbackRecord {
+  id: string;
+  ticket_id: string;
+  message_id: number;
+  customer_id: string | null;
+  rating: "up" | "down";
+  comment: string | null;
+  question: string | null;
+  answer: string | null;
+  created_at: string;
+}
+
+/** Insert or replace one message's rating (idempotent per message_id). */
+export function upsertFeedback(rec: {
+  ticket_id: string;
+  message_id: number;
+  customer_id?: string | null;
+  rating: "up" | "down";
+  comment?: string | null;
+  question?: string | null;
+  answer?: string | null;
+}): void {
+  db.prepare(
+    `INSERT INTO feedback (id, ticket_id, message_id, customer_id, rating, comment, question, answer, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(message_id) DO UPDATE SET
+       rating = excluded.rating,
+       comment = excluded.comment,
+       created_at = excluded.created_at`
+  ).run(
+    `FB-${randomUUID().slice(0, 8)}`,
+    rec.ticket_id,
+    rec.message_id,
+    rec.customer_id ?? null,
+    rec.rating,
+    rec.comment ?? null,
+    rec.question ?? null,
+    rec.answer ?? null,
+    new Date().toISOString()
+  );
+}
+
+/** Current ratings for one ticket's messages (for the chat to render state). */
+export function getFeedbackForTicket(ticketId: string): { message_id: number; rating: "up" | "down" }[] {
+  return db
+    .prepare("SELECT message_id, rating FROM feedback WHERE ticket_id = ?")
+    .all(ticketId) as any[];
+}
+
+export interface FeedbackRow extends FeedbackRecord {
+  display_id: string;
+}
+
+/**
+ * Admin feed: every rating, newest first, with ticket display id. The customer
+ * NAME is resolved by the server layer (it owns account lookups), mirroring how
+ * the observability feed enriches rows.
+ */
+export function listAllFeedback(limit = 500): FeedbackRow[] {
+  const rows = db
+    .prepare(
+      `SELECT f.*, t.seq AS seq
+         FROM feedback f
+         LEFT JOIN tickets t ON t.ticket_id = f.ticket_id
+        ORDER BY f.created_at DESC
+        LIMIT ?`
+    )
+    .all(limit) as any[];
+  return rows.map((r) => ({
+    id: r.id,
+    ticket_id: r.ticket_id,
+    display_id: friendlyId(r.seq, r.ticket_id),
+    message_id: r.message_id,
+    customer_id: r.customer_id,
+    rating: r.rating,
+    comment: r.comment,
+    question: r.question,
+    answer: r.answer,
+    created_at: r.created_at,
+  }));
+}
+
+/** The text of a specific message (used to snapshot the answer on feedback). */
+export function getMessageById(messageId: number): { ticket_id: string; role: string; text: string } | null {
+  const row = db
+    .prepare("SELECT ticket_id, role, text FROM messages WHERE id = ?")
+    .get(messageId) as any;
+  return row ? { ticket_id: row.ticket_id, role: row.role, text: row.text } : null;
+}
+
+/** The customer message immediately preceding a system reply (the question). */
+export function getQuestionForMessage(ticketId: string, messageId: number): string | null {
+  const row = db
+    .prepare(
+      `SELECT text FROM messages
+        WHERE ticket_id = ? AND id < ? AND role = 'customer'
+        ORDER BY id DESC LIMIT 1`
+    )
+    .get(ticketId, messageId) as any;
+  return row?.text ?? null;
+}
+
+// ---- Real-time agent collaboration -----------------------------------------
+// Three small tables that power the live "Team" dashboard:
+//   • agent_presence — last-seen heartbeat per human agent (online/offline)
+//   • team_activity  — append-only feed of escalation lifecycle events
+//   • case_notes     — internal agent-to-agent notes on a case (not customer-visible)
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS agent_presence (
+    agent_id   TEXT PRIMARY KEY,
+    account_id TEXT,
+    name       TEXT,
+    last_seen  INTEGER NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS team_activity (
+    id            TEXT PRIMARY KEY,
+    kind          TEXT NOT NULL,
+    actor_id      TEXT,
+    actor_name    TEXT,
+    ticket_id     TEXT,
+    escalation_id TEXT,
+    summary       TEXT NOT NULL,
+    created_at    TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS case_notes (
+    id            TEXT PRIMARY KEY,
+    escalation_id TEXT NOT NULL,
+    ticket_id     TEXT,
+    author_id     TEXT,
+    author_name   TEXT NOT NULL,
+    body          TEXT NOT NULL,
+    created_at    TEXT NOT NULL
+  );
+`);
+
+export interface PresenceRow {
+  agent_id: string;
+  account_id: string | null;
+  name: string | null;
+  last_seen: number;
+}
+
+/** Record/refresh an agent's heartbeat. */
+export function recordAgentPresence(agentId: string, accountId: string | null, name: string | null): void {
+  db.prepare(
+    `INSERT INTO agent_presence (agent_id, account_id, name, last_seen)
+     VALUES (?, ?, ?, ?)
+     ON CONFLICT(agent_id) DO UPDATE SET
+       account_id = excluded.account_id,
+       name = excluded.name,
+       last_seen = excluded.last_seen`
+  ).run(agentId, accountId, name, Date.now());
+}
+
+export function listAgentPresence(): PresenceRow[] {
+  return db.prepare("SELECT agent_id, account_id, name, last_seen FROM agent_presence").all() as any[];
+}
+
+export interface TeamActivityRow {
+  id: string;
+  kind: string;
+  actor_id: string | null;
+  actor_name: string | null;
+  ticket_id: string | null;
+  escalation_id: string | null;
+  summary: string;
+  created_at: string;
+}
+
+export function recordTeamActivity(rec: {
+  kind: string;
+  actor_id?: string | null;
+  actor_name?: string | null;
+  ticket_id?: string | null;
+  escalation_id?: string | null;
+  summary: string;
+}): TeamActivityRow {
+  const row: TeamActivityRow = {
+    id: `TA-${randomUUID().slice(0, 8)}`,
+    kind: rec.kind,
+    actor_id: rec.actor_id ?? null,
+    actor_name: rec.actor_name ?? null,
+    ticket_id: rec.ticket_id ?? null,
+    escalation_id: rec.escalation_id ?? null,
+    summary: rec.summary,
+    created_at: new Date().toISOString(),
+  };
+  db.prepare(
+    `INSERT INTO team_activity (id, kind, actor_id, actor_name, ticket_id, escalation_id, summary, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    row.id, row.kind, row.actor_id, row.actor_name, row.ticket_id, row.escalation_id, row.summary, row.created_at
+  );
+  return row;
+}
+
+export function listTeamActivity(limit = 50): TeamActivityRow[] {
+  return db
+    .prepare("SELECT * FROM team_activity ORDER BY created_at DESC LIMIT ?")
+    .all(limit) as any[];
+}
+
+export interface CaseNoteRow {
+  id: string;
+  escalation_id: string;
+  ticket_id: string | null;
+  author_id: string | null;
+  author_name: string;
+  body: string;
+  created_at: string;
+}
+
+export function addCaseNote(rec: {
+  escalation_id: string;
+  ticket_id?: string | null;
+  author_id?: string | null;
+  author_name: string;
+  body: string;
+}): CaseNoteRow {
+  const row: CaseNoteRow = {
+    id: `CN-${randomUUID().slice(0, 8)}`,
+    escalation_id: rec.escalation_id,
+    ticket_id: rec.ticket_id ?? null,
+    author_id: rec.author_id ?? null,
+    author_name: rec.author_name,
+    body: rec.body,
+    created_at: new Date().toISOString(),
+  };
+  db.prepare(
+    `INSERT INTO case_notes (id, escalation_id, ticket_id, author_id, author_name, body, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(row.id, row.escalation_id, row.ticket_id, row.author_id, row.author_name, row.body, row.created_at);
+  return row;
+}
+
+export function listCaseNotes(escalationId: string): CaseNoteRow[] {
+  return db
+    .prepare("SELECT * FROM case_notes WHERE escalation_id = ? ORDER BY created_at ASC")
+    .all(escalationId) as any[];
+}
+
+export function listRecentCaseNotes(limit = 20): CaseNoteRow[] {
+  return db
+    .prepare("SELECT * FROM case_notes ORDER BY created_at DESC LIMIT ?")
     .all(limit) as any[];
 }
 

@@ -1,9 +1,14 @@
 # Multi-Agent Customer Support Resolution Engine — Base
 
-Takes a customer message, classifies intent, splits multi-issue tickets, runs
-specialist agents **in parallel**, assesses severity, escalates when needed, and
-returns one customer-ready resolution with reasoning + evidence — plus a full
-audit trail.
+An **e-commerce** customer-support engine. It takes a shopper's message,
+classifies intent, splits multi-issue tickets, runs specialist agents **in
+parallel**, assesses severity, escalates when needed, and returns one
+customer-ready resolution with reasoning + evidence — plus a full audit trail.
+
+Five specialist domains cover the store journey: **Technical** (login,
+checkout/site errors), **Billing** (charges, refunds, payments), **Policy**
+(returns, cancellation, warranty), **Orders** (status, tracking, delivery,
+cancel/change), and **Products** (availability, price, variants, specs).
 
 Specialist agents are **LLM-backed** through a small shared framework: each agent
 is described by **declarative JSON use cases** with a scoped knowledge base and a
@@ -102,8 +107,10 @@ use cases + KB scope) you can invoke on its own.
 
 ```bash
 npm --workspace apps/agent run agent -- billing "I was charged twice"
-npm --workspace apps/agent run agent -- technical "App crashes after login"
-npm --workspace apps/agent run agent -- policy "Refund after 45 days?"
+npm --workspace apps/agent run agent -- technical "Checkout keeps failing"
+npm --workspace apps/agent run agent -- policy "What is your return policy?"
+npm --workspace apps/agent run agent -- orders "Where is my order ORD-1001?"
+npm --workspace apps/agent run agent -- products "Is the Wireless Earbuds Pro in stock?"
 ```
 
 ### Run a single pipeline step
@@ -167,7 +174,7 @@ mock state any component can be built in parallel.
 ### 1. Intent Router
 
 **Job:** Read the raw message and decide what it is and where it goes. Detect
-intent (`technical | billing | policy | mixed | unknown`), attach a confidence
+intent (`technical | billing | policy | orders | products | mixed | unknown`), attach a confidence
 per intent, set `is_multi_issue`, and raise `fallback: true` when confidence is
 low (route to a safe path instead of guessing). Also owns the hard-signal
 **guard** (explicit phrases like "talk to a manager", "chargeback" → set
@@ -312,8 +319,8 @@ techathon/
 │       └── src/
 │           ├── steps/        # guard, classifier, sentiment, decomposer,
 │           │                 #   orchestrator, severity, escalation, synthesizer
-│           ├── agents/       # technical/ billing/ policy/ (index + usecases/*.json)
-│           │                 #   + adapter, registry, base
+│           ├── agents/       # technical/ billing/ policy/ orders/ products/
+│           │                 #   (index + usecases/*.json) + adapter, registry, base
 │           ├── shared/       # the LLM agent framework:
 │           │   ├── gateway/  #   single LLM door (azure/openai/… adapters)
 │           │   ├── core/     #   per-agent classify → graph → report
@@ -351,7 +358,8 @@ run never hard-fails.
 | Message | What you see |
 |---------|--------------|
 | `I was charged twice this month.` | Billing-only → one agent → refund + invoice evidence |
-| `App crashes after login and I was charged twice.` | **Mixed** → split → Technical + Billing **in parallel** → merged |
+| `Checkout keeps failing and I was charged twice.` | **Mixed** → split → Technical + Billing **in parallel** → merged |
+| `Where is my order and is the keyboard back in stock?` | **Mixed** → split → Orders + Products **in parallel** → merged |
 | `Something feels wrong with my account.` | Low confidence → **fallback** (policy review) |
 | `THIS IS THE THIRD TIME!!! … talk to a manager!` | Sentiment + hard-signal guard → **escalation** |
 | Submit again with same ticket id | **Follow-up** keeps context (message count rises) |

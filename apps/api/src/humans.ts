@@ -17,6 +17,8 @@ export const DEPARTMENTS = [
   "Billing",
   "Technical",
   "Policy & Compliance",
+  "Orders",
+  "Merchandising",
   "Trust & Safety",
   "Escalations",
 ] as const;
@@ -56,6 +58,16 @@ const SEED_AGENTS: HumanAgent[] = [
   { id: "ha_10", name: "Grace Adeyemi", title: "Policy Specialist", department: "Policy & Compliance", level: "agent" },
   { id: "ha_11", name: "Noah Schmidt", title: "Compliance Analyst", department: "Policy & Compliance", level: "agent" },
   { id: "ha_12", name: "Hana Suzuki", title: "Policy Manager", department: "Policy & Compliance", level: "manager" },
+
+  // Orders (order operations: tracking, delivery, cancel/change)
+  { id: "ha_19", name: "Ananya Rao", title: "Order Operations Specialist", department: "Orders", level: "agent" },
+  { id: "ha_20", name: "Diego Santos", title: "Order Operations Specialist", department: "Orders", level: "agent" },
+  { id: "ha_21", name: "Yuki Tanaka", title: "Order Operations Manager", department: "Orders", level: "manager" },
+
+  // Merchandising (catalog: availability, pricing, product info)
+  { id: "ha_22", name: "Farah Ali", title: "Merchandising Specialist", department: "Merchandising", level: "agent" },
+  { id: "ha_23", name: "Oliver Grant", title: "Catalog Specialist", department: "Merchandising", level: "agent" },
+  { id: "ha_24", name: "Mei Lin", title: "Merchandising Manager", department: "Merchandising", level: "manager" },
 
   // Trust & Safety
   { id: "ha_13", name: "Omar Haddad", title: "Trust & Safety Agent", department: "Trust & Safety", level: "agent" },

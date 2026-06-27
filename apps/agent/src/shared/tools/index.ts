@@ -12,6 +12,8 @@ import { subscriptionLookup } from "./subscriptionLookup.js";
 import { paymentStatus } from "./paymentStatus.js";
 import { accountStatus } from "./accountStatus.js";
 import { serviceStatus } from "./serviceStatus.js";
+import { orderLookup } from "./orderLookup.js";
+import { productLookup } from "./productLookup.js";
 import { reloadHttpTools } from "./http-store.js";
 
 let done = false;
@@ -24,6 +26,8 @@ export function registerAllTools(): void {
   registerTool(paymentStatus);
   registerTool(accountStatus);
   registerTool(serviceStatus);
+  registerTool(orderLookup);
+  registerTool(productLookup);
   // Admin-defined declarative HTTP tools (live config store).
   reloadHttpTools();
   done = true;

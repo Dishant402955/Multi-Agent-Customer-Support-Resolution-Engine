@@ -1,13 +1,17 @@
 // Shared pipeline contracts. One object flows through the pipeline and each
 // step adds its own fields.
 
-export type IntentType = "technical" | "billing" | "policy" | "mixed" | "unknown";
-export type AgentDomain = "technical" | "billing" | "policy";
+// Domains are admin-extensible (new specialist agents can be added at runtime),
+// so these are open strings. The built-ins are technical | billing | policy, and
+// IntentType additionally carries the router-only sentinels mixed | unknown.
+export type IntentType = string;
+export type AgentDomain = string;
 // How the engine should treat an inbound message:
 // - support: a real support request/question/complaint/follow-up → run the pipeline.
 // - greeting: a greeting, thanks, or small talk → friendly reply, no specialists, no ticket.
 // - out_of_scope: unrelated to customer support → polite refusal, no specialists, no ticket.
-export type MessageCategory = "support" | "greeting" | "out_of_scope";
+// - faq: matched an admin-defined canned answer → reply with it, no specialists, no ticket.
+export type MessageCategory = "support" | "greeting" | "out_of_scope" | "faq";
 export type SentimentLabel = "neutral" | "frustrated" | "angry";
 export type AgentStatus = "resolved" | "needs_info" | "unresolved" | "failed";
 export type SeverityLevel = "low" | "medium" | "high";
@@ -37,11 +41,20 @@ export interface Classification {
   intents: IntentScore[];
   /** Whether this message is a support request, a greeting, or out of scope. */
   category?: MessageCategory;
+  /** When category is "faq": the matched canned answer + which entry matched. */
+  faq_answer?: string;
+  faq_label?: string;
 }
 
 export interface Sentiment {
   label: SentimentLabel;
   score: number;
+  /** True when the customer shows clear frustration/anger needing care. */
+  frustration?: boolean;
+  /** Short human-readable reasons the tone/frustration was detected. */
+  drivers?: string[];
+  /** How tone is moving across the conversation. */
+  trend?: "rising" | "steady" | "easing";
 }
 
 export interface SubProblem {

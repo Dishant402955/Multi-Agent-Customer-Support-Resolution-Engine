@@ -24,10 +24,11 @@ import { Sheet, SheetBody, SheetHeader } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdminHeader } from "@/components/admin-nav";
 import { getRunSession, listRunSessions } from "@/lib/api";
+import { SentimentBadge } from "@/components/sentiment-badge";
 import { useRequireRole } from "@/lib/auth";
 import type { RunSessionDetail, RunSessionRow } from "@/lib/types";
 
-type CategoryFilter = "all" | "support" | "greeting" | "out_of_scope";
+type CategoryFilter = "all" | "support" | "greeting" | "out_of_scope" | "faq";
 type OutcomeFilter = "all" | "escalated" | "resolved" | "open";
 
 const PAGE_SIZE = 15;
@@ -51,7 +52,7 @@ function railTone(r: RunSessionRow): { rail: string; dot: string; label: string 
     return { rail: "bg-destructive", dot: "bg-destructive", label: "escalated" };
   if (r.overall_status === "resolved")
     return { rail: "bg-emerald-500", dot: "bg-emerald-500", label: "resolved" };
-  if (r.category === "greeting" || r.category === "out_of_scope")
+  if (r.category === "greeting" || r.category === "out_of_scope" || r.category === "faq")
     return { rail: "bg-muted-foreground/40", dot: "bg-muted-foreground/50", label: r.category };
   return { rail: "bg-amber-500", dot: "bg-amber-500", label: r.overall_status ?? "handled" };
 }
@@ -59,6 +60,7 @@ function railTone(r: RunSessionRow): { rail: string; dot: string; label: string 
 function categoryTone(c: string | null) {
   if (c === "greeting") return "border-sky-500/30 bg-sky-500/10 text-sky-300";
   if (c === "out_of_scope") return "border-amber-500/30 bg-amber-500/10 text-amber-300";
+  if (c === "faq") return "border-violet-500/30 bg-violet-500/10 text-violet-300";
   if (c === "support") return "border-primary/30 bg-primary/10 text-primary";
   return "border-border bg-secondary/40 text-muted-foreground";
 }
@@ -192,6 +194,7 @@ export default function ObservabilityPage() {
                 { v: "all", label: "All" },
                 { v: "support", label: "Support" },
                 { v: "greeting", label: "Greeting" },
+                { v: "faq", label: "FAQ" },
                 { v: "out_of_scope", label: "Off-topic" },
               ]}
             />
@@ -276,11 +279,13 @@ export default function ObservabilityPage() {
                       </div>
 
                       <div className="hidden md:block">
-                        {r.sentiment ? (
-                          <span className="text-xs capitalize text-muted-foreground">{r.sentiment}</span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground/50">—</span>
-                        )}
+                        <SentimentBadge
+                          label={r.sentiment}
+                          score={r.sentiment_score}
+                          frustration={r.frustration}
+                          trend={r.sentiment_trend}
+                          size="xs"
+                        />
                       </div>
 
                       <div className="hidden items-center gap-1.5 md:flex">
@@ -475,7 +480,20 @@ function RunDetail({
             <Field label="Category" value={row.category ?? "—"} />
             <Field label="Intent" value={row.primary_intent ?? "—"} />
             <Field label="Multi-issue" value={row.is_multi_issue ? "yes" : "no"} />
-            <Field label="Sentiment" value={row.sentiment ?? "—"} />
+            <div className="rounded-lg border border-border bg-card px-3 py-2">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Customer mood</div>
+              <div className="mt-1">
+                <SentimentBadge
+                  label={s?.sentiment?.label ?? row.sentiment}
+                  score={s?.sentiment?.score ?? row.sentiment_score}
+                  frustration={s?.sentiment?.frustration ?? row.frustration}
+                  trend={s?.sentiment?.trend ?? row.sentiment_trend}
+                />
+              </div>
+              {s?.sentiment?.drivers?.length ? (
+                <div className="mt-1.5 text-[11px] text-muted-foreground">{s.sentiment.drivers.join(" · ")}</div>
+              ) : null}
+            </div>
             <Field label="Severity" value={row.severity ?? "—"} />
             <Field label="Priority" value={row.priority ?? "—"} />
             <Field label="Agents" value={String(row.agent_count)} />

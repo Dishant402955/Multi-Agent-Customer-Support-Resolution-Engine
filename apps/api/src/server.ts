@@ -22,13 +22,25 @@ import {
   recordConfigAudit,
   getLatestRun,
   getLatestRunContext,
+  addCaseNote,
+  getFeedbackForTicket,
+  getMessageById,
   getMessages,
   getOpenEscalationForTicket,
+  getQuestionForMessage,
   getRunById,
   getTicketCustomer,
   getTicketDashboardRow,
   getTicketDisplayId,
+  listAgentPresence,
+  listAllFeedback,
   listAllRuns,
+  listCaseNotes,
+  listRecentCaseNotes,
+  listTeamActivity,
+  recordAgentPresence,
+  recordTeamActivity,
+  upsertFeedback,
   listEscalations,
   listRunsForTicket,
   listTickets,
@@ -40,6 +52,7 @@ import {
   type EscalationRecord,
 } from "./db";
 import { runAgentPipeline, runAgentPipelineStream, type RunRequest } from "./agentClient";
+import { addCollabClient, emitCollab } from "./collab";
 import { userName } from "./users";
 import {
   createHumanAgent,
@@ -89,7 +102,10 @@ interface AuthedRequest extends express.Request {
 
 function tokenFromReq(req: express.Request): string | null {
   const header = req.headers.authorization || "";
-  return header.startsWith("Bearer ") ? header.slice(7).trim() || null : null;
+  if (header.startsWith("Bearer ")) return header.slice(7).trim() || null;
+  // Fallback for EventSource (SSE), which cannot set Authorization headers.
+  const q = (req.query?.token as string) || "";
+  return q.trim() || null;
 }
 
 app.use((req: AuthedRequest, _res, next) => {
@@ -148,6 +164,8 @@ function departmentFor(state: any): Department {
   if (domain === "billing") return "Billing";
   if (domain === "technical") return "Technical";
   if (domain === "policy") return "Policy & Compliance";
+  if (domain === "orders") return "Orders";
+  if (domain === "products") return "Merchandising";
   if (state?.severity?.priority === "P1") return "Escalations";
   return "Escalations";
 }
@@ -230,9 +248,10 @@ function finalizeTicketRun(opts: {
   const { state, ticketId, customerId, parentTicketId, isNewTicket, history, message, isFollowUp, priorEsc, runId } = opts;
 
   const category: string = state?.classification?.category ?? "support";
-  const nonSupport = category === "greeting" || category === "out_of_scope";
+  const nonSupport =
+    category === "greeting" || category === "out_of_scope" || category === "faq";
 
-  // A brand-new conversation that opens with a greeting or an out-of-scope
+  // A brand-new conversation that opens with a greeting, FAQ, or out-of-scope
   // message does NOT create a ticket. Reply once, persist nothing.
   if (isNewTicket && nonSupport) {
     const now = new Date().toISOString();
@@ -289,6 +308,14 @@ function finalizeTicketRun(opts: {
         assignee_name: human.name,
         assignee_title: human.title,
       });
+      const act = recordTeamActivity({
+        kind: "escalation_created",
+        actor_name: "Engine",
+        ticket_id: ticketId,
+        escalation_id: escalationRecord.id,
+        summary: `New ${state.escalation.urgency ?? ""} case → ${human.name} (${dept})`.replace(/\s+/g, " ").trim(),
+      });
+      emitCollab({ type: "escalation_created", activity: act });
     }
     state.escalation.assigned_agent = assignee;
     if (escalationRecord) state.escalation.escalation_id = escalationRecord.id;
@@ -541,6 +568,15 @@ app.post("/api/escalations/:id/resolve", requireRole("admin", "agent"), (req: Au
   if (esc.customer_id) {
     void notifyTicketResolved(esc.customer_id, esc.ticket_id, esc.subject);
   }
+  const act = recordTeamActivity({
+    kind: "escalation_resolved",
+    actor_id: account.agent_id,
+    actor_name: account.name,
+    ticket_id: esc.ticket_id,
+    escalation_id: esc.id,
+    summary: `${account.name} resolved ${esc.subject || esc.ticket_id}`,
+  });
+  emitCollab({ type: "escalation_resolved", activity: act });
   res.json({ ok: true });
 });
 
@@ -575,6 +611,15 @@ app.post("/api/escalations/:id/handoff", requireRole("admin", "agent"), (req: Au
       ticket_id: esc.ticket_id,
     });
   }
+  const act = recordTeamActivity({
+    kind: "escalation_handoff",
+    actor_id: account.agent_id,
+    actor_name: account.name,
+    ticket_id: esc.ticket_id,
+    escalation_id: esc.id,
+    summary: `${account.name} handed ${esc.subject || esc.ticket_id} up to ${manager.name}`,
+  });
+  emitCollab({ type: "escalation_handoff", activity: act });
   res.json({ ok: true, assignee: manager });
 });
 
@@ -594,7 +639,111 @@ app.post("/api/escalations/:id/reply", requireRole("admin", "agent"), (req: Auth
   addMessage(esc.ticket_id, "agent", text);
   void notifyAgentReply(esc.customer_id, esc.ticket_id, account.name, text);
 
+  const act = recordTeamActivity({
+    kind: "agent_reply",
+    actor_id: account.agent_id,
+    actor_name: account.name,
+    ticket_id: esc.ticket_id,
+    escalation_id: esc.id,
+    summary: `${account.name} replied to ${esc.customer_name} on ${esc.subject || esc.ticket_id}`,
+  });
+  emitCollab({ type: "agent_reply", activity: act });
   res.json({ ok: true, messages: getMessages(esc.ticket_id) });
+});
+
+// Internal team note on a case (agent-to-agent collaboration, not customer-visible).
+app.post("/api/escalations/:id/note", requireRole("admin", "agent"), (req: AuthedRequest, res) => {
+  const account = req.account!;
+  const esc = getEscalationById(req.params.id);
+  if (!esc) return res.status(404).json({ error: "Escalation not found" });
+  const body = String(req.body?.body || "").trim();
+  if (!body) return res.status(400).json({ error: "Note is empty" });
+  const note = addCaseNote({
+    escalation_id: esc.id,
+    ticket_id: esc.ticket_id,
+    author_id: account.agent_id ?? account.id,
+    author_name: account.name,
+    body: body.slice(0, 2000),
+  });
+  const act = recordTeamActivity({
+    kind: "case_note",
+    actor_id: account.agent_id,
+    actor_name: account.name,
+    ticket_id: esc.ticket_id,
+    escalation_id: esc.id,
+    summary: `${account.name} noted on ${esc.subject || esc.ticket_id}: ${body.slice(0, 80)}`,
+  });
+  emitCollab({ type: "case_note", note, activity: act });
+  res.json({ ok: true, note });
+});
+
+// List internal notes for a case.
+app.get("/api/escalations/:id/notes", requireRole("admin", "agent"), (req: AuthedRequest, res) => {
+  res.json({ notes: listCaseNotes(req.params.id) });
+});
+
+// ---- Real-time collaboration (Team dashboard) ------------------------------
+const PRESENCE_ONLINE_MS = 35_000;
+
+// Build the collaboration snapshot: roster with presence + load, open cases,
+// recent activity, and recent team notes.
+function collabOverview() {
+  const presence = listAgentPresence();
+  const seen = new Map(presence.map((p) => [p.agent_id, p.last_seen]));
+  const openCounts = countOpenByAssignee();
+  const now = Date.now();
+  const agents = listHumanAgents().map((a) => {
+    const last = seen.get(a.id) ?? 0;
+    return {
+      id: a.id,
+      name: a.name,
+      title: a.title,
+      department: a.department,
+      level: a.level ?? "agent",
+      open_cases: openCounts[a.id] ?? 0,
+      online: now - last < PRESENCE_ONLINE_MS,
+      last_seen: last ? new Date(last).toISOString() : null,
+    };
+  });
+  const open = listEscalations().filter((e) => e.status === "open");
+  return {
+    agents,
+    online_count: agents.filter((a) => a.online).length,
+    open_cases: open.length,
+    activity: listTeamActivity(60),
+    notes: listRecentCaseNotes(20),
+    open_escalations: open,
+  };
+}
+
+// Agent heartbeat — keeps presence fresh. Sent periodically by the dashboard.
+app.post("/api/collab/heartbeat", requireRole("admin", "agent"), (req: AuthedRequest, res) => {
+  const account = req.account!;
+  if (account.agent_id) {
+    recordAgentPresence(account.agent_id, account.id, account.name);
+    emitCollab({ type: "presence", agent_id: account.agent_id, online: true });
+  }
+  res.json({ ok: true });
+});
+
+app.get("/api/collab/overview", requireRole("admin", "agent"), (_req, res) => {
+  res.json(collabOverview());
+});
+
+// SSE stream of live collaboration events (escalation lifecycle + presence).
+app.get("/api/collab/stream", requireRole("admin", "agent"), (req: AuthedRequest, res) => {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache, no-transform",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+  res.write(`data: ${JSON.stringify({ type: "hello", ts: new Date().toISOString() })}\n\n`);
+  const unsubscribe = addCollabClient(res);
+  req.on("close", () => {
+    unsubscribe();
+    res.end();
+  });
 });
 
 // ---- Notifications (recipient-scoped) --------------------------------------
@@ -648,6 +797,41 @@ app.delete("/api/platform/kb/:file", requireRole("admin"), (req: AuthedRequest, 
   })
 );
 
+// Suggested KB article generation. Accepts either a `ticket_id` (we assemble the
+// source from its latest resolved run) or a raw `source` object. Returns a DRAFT
+// the admin reviews + saves via PUT /api/platform/kb/:file — nothing is written here.
+app.post("/api/platform/kb/suggest", requireRole("admin"), (req: AuthedRequest, res) =>
+  platform(res, async () => {
+    const body = (req.body ?? {}) as { ticket_id?: string; source?: Record<string, unknown> };
+    let source: Record<string, unknown> = body.source ?? {};
+
+    if (body.ticket_id) {
+      const state: any = getLatestRun(body.ticket_id);
+      if (!state) throw new Error("No run found for that ticket");
+      const reports: any[] = Array.isArray(state.agent_reports) ? state.agent_reports : [];
+      const firstCustomer =
+        getMessages(body.ticket_id).find((m) => m.role === "customer")?.text ?? state.message ?? "";
+      source = {
+        question: firstCustomer,
+        resolution: state.resolution?.summary ?? "",
+        findings: [
+          ...reports.flatMap((r) => (Array.isArray(r.findings) ? r.findings : [])),
+          ...(Array.isArray(state.resolution?.findings) ? state.resolution.findings : []),
+        ].slice(0, 12),
+        actions: [
+          ...reports.flatMap((r) => (Array.isArray(r.actions) ? r.actions : [])),
+          ...(Array.isArray(state.resolution?.actions) ? state.resolution.actions : []),
+        ].slice(0, 12),
+        domain: state.classification?.primary_intent ?? undefined,
+      };
+    }
+
+    const out = await agentAdmin.generateKb(source);
+    audit(req, "kb.suggest", body.ticket_id ?? "manual");
+    return out;
+  })
+);
+
 // Use cases
 app.get("/api/platform/usecases", requireRole("admin"), (_req, res) =>
   platform(res, () => agentAdmin.listUseCases())
@@ -686,9 +870,118 @@ app.delete("/api/platform/tools/:name", requireRole("admin"), (req: AuthedReques
   })
 );
 
+// Policies — hard checks (guard), escalation rules, intent-router thresholds
+app.get("/api/platform/policies", requireRole("admin"), (_req, res) =>
+  platform(res, () => agentAdmin.getPolicies())
+);
+app.put("/api/platform/policies", requireRole("admin"), (req: AuthedRequest, res) =>
+  platform(res, async () => {
+    const out = await agentAdmin.putPolicies(req.body);
+    audit(req, "policies.update", "policies");
+    return out;
+  })
+);
+
+// Specialist agents — add/edit/remove the AI agents the pipeline routes to
+app.get("/api/platform/specialists", requireRole("admin"), (_req, res) =>
+  platform(res, () => agentAdmin.listSpecialists())
+);
+app.put("/api/platform/specialists/:name", requireRole("admin"), (req: AuthedRequest, res) =>
+  platform(res, async () => {
+    const out = await agentAdmin.putSpecialist(req.params.name, req.body);
+    audit(req, "agent.upsert", req.params.name);
+    return out;
+  })
+);
+app.delete("/api/platform/specialists/:name", requireRole("admin"), (req: AuthedRequest, res) =>
+  platform(res, async () => {
+    const out = await agentAdmin.deleteSpecialist(req.params.name);
+    audit(req, "agent.delete", req.params.name);
+    return out;
+  })
+);
+
+// FAQ / canned responses — checked first in the pipeline (like greetings)
+app.get("/api/platform/faq", requireRole("admin"), (_req, res) =>
+  platform(res, () => agentAdmin.listFaqs())
+);
+app.post("/api/platform/faq", requireRole("admin"), (req: AuthedRequest, res) =>
+  platform(res, async () => {
+    const out = await agentAdmin.createFaq(req.body);
+    audit(req, "faq.create", out?.faq?.label ?? "faq");
+    return out;
+  })
+);
+app.put("/api/platform/faq/:id", requireRole("admin"), (req: AuthedRequest, res) =>
+  platform(res, async () => {
+    const out = await agentAdmin.putFaq(req.params.id, req.body);
+    audit(req, "faq.upsert", out?.faq?.label ?? req.params.id);
+    return out;
+  })
+);
+app.delete("/api/platform/faq/:id", requireRole("admin"), (req: AuthedRequest, res) =>
+  platform(res, async () => {
+    const out = await agentAdmin.deleteFaq(req.params.id);
+    audit(req, "faq.delete", req.params.id);
+    return out;
+  })
+);
+
 // Audit feed
 app.get("/api/platform/audit", requireRole("admin"), (_req, res) => {
   res.json({ audit: listConfigAudit(200) });
+});
+
+// ---- Feedback (thumbs up/down on AI replies) -------------------------------
+
+// Customer rates an AI reply on one of their tickets.
+app.post("/api/feedback", requireRole("user"), (req: AuthedRequest, res) => {
+  const customer = req.account!.customer_id ?? "";
+  const { ticket_id, message_id, rating, comment } = (req.body ?? {}) as {
+    ticket_id?: string;
+    message_id?: number;
+    rating?: string;
+    comment?: string;
+  };
+  if (!ticket_id || typeof message_id !== "number" || (rating !== "up" && rating !== "down")) {
+    return res.status(400).json({ error: "ticket_id, message_id and rating ('up'|'down') are required" });
+  }
+  if (!canAccessTicket(ticket_id, customer)) {
+    return res.status(404).json({ error: "Ticket not found" });
+  }
+  // The message must exist and belong to this ticket, and be an assistant reply.
+  const msg = getMessageById(message_id);
+  if (!msg || msg.ticket_id !== ticket_id || msg.role === "customer") {
+    return res.status(400).json({ error: "Invalid message for feedback" });
+  }
+  upsertFeedback({
+    ticket_id,
+    message_id,
+    customer_id: customer || null,
+    rating,
+    comment: comment?.slice(0, 1000) ?? null,
+    question: getQuestionForMessage(ticket_id, message_id),
+    answer: msg.text,
+  });
+  res.json({ ok: true });
+});
+
+// Customer reads back their ratings for one ticket (to render the chat state).
+app.get("/api/feedback/:ticketId", requireRole("user"), (req: AuthedRequest, res) => {
+  const customer = req.account!.customer_id ?? "";
+  if (!canAccessTicket(req.params.ticketId, customer)) {
+    return res.status(404).json({ error: "Ticket not found" });
+  }
+  res.json({ feedback: getFeedbackForTicket(req.params.ticketId) });
+});
+
+// Admin reviews all feedback.
+app.get("/api/admin/feedback", requireRole("admin"), (_req, res) => {
+  const feedback = listAllFeedback(500).map((f) => ({
+    ...f,
+    customer_name: displayCustomerName(f.customer_id),
+  }));
+  res.json({ feedback });
 });
 
 // ---- Admin: human-agent management -----------------------------------------

@@ -14,6 +14,9 @@ import type {
 import { callLLM, availableProviders } from "../shared/gateway/index";
 import { retrieveFromScope } from "../shared/kb/retriever";
 import { log } from "../shared/core/logger";
+import { getPolicies } from "../shared/policies/store";
+import { teamByDomain } from "../shared/policies/agents";
+import { GUARDRAILS_BLOCK } from "../shared/core/guardrails";
 
 export interface GateInput {
   guard: Guard;
@@ -24,46 +27,56 @@ export interface GateInput {
   agentReports?: AgentReport[];
 }
 
+// The gate rules are admin-toggleable "do / don't" policies. Each rule below is
+// only allowed to open an escalation when its toggle is on (all default on, so
+// behavior matches the original hardcoded gate until changed).
 export function shouldEscalate(input: GateInput): { escalate: boolean; reasons: string[] } {
   const reasons: string[] = [];
   const reports = input.agentReports ?? [];
+  const rules = getPolicies().escalation.rules;
 
-  if (input.guard.force_escalation) reasons.push(input.guard.reason || "Hard signal");
-  if (input.severity.level === "high") reasons.push("High severity impact");
-  if (input.investigation.overall_status === "unresolved") reasons.push("Unresolved by agents");
-  if (input.investigation.conflicts.length > 0) reasons.push("Conflicting agent findings");
+  if (rules.hard_guard && input.guard.force_escalation) {
+    reasons.push(input.guard.reason || "Hard signal");
+  }
+  if (rules.high_severity && input.severity.level === "high") {
+    reasons.push("High severity impact");
+  }
+  if (rules.unresolved && input.investigation.overall_status === "unresolved") {
+    reasons.push("Unresolved by agents");
+  }
+  if (rules.conflicts && input.investigation.conflicts.length > 0) {
+    reasons.push("Conflicting agent findings");
+  }
 
   // A specialist explicitly handed off to a human (e.g. GDPR / legal queue) even
   // when the merged investigation is only "partial" because another agent was
   // out-of-domain or needs_info.
   const handoff = reports.filter((r) => r.status === "unresolved");
-  if (handoff.length > 0) {
+  if (rules.specialist_handoff && handoff.length > 0) {
     reasons.push(
       `Specialist handoff requested (${handoff.map((r) => r.agent).join(", ")})`
     );
   }
 
-  const frustrated = input.sentiment.label === "frustrated" || input.sentiment.label === "angry";
+  // Prefer the analyzer's explicit frustration flag; fall back to the label.
+  const frustrated =
+    input.sentiment.frustration ??
+    (input.sentiment.label === "frustrated" || input.sentiment.label === "angry");
   const repeat = input.messageCount > 1;
-  if (frustrated && (repeat || input.investigation.overall_status !== "resolved")) {
-    reasons.push("Frustration with repeat contact / unresolved");
+  if (rules.frustration_repeat && frustrated && (repeat || input.investigation.overall_status !== "resolved")) {
+    const why = input.sentiment.trend === "rising" ? "rising frustration" : "frustration";
+    reasons.push(`${why} with repeat contact / unresolved`);
   }
 
   return { escalate: reasons.length > 0, reasons };
 }
-
-const TEAM_BY_DOMAIN: Record<string, string> = {
-  billing: "Billing Lead",
-  technical: "Engineering On-call",
-  policy: "Policy & Compliance",
-};
 
 function deterministicEscalation(
   reasons: string[],
   severity: Severity,
   primaryDomain: AgentDomain
 ): Escalation {
-  const team = TEAM_BY_DOMAIN[primaryDomain] || "Support Lead";
+  const team = teamByDomain()[primaryDomain] || "Support Lead";
   return {
     escalate: true,
     reason: reasons.join("; "),
@@ -103,12 +116,14 @@ export async function runEscalation(
   }
 
   const system = [
+    GUARDRAILS_BLOCK,
+    "",
     "You are the Escalation Agent for a multi-agent customer-support engine.",
     "Your job is to build a human handoff plan from the escalation reasons,",
     "severity/priority, specialist reports, and the escalation matrix.",
     "Use only the provided facts. Do not invent names or ticket details.",
     'Respond with STRICT JSON only, shaped: { "recommended_team": string, "urgency": "P1"|"P2"|"P3", "internal_actions": string[], "customer_addendum": string }',
-  ].join(" ");
+  ].join("\n");
 
   const reportBlock = (opts.reports ?? [])
     .map(

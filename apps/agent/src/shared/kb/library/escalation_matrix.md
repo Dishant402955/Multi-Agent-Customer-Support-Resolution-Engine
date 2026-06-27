@@ -16,13 +16,24 @@ credentials go to the Security queue with high priority.
 Disputed charges above $500, repeated refund demands, or chargeback threats go
 to the Billing Escalations queue.
 
+## Order and delivery risk
+Lost or stuck parcels, repeated failed deliveries, or orders delayed well beyond
+their revised ETA go to Order Operations to open a carrier investigation.
+
 ## Customer sentiment
-Explicit threats to cancel, churn language from enterprise accounts, or abusive
+Explicit threats to cancel, churn language from high-value accounts, or abusive
 /distressed messages go to a senior support agent.
 
+## Routing by domain
+- technical → Engineering On-call
+- billing → Billing Lead (Billing Escalations for disputes/chargebacks)
+- policy → Policy & Compliance (Legal for legal threats)
+- orders → Order Operations
+- products → Merchandising
+
 ## Severity guidance
-- high: security, legal, data loss, or enterprise churn risk.
-- medium: repeated unresolved issues or financial disputes under $500.
+- high: security, legal, data loss, or high-value account churn risk.
+- medium: repeated unresolved issues, financial disputes under $500, or seriously delayed/lost orders.
 - low: general frustration with a known workaround.
 
 ## What to include in a handoff

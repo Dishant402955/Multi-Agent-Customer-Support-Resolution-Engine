@@ -14,6 +14,8 @@ export interface Message {
   role: "customer" | "system" | "agent";
   text: string;
   timestamp?: string;
+  /** DB row id (persisted messages only) — used to attach feedback. */
+  id?: number;
 }
 export type StepKind = "llm" | "heuristic";
 export interface AuditEvent {
@@ -30,9 +32,15 @@ export interface Classification {
   is_multi_issue: boolean;
   fallback: boolean;
   intents: IntentScore[];
-  category?: "support" | "greeting" | "out_of_scope";
+  category?: "support" | "greeting" | "out_of_scope" | "faq";
 }
-export interface Sentiment { label: string; score: number; }
+export interface Sentiment {
+  label: string;
+  score: number;
+  frustration?: boolean;
+  drivers?: string[];
+  trend?: "rising" | "steady" | "easing";
+}
 export interface SubProblem { id: string; domain: string; description: string; }
 export interface AgentReport {
   agent: string;
@@ -155,6 +163,14 @@ export interface KbDoc {
   content: string;
   bytes: number;
 }
+
+export interface KbDraft {
+  title: string;
+  filename: string;
+  content: string;
+  summary: string;
+  source: "llm" | "template";
+}
 export interface StoredUseCase {
   agent: string;
   file: string;
@@ -216,6 +232,9 @@ export interface TicketDashboardRow {
   primary_intent: string | null;
   severity: string | null;
   priority: string | null;
+  sentiment: string | null;
+  sentiment_score: number | null;
+  frustration: boolean;
   summary: string | null;
   escalation_id: string | null;
   escalation_status: "open" | "resolved" | null;
@@ -255,6 +274,9 @@ export interface RunSessionRow {
   primary_intent: string | null;
   is_multi_issue: boolean;
   sentiment: string | null;
+  sentiment_score: number | null;
+  frustration: boolean;
+  sentiment_trend: string | null;
   severity: string | null;
   priority: string | null;
   escalated: boolean;
@@ -263,6 +285,109 @@ export interface RunSessionRow {
   agent_count: number;
   step_count: number;
   llm_steps: number;
+}
+
+// ---- Platform: policies + specialist agents --------------------------------
+
+export interface GuardSignal {
+  phrase: string;
+  category: string;
+}
+
+export interface PolicyConfig {
+  guard: { enabled: boolean; signals: GuardSignal[] };
+  escalation: {
+    rules: {
+      hard_guard: boolean;
+      high_severity: boolean;
+      unresolved: boolean;
+      conflicts: boolean;
+      specialist_handoff: boolean;
+      frustration_repeat: boolean;
+    };
+  };
+  intents: { multi_threshold: number; fallback_threshold: number };
+}
+
+export interface SpecialistAgentRecord {
+  name: string;
+  label: string;
+  description: string;
+  keywords: string[];
+  team: string;
+  builtin: boolean;
+}
+
+// ---- Platform: FAQ / canned responses --------------------------------------
+
+export type FaqMatchMode = "contains" | "exact" | "regex";
+
+export interface FaqEntry {
+  id: string;
+  label: string;
+  enabled: boolean;
+  match: FaqMatchMode;
+  triggers: string[];
+  answer: string;
+}
+
+// ---- Real-time agent collaboration -----------------------------------------
+
+export interface CollabAgent {
+  id: string;
+  name: string;
+  title: string;
+  department: string;
+  level: "agent" | "manager";
+  open_cases: number;
+  online: boolean;
+  last_seen: string | null;
+}
+
+export interface TeamActivity {
+  id: string;
+  kind: string;
+  actor_id: string | null;
+  actor_name: string | null;
+  ticket_id: string | null;
+  escalation_id: string | null;
+  summary: string;
+  created_at: string;
+}
+
+export interface CaseNote {
+  id: string;
+  escalation_id: string;
+  ticket_id: string | null;
+  author_id: string | null;
+  author_name: string;
+  body: string;
+  created_at: string;
+}
+
+export interface CollabOverview {
+  agents: CollabAgent[];
+  online_count: number;
+  open_cases: number;
+  activity: TeamActivity[];
+  notes: CaseNote[];
+  open_escalations: EscalationRecord[];
+}
+
+// ---- Feedback (thumbs up/down on AI replies) -------------------------------
+
+export interface FeedbackRow {
+  id: string;
+  ticket_id: string;
+  display_id: string;
+  message_id: number;
+  customer_id: string | null;
+  customer_name: string;
+  rating: "up" | "down";
+  comment: string | null;
+  question: string | null;
+  answer: string | null;
+  created_at: string;
 }
 
 /** Full detail for one run — the complete pipeline state for the trace view. */

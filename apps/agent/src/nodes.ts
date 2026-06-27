@@ -16,7 +16,9 @@ import {
 } from "./contracts/types";
 import { runGuard } from "./steps/guard";
 import { runClassifier } from "./steps/classifier";
-import { runSentiment } from "./steps/sentiment";
+import { matchFaq } from "./shared/policies/faq";
+import { analyzeSentiment } from "./steps/sentiment";
+import { availableProviders } from "./shared/gateway/index";
 import { runDecomposer } from "./steps/decomposer";
 import { runOrchestrator } from "./steps/orchestrator";
 import { runSeverity } from "./steps/severity";
@@ -46,6 +48,30 @@ export async function guardNode(s: PipelineState): Promise<Partial<PipelineState
 }
 
 export async function classifyNode(s: PipelineState): Promise<Partial<PipelineState>> {
+  // FAQ short-circuit — checked FIRST (before the LLM router), like greetings.
+  // An admin-defined canned answer skips intent routing and all specialists.
+  const faq = matchFaq(s.message);
+  if (faq) {
+    const classification: PipelineState["classification"] = {
+      primary_intent: "faq",
+      is_multi_issue: false,
+      fallback: false,
+      intents: [],
+      category: "faq",
+      faq_answer: faq.answer,
+      faq_label: faq.label,
+    };
+    return {
+      classification,
+      audit_trail: [
+        audit("classify", "Intent classifier", `FAQ matched: ${faq.label}`, {
+          kind: "heuristic",
+          detail: `The message matched the admin-defined FAQ "${faq.label}", so the engine replies with its canned answer and skips intent routing and all specialist agents.`,
+        }),
+      ],
+    };
+  }
+
   const classification = await runClassifier(s.message, s.history, s.run_id);
   const category: MessageCategory = classification.category ?? "support";
   const top = classification.intents.map((i) => `${i.type} ${i.confidence.toFixed(2)}`).join(", ");
@@ -93,14 +119,25 @@ export async function classifyNode(s: PipelineState): Promise<Partial<PipelineSt
 }
 
 export async function sentimentNode(s: PipelineState): Promise<Partial<PipelineState>> {
-  const sentiment = runSentiment(s.message);
+  const sentiment = await analyzeSentiment(s.message, s.history, s.run_id);
+  const driverText = sentiment.drivers?.length ? ` — ${sentiment.drivers.join("; ")}` : "";
+  const usedLlm = availableProviders().length > 0;
   return {
     sentiment,
     audit_trail: [
-      audit("sentiment", "Sentiment detector", `${sentiment.label} (${sentiment.score})`, {
-        kind: "heuristic",
-        detail: `Tone scored from emotional keywords, ALL-CAPS words, and exclamation marks → ${sentiment.label} (${sentiment.score}). Used only as a capped nudge to priority, never to decide escalation on its own.`,
-      }),
+      audit(
+        "sentiment",
+        "Sentiment detector",
+        `${sentiment.label} (${sentiment.score})${sentiment.frustration ? " · frustrated" : ""}`,
+        {
+          kind: usedLlm ? "llm" : "heuristic",
+          detail:
+            `Judged the customer's emotional tone across the conversation → ${sentiment.label} ` +
+            `(score ${sentiment.score}, trend ${sentiment.trend ?? "steady"})${driverText}. ` +
+            `Frustration${sentiment.frustration ? " detected" : " not detected"}. ` +
+            `Used as a capped nudge to priority and as an escalation signal alongside repeat contact — never tone alone.`,
+        }
+      ),
     ],
   };
 }
@@ -111,22 +148,21 @@ export async function decomposeNode(s: PipelineState): Promise<Partial<PipelineS
   // Greetings and out-of-scope messages have nothing to investigate — emit zero
   // sub-problems so NO specialist agent runs for them.
   if (category !== "support") {
+    const label =
+      category === "greeting"
+        ? "Greeting — no sub-problems"
+        : category === "faq"
+          ? "FAQ — no sub-problems"
+          : "Out of scope — no sub-problems";
+    const detail =
+      category === "greeting"
+        ? "The message is a greeting / small talk with no support request, so there is nothing to decompose and no specialist agents are needed."
+        : category === "faq"
+          ? "The message matched a canned FAQ answer, so there is nothing to decompose and no specialist agents are needed."
+          : "The message is outside customer-support scope, so no sub-problems are created and no specialist agents run.";
     return {
       sub_problems: [],
-      audit_trail: [
-        audit(
-          "decompose",
-          "Decomposer",
-          category === "greeting" ? "Greeting — no sub-problems" : "Out of scope — no sub-problems",
-          {
-            kind: "heuristic",
-            detail:
-              category === "greeting"
-                ? "The message is a greeting / small talk with no support request, so there is nothing to decompose and no specialist agents are needed."
-                : "The message is outside customer-support scope, so no sub-problems are created and no specialist agents run.",
-          }
-        ),
-      ],
+      audit_trail: [audit("decompose", "Decomposer", label, { kind: "heuristic", detail })],
     };
   }
 
@@ -179,9 +215,11 @@ export async function investigateNode(
           detail:
             category === "greeting"
               ? "This message is a greeting, so no sub-problems were created and no specialist agents ran."
-              : category === "out_of_scope"
-                ? "This message is out of scope, so no specialist agents ran."
-                : "No sub-problems to investigate, so no specialist agents ran.",
+              : category === "faq"
+                ? "This message matched a canned FAQ answer, so no specialist agents ran."
+                : category === "out_of_scope"
+                  ? "This message is out of scope, so no specialist agents ran."
+                  : "No sub-problems to investigate, so no specialist agents ran.",
         }),
       ],
     };
@@ -334,6 +372,17 @@ function greetingResolution(): Resolution {
   };
 }
 
+// Canned answer for an admin-defined FAQ match — returned verbatim.
+function faqResolution(answer: string): Resolution {
+  return {
+    summary: answer || "Thanks for reaching out!",
+    findings: [],
+    actions: [],
+    reasoning: "Matched an admin-defined FAQ — returned the canned answer.",
+    evidence: [],
+  };
+}
+
 // Polite, firm refusal for anything outside customer-support scope.
 function outOfScopeResolution(): Resolution {
   return {
@@ -349,11 +398,16 @@ function outOfScopeResolution(): Resolution {
 export async function synthesizeNode(s: PipelineState): Promise<Partial<PipelineState>> {
   const category: MessageCategory = s.classification?.category ?? "support";
 
-  // Greeting / out-of-scope never reach the specialist synthesizer — answer with
-  // a fixed, on-brand reply so we never fabricate support content or run the LLM
-  // merge over empty reports.
-  if (category === "greeting" || category === "out_of_scope") {
-    const resolution = category === "greeting" ? greetingResolution() : outOfScopeResolution();
+  // Greeting / FAQ / out-of-scope never reach the specialist synthesizer — answer
+  // with a fixed reply (canned FAQ answer, friendly greeting, or polite refusal)
+  // so we never fabricate support content or run the LLM merge over empty reports.
+  if (category === "greeting" || category === "out_of_scope" || category === "faq") {
+    const resolution =
+      category === "greeting"
+        ? greetingResolution()
+        : category === "faq"
+          ? faqResolution(s.classification?.faq_answer ?? "")
+          : outOfScopeResolution();
     return {
       resolution,
       audit_trail: [
@@ -362,7 +416,9 @@ export async function synthesizeNode(s: PipelineState): Promise<Partial<Pipeline
           detail:
             category === "greeting"
               ? "Recognized a greeting with no support request, so replied with a friendly prompt and skipped the specialist pipeline entirely."
-              : "The message was outside customer-support scope, so the engine politely declined instead of answering an unrelated question or running specialists.",
+              : category === "faq"
+                ? `Replied with the admin-defined FAQ answer (${s.classification?.faq_label ?? "FAQ"}) and skipped the specialist pipeline entirely.`
+                : "The message was outside customer-support scope, so the engine politely declined instead of answering an unrelated question or running specialists.",
         }),
       ],
     };

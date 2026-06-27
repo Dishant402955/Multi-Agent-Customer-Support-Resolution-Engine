@@ -15,22 +15,22 @@ interface ErrorInfo {
   severity: "low" | "medium" | "high";
 }
 
-// Tiny fake runbook keyed by error code (normalized to upper-case).
+// Tiny fake storefront runbook keyed by error code (normalized to upper-case).
 const KNOWN_ERRORS: Record<string, ErrorInfo> = {
-  ERR_EXPORT_TIMEOUT: {
+  ERR_CHECKOUT_5XX: {
     cause:
-      "Large exports exceed the 30s synchronous limit and time out before the file is built.",
-    fix: "Use the async export option (Settings > Data > Export > 'Email me the file'), which builds the export in the background.",
+      "A transient error in the checkout service prevented the order from being placed. No order or charge was created.",
+    fix: "Refresh the page, clear the cart cache (remove and re-add the item), and retry checkout. If it persists, escalate with the trace id.",
     severity: "medium",
   },
-  ERR_AUTH_401: {
-    cause: "The API key is missing, expired, or lacks the required scope.",
-    fix: "Regenerate the API key under Settings > Developer and ensure the 'read' scope is enabled.",
-    severity: "high",
+  ERR_PAYMENT_GATEWAY: {
+    cause: "The payment session expired before the payment was submitted, so the payment page failed to load or hung.",
+    fix: "Refresh the checkout page, disable ad/script blockers for the site, and retry. No order is placed until payment succeeds.",
+    severity: "medium",
   },
-  ERR_RATE_LIMIT: {
-    cause: "The account exceeded its requests-per-minute quota.",
-    fix: "Back off and retry with exponential delay; request a higher quota if this is sustained.",
+  ERR_CART_SYNC: {
+    cause: "A stale browser session caused the cart to show outdated items or quantities (display-only).",
+    fix: "Refresh the page, or sign out and back in, to resync the cart. This does not affect any placed order.",
     severity: "low",
   },
 };

@@ -1,29 +1,29 @@
-# Troubleshooting Guide
+# Storefront Troubleshooting Guide
 
-## Export feature
-If a customer reports the export feature failing, erroring, or not downloading
-— even when they do not quote an error code — the most common cause is
-`ERR_EXPORT_TIMEOUT`. Synchronous exports are capped at 30 seconds, so exports
-of large datasets time out before the file is built. The fix is the
-asynchronous export ("Email me the file"), which builds the export in the
-background and is the supported path for large accounts. A failed export never
-affects the customer's stored data.
+## Checkout fails / server error at checkout
+If a customer reports checkout failing, erroring, or the page not loading — even
+when they do not quote an error code — the most common cause is
+`ERR_CHECKOUT_5XX`, a transient error in the checkout service. The fix is to
+refresh the page, clear the cart cache (remove and re-add the item), and retry;
+if it persists across attempts, escalate with the trace id. No order is placed
+and no card is charged until the customer sees an order-confirmation screen.
 
-## Authentication errors
-`ERR_AUTH_401` means the request was rejected because the API key is missing,
-expired, or lacks the required scope. Keys can be regenerated under
-Settings > Developer. Most integration failures trace back to a missing
-`read` scope on the key.
+## Payment page won't load or keeps spinning
+`ERR_PAYMENT_GATEWAY` means the payment session expired before submission. The
+fix is to refresh the checkout, disable ad/script blockers for the site, and
+retry. A failed payment attempt never places an order — the customer can safely
+try again.
 
-## Rate limiting
-`ERR_RATE_LIMIT` indicates the account exceeded its requests-per-minute quota.
-This is recoverable: clients should back off and retry. Sustained limits mean
-the account needs a quota increase.
+## Cart not updating / quantity wrong
+`ERR_CART_SYNC` indicates a stale browser session: the cart shows old items or
+quantities. The fix is to refresh the page or sign out and back in. This is
+display-only and does not affect any placed order.
 
 ## When to escalate
-If an error code is not in the runbook, or the recommended fix does not resolve
-the issue, the case should be escalated to engineering with the trace id.
+If an error code is not in this runbook, or the recommended fix does not resolve
+the issue, escalate to engineering with the trace id.
 
 ## Data safety
-Errors in the export, reporting, or integration layers are read-only and do not
-modify or delete customer data. Reassure customers their data is intact.
+Errors on the storefront, cart, or checkout pages are read-only — they do not
+place orders, charge cards, or change a customer's account. Reassure customers
+that nothing was ordered or charged unless they received an order confirmation.

@@ -134,7 +134,7 @@ Re-run severity & priority on every follow-up message (repeat contact can change
 | **Sentiment detector** | Customer tone / frustration (stretch) |
 | **Decomposer** | Splits mixed tickets into sub-problems |
 | **Orchestrator** | Routes work, runs agents in parallel, merges results |
-| **Specialist agents** | Technical, Billing, Policy — domain investigation |
+| **Specialist agents** | Technical, Billing, Policy, Orders, Products — domain investigation (e-commerce) |
 | **Severity assessor** | Severity and priority from findings + sentiment |
 | **Escalation agent** | Handoff plan when escalation is needed |
 | **Response synthesizer** | Builds unified customer-ready answer |

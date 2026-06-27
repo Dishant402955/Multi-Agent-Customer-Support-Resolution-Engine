@@ -5,13 +5,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BookOpen,
+  Bot,
   ChevronDown,
   ChevronRight,
   FileJson,
   History,
   Loader2,
+  Lock,
+  MessageCircleQuestion,
   Plus,
   Save,
+  Scale,
+  Sparkles,
+  ShieldAlert,
   ShieldCheck,
   Trash2,
   Users,
@@ -20,23 +26,31 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AdminHeader } from "@/components/admin-nav";
-import { adminAgents, listEscalations, platform } from "@/lib/api";
+import { adminAgents, listDashboardTickets, listEscalations, platform } from "@/lib/api";
 import { useRequireRole } from "@/lib/auth";
 import type {
   ConfigAuditRecord,
   EscalationRecord,
+  FaqEntry,
+  FaqMatchMode,
   HttpToolSpec,
   HumanAgentAdmin,
   KbDoc,
+  PolicyConfig,
+  SpecialistAgentRecord,
   StoredUseCase,
+  TicketDashboardRow,
   ToolInfo,
 } from "@/lib/types";
 
-type Tab = "kb" | "usecases" | "tools" | "agents" | "audit";
+type Tab = "kb" | "usecases" | "tools" | "specialists" | "policies" | "faq" | "agents" | "audit";
 
 const TABS: { id: Tab; label: string; icon: typeof BookOpen }[] = [
-  { id: "kb", label: "Knowledge base", icon: BookOpen },
+  { id: "specialists", label: "Specialists", icon: Bot },
   { id: "usecases", label: "Use cases", icon: FileJson },
+  { id: "policies", label: "Policies", icon: Scale },
+  { id: "faq", label: "FAQ", icon: MessageCircleQuestion },
+  { id: "kb", label: "Knowledge base", icon: BookOpen },
   { id: "tools", label: "HTTP tools", icon: Wrench },
   { id: "agents", label: "Human agents", icon: Users },
   { id: "audit", label: "Audit log", icon: History },
@@ -44,7 +58,7 @@ const TABS: { id: Tab; label: string; icon: typeof BookOpen }[] = [
 
 export default function PlatformPage() {
   const account = useRequireRole("admin");
-  const [tab, setTab] = useState<Tab>("kb");
+  const [tab, setTab] = useState<Tab>("specialists");
 
   if (!account) {
     return (
@@ -79,8 +93,11 @@ export default function PlatformPage() {
           })}
         </div>
 
-        {tab === "kb" && <KbTab />}
+        {tab === "specialists" && <SpecialistsTab />}
         {tab === "usecases" && <UseCasesTab />}
+        {tab === "policies" && <PoliciesTab />}
+        {tab === "faq" && <FaqTab />}
+        {tab === "kb" && <KbTab />}
         {tab === "tools" && <ToolsTab />}
         {tab === "agents" && <HumanAgentsTab />}
         {tab === "audit" && <AuditTab />}
@@ -102,12 +119,45 @@ function KbTab() {
   const [content, setContent] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  // AI suggestion state
+  const [resolved, setResolved] = useState<TicketDashboardRow[]>([]);
+  const [suggestTicket, setSuggestTicket] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [draftNote, setDraftNote] = useState("");
 
   const load = useCallback(async () => {
     const { docs } = await platform.listKb();
     setDocs(docs);
   }, []);
   useEffect(() => void load(), [load]);
+  useEffect(() => {
+    void listDashboardTickets().then((all) =>
+      setResolved(all.filter((t) => t.status === "resolved" || t.run_count > 0))
+    );
+  }, []);
+
+  async function generate() {
+    if (!suggestTicket) return;
+    setErr("");
+    setDraftNote("");
+    setGenerating(true);
+    try {
+      const { draft } = await platform.suggestKb({ ticket_id: suggestTicket });
+      // Load the draft into the editor as a NEW document for review + edit.
+      setSel(null);
+      setFile(draft.filename);
+      setContent(draft.content);
+      setDraftNote(
+        draft.source === "llm"
+          ? "AI draft loaded — review and edit, then Save to publish."
+          : "Draft assembled from the ticket (no LLM configured) — review and edit, then Save."
+      );
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   function edit(d: KbDoc) {
     setSel(d.file);
@@ -169,6 +219,36 @@ function KbTab() {
       </div>
 
       <div className="space-y-3">
+        {/* AI: suggest an article from a resolved ticket */}
+        <div className="rounded-lg border border-primary/25 bg-primary/5 p-3">
+          <div className="mb-2 flex items-center gap-2">
+            <Sparkles className="size-4 text-primary" />
+            <span className="text-sm font-medium">Suggest an article from a resolved ticket</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={suggestTicket}
+              onChange={(e) => setSuggestTicket(e.target.value)}
+              className="min-w-0 flex-1 rounded-md border border-border bg-card px-3 py-2 text-sm outline-none focus:border-foreground/40"
+            >
+              <option value="">Choose a ticket…</option>
+              {resolved.map((t) => (
+                <option key={t.ticket_id} value={t.ticket_id}>
+                  {t.display_id} — {t.title?.slice(0, 60) || "(no title)"}
+                </option>
+              ))}
+            </select>
+            <Button size="sm" className="gap-2" onClick={() => void generate()} disabled={generating || !suggestTicket}>
+              {generating ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+              Generate draft
+            </Button>
+          </div>
+          <p className="mt-1.5 text-xs text-muted-foreground">
+            Drafts the article from the ticket&apos;s resolution and findings. Nothing is saved until you review and click Save.
+          </p>
+          {draftNote && <p className="mt-1.5 text-xs font-medium text-primary">{draftNote}</p>}
+        </div>
+
         <input
           value={file}
           onChange={(e) => setFile(e.target.value)}
@@ -882,6 +962,659 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     <div>
       <label className="mb-1 block text-xs font-medium text-muted-foreground">{label}</label>
       {children}
+    </div>
+  );
+}
+
+// Small accessible toggle used across the policy editors.
+function Toggle({
+  checked,
+  onChange,
+  label,
+  hint,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  hint?: string;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2.5 transition-colors hover:bg-secondary/30">
+      <span className="min-w-0">
+        <span className="block text-sm font-medium">{label}</span>
+        {hint && <span className="mt-0.5 block text-xs text-muted-foreground">{hint}</span>}
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={
+          "relative mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors " +
+          (checked ? "bg-primary" : "bg-secondary")
+        }
+      >
+        <span
+          className={
+            "inline-block size-4 transform rounded-full bg-background shadow transition-transform " +
+            (checked ? "translate-x-4" : "translate-x-0.5")
+          }
+        />
+      </button>
+    </label>
+  );
+}
+
+// ---- Specialists tab -------------------------------------------------------
+interface SpecialistForm {
+  name: string;
+  label: string;
+  description: string;
+  team: string;
+  keywords: string;
+}
+const EMPTY_SPECIALIST: SpecialistForm = { name: "", label: "", description: "", team: "", keywords: "" };
+
+function SpecialistsTab() {
+  const [agents, setAgents] = useState<SpecialistAgentRecord[]>([]);
+  const [form, setForm] = useState<SpecialistForm>(EMPTY_SPECIALIST);
+  const [editing, setEditing] = useState(false);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    const { agents } = await platform.listSpecialists();
+    setAgents(agents);
+  }, []);
+  useEffect(() => void load(), [load]);
+
+  function fresh() {
+    setForm(EMPTY_SPECIALIST);
+    setEditing(false);
+    setErr("");
+  }
+  function edit(a: SpecialistAgentRecord) {
+    setForm({
+      name: a.name,
+      label: a.label,
+      description: a.description,
+      team: a.team,
+      keywords: a.keywords.join(", "),
+    });
+    setEditing(true);
+    setErr("");
+  }
+
+  async function save() {
+    setErr("");
+    setBusy(true);
+    try {
+      const keywords = form.keywords
+        .split(/[\n,]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      await platform.putSpecialist(form.name.trim(), {
+        name: form.name.trim(),
+        label: form.label.trim(),
+        description: form.description.trim(),
+        team: form.team.trim(),
+        keywords,
+      });
+      await load();
+      fresh();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function remove(name: string) {
+    await platform.deleteSpecialist(name);
+    if (form.name === name) fresh();
+    await load();
+  }
+
+  return (
+    <div className="grid gap-6 md:grid-cols-[1fr_380px]">
+      <div>
+        <div className="mb-3 flex items-start gap-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2.5">
+          <Bot className="mt-0.5 size-4 shrink-0 text-primary" />
+          <p className="text-xs text-muted-foreground">
+            Specialists are the AI agents the pipeline routes work to. The three built-ins are fixed;
+            add your own, then give it behavior under <span className="font-medium text-foreground">Use cases</span>{" "}
+            (prompts, tools, knowledge). Keywords help the router pick it offline; the description guides the LLM router.
+          </p>
+        </div>
+
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          Registered specialists ({agents.length})
+        </p>
+        <div className="space-y-2">
+          {agents.map((a) => (
+            <div key={a.name} className="rounded-lg border border-border px-3 py-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">{a.name}</Badge>
+                  <span className="text-sm font-medium">{a.label}</span>
+                  {a.builtin ? (
+                    <Badge variant="secondary" className="gap-1">
+                      <Lock className="size-3" /> built-in
+                    </Badge>
+                  ) : (
+                    <Badge variant="success">custom</Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {!a.builtin && (
+                    <>
+                      <button onClick={() => edit(a)} className="text-xs text-muted-foreground hover:text-foreground">
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => void remove(a.name)}
+                        className="text-muted-foreground hover:text-destructive"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">{a.description}</p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px]">team: {a.team}</span>
+                {a.keywords.slice(0, 8).map((k) => (
+                  <span key={k} className="rounded bg-secondary px-1.5 py-0.5 text-[10px]">{k}</span>
+                ))}
+                {a.keywords.length > 8 && (
+                  <span className="text-[10px] text-muted-foreground">+{a.keywords.length - 8} more</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {editing ? `Edit specialist "${form.name}"` : "New specialist"}
+        </p>
+        <Field label="Agent id (lowercase, e.g. shipping)">
+          <input
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value.toLowerCase() })}
+            placeholder="shipping"
+            disabled={editing}
+            className="input disabled:opacity-60"
+          />
+        </Field>
+        <Field label="Display label">
+          <input
+            value={form.label}
+            onChange={(e) => setForm({ ...form, label: e.target.value })}
+            placeholder="Shipping & Delivery"
+            className="input"
+          />
+        </Field>
+        <Field label="Description (guides the LLM router)">
+          <textarea
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            rows={3}
+            placeholder="shipment tracking, delivery delays, lost packages, address changes"
+            className="input"
+          />
+        </Field>
+        <Field label="Escalation team (handoff target)">
+          <input
+            value={form.team}
+            onChange={(e) => setForm({ ...form, team: e.target.value })}
+            placeholder="Logistics Lead"
+            className="input"
+          />
+        </Field>
+        <Field label="Routing keywords (comma or newline separated)">
+          <textarea
+            value={form.keywords}
+            onChange={(e) => setForm({ ...form, keywords: e.target.value })}
+            rows={3}
+            placeholder="shipping, delivery, tracking, package, courier"
+            className="input"
+          />
+        </Field>
+        <ErrorNote msg={err} />
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            className="gap-2"
+            onClick={() => void save()}
+            disabled={busy || !form.name || !form.label || !form.description || !form.team}
+          >
+            {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
+            {editing ? "Save specialist" : "Create specialist"}
+          </Button>
+          <Button size="sm" variant="outline" onClick={fresh}>
+            Clear
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          New agents start empty — add use cases to give them tools, prompts and knowledge.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ---- FAQ tab ---------------------------------------------------------------
+interface FaqForm {
+  id: string | null;
+  label: string;
+  enabled: boolean;
+  match: FaqMatchMode;
+  triggers: string;
+  answer: string;
+}
+const EMPTY_FAQ: FaqForm = {
+  id: null,
+  label: "",
+  enabled: true,
+  match: "contains",
+  triggers: "",
+  answer: "",
+};
+
+function FaqTab() {
+  const [faqs, setFaqs] = useState<FaqEntry[]>([]);
+  const [form, setForm] = useState<FaqForm>(EMPTY_FAQ);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    const { faqs } = await platform.listFaqs();
+    setFaqs(faqs);
+  }, []);
+  useEffect(() => void load(), [load]);
+
+  function fresh() {
+    setForm(EMPTY_FAQ);
+    setErr("");
+  }
+  function edit(f: FaqEntry) {
+    setForm({
+      id: f.id,
+      label: f.label,
+      enabled: f.enabled,
+      match: f.match,
+      triggers: f.triggers.join("\n"),
+      answer: f.answer,
+    });
+    setErr("");
+  }
+
+  async function save() {
+    setErr("");
+    setBusy(true);
+    try {
+      const triggers = form.triggers
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const body = {
+        label: form.label.trim(),
+        enabled: form.enabled,
+        match: form.match,
+        triggers,
+        answer: form.answer.trim(),
+      };
+      if (form.id) await platform.putFaq(form.id, body);
+      else await platform.createFaq(body);
+      await load();
+      fresh();
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function remove(id: string) {
+    await platform.deleteFaq(id);
+    if (form.id === id) fresh();
+    await load();
+  }
+  async function toggleEnabled(f: FaqEntry) {
+    await platform.putFaq(f.id, {
+      label: f.label,
+      enabled: !f.enabled,
+      match: f.match,
+      triggers: f.triggers,
+      answer: f.answer,
+    });
+    await load();
+  }
+
+  return (
+    <div className="grid gap-6 md:grid-cols-[1fr_380px]">
+      <div>
+        <div className="mb-3 flex items-start gap-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2.5">
+          <MessageCircleQuestion className="mt-0.5 size-4 shrink-0 text-primary" />
+          <p className="text-xs text-muted-foreground">
+            FAQs are canned answers checked <span className="font-medium text-foreground">first</span> — before
+            intent routing and any specialist agent (the same way greetings are handled). When a customer message
+            matches an entry&apos;s triggers, the engine replies with its answer and runs nothing else. Great for
+            hours, locations, generic policies, and other repeat questions.
+          </p>
+        </div>
+
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          FAQ entries ({faqs.length})
+        </p>
+        {faqs.length === 0 && (
+          <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">
+            No FAQs yet. Add one on the right — e.g. trigger “what are your hours” → answer “We&apos;re open 9–6,
+            Mon–Sat.”
+          </p>
+        )}
+        <div className="space-y-2">
+          {faqs.map((f) => (
+            <div key={f.id} className="rounded-lg border border-border px-3 py-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">{f.label}</span>
+                  <Badge variant="outline">{f.match}</Badge>
+                  {f.enabled ? (
+                    <Badge variant="success">enabled</Badge>
+                  ) : (
+                    <Badge variant="secondary">disabled</Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => void toggleEnabled(f)}
+                    className="text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    {f.enabled ? "Disable" : "Enable"}
+                  </button>
+                  <button onClick={() => edit(f)} className="text-xs text-muted-foreground hover:text-foreground">
+                    Edit
+                  </button>
+                  <button onClick={() => void remove(f.id)} className="text-muted-foreground hover:text-destructive">
+                    <Trash2 className="size-3.5" />
+                  </button>
+                </div>
+              </div>
+              <p className="mt-1.5 line-clamp-2 text-xs text-muted-foreground">{f.answer}</p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                {f.triggers.slice(0, 6).map((t, i) => (
+                  <span key={i} className="rounded bg-secondary px-1.5 py-0.5 text-[10px]">{t}</span>
+                ))}
+                {f.triggers.length > 6 && (
+                  <span className="text-[10px] text-muted-foreground">+{f.triggers.length - 6} more</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {form.id ? `Edit FAQ “${form.label || "entry"}”` : "New FAQ"}
+        </p>
+        <Field label="Label (internal name)">
+          <input
+            value={form.label}
+            onChange={(e) => setForm({ ...form, label: e.target.value })}
+            placeholder="Store hours"
+            className="input"
+          />
+        </Field>
+        <Field label="Match mode">
+          <select
+            value={form.match}
+            onChange={(e) => setForm({ ...form, match: e.target.value as FaqMatchMode })}
+            className="input"
+          >
+            <option value="contains">contains — message includes the phrase</option>
+            <option value="exact">exact — message equals the phrase</option>
+            <option value="regex">regex — advanced pattern</option>
+          </select>
+        </Field>
+        <Field label="Trigger phrases (one per line)">
+          <textarea
+            value={form.triggers}
+            onChange={(e) => setForm({ ...form, triggers: e.target.value })}
+            rows={4}
+            placeholder={"what are your hours\nwhen are you open\nopening hours"}
+            className="input"
+          />
+        </Field>
+        <Field label="Answer (sent to the customer verbatim)">
+          <textarea
+            value={form.answer}
+            onChange={(e) => setForm({ ...form, answer: e.target.value })}
+            rows={4}
+            placeholder="We're open 9am–6pm, Monday to Saturday."
+            className="input"
+          />
+        </Field>
+        <Toggle
+          checked={form.enabled}
+          onChange={(v) => setForm({ ...form, enabled: v })}
+          label="Enabled"
+          hint="Only enabled FAQs are matched against incoming messages."
+        />
+        <ErrorNote msg={err} />
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            className="gap-2"
+            onClick={() => void save()}
+            disabled={busy || !form.label.trim() || !form.triggers.trim() || !form.answer.trim()}
+          >
+            {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
+            {form.id ? "Save FAQ" : "Create FAQ"}
+          </Button>
+          <Button size="sm" variant="outline" onClick={fresh}>
+            Clear
+          </Button>
+        </div>
+        {form.match === "regex" && (
+          <p className="text-xs text-muted-foreground">
+            Regex is matched case-insensitively against the raw message. Invalid patterns simply never match.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---- Policies tab ----------------------------------------------------------
+function PoliciesTab() {
+  const [cfg, setCfg] = useState<PolicyConfig | null>(null);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    void platform.getPolicies().then(({ policies }) => setCfg(policies));
+  }, []);
+
+  async function save() {
+    if (!cfg) return;
+    setErr("");
+    setBusy(true);
+    setSaved(false);
+    try {
+      const { policies } = await platform.putPolicies(cfg);
+      setCfg(policies);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!cfg) {
+    return (
+      <div className="flex items-center gap-2 py-16 text-sm text-muted-foreground">
+        <Loader2 className="size-4 animate-spin" /> Loading policies…
+      </div>
+    );
+  }
+
+  const rules = cfg.escalation.rules;
+  const setRule = (k: keyof PolicyConfig["escalation"]["rules"], v: boolean) =>
+    setCfg({ ...cfg, escalation: { rules: { ...rules, [k]: v } } });
+
+  return (
+    <div className="space-y-6">
+      {/* Hard checks */}
+      <section className="rounded-xl border border-border bg-card/40 p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <ShieldAlert className="size-4 text-amber-500" />
+          <h3 className="text-sm font-semibold">Hard checks</h3>
+          <span className="text-xs text-muted-foreground">Explicit phrases that force an escalation</span>
+          <div className="ml-auto w-36">
+            <Toggle
+              checked={cfg.guard.enabled}
+              onChange={(v) => setCfg({ ...cfg, guard: { ...cfg.guard, enabled: v } })}
+              label={cfg.guard.enabled ? "Enabled" : "Disabled"}
+            />
+          </div>
+        </div>
+        <div className="space-y-2">
+          {cfg.guard.signals.map((s, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input
+                value={s.phrase}
+                onChange={(e) => {
+                  const signals = [...cfg.guard.signals];
+                  signals[i] = { ...signals[i], phrase: e.target.value };
+                  setCfg({ ...cfg, guard: { ...cfg.guard, signals } });
+                }}
+                placeholder="phrase (substring, case-insensitive)"
+                className="input flex-1"
+              />
+              <input
+                value={s.category}
+                onChange={(e) => {
+                  const signals = [...cfg.guard.signals];
+                  signals[i] = { ...signals[i], category: e.target.value };
+                  setCfg({ ...cfg, guard: { ...cfg.guard, signals } });
+                }}
+                placeholder="category"
+                className="input max-w-[180px]"
+              />
+              <button
+                onClick={() => {
+                  const signals = cfg.guard.signals.filter((_, j) => j !== i);
+                  setCfg({ ...cfg, guard: { ...cfg.guard, signals } });
+                }}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="size-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="mt-3 gap-1.5"
+          onClick={() =>
+            setCfg({
+              ...cfg,
+              guard: { ...cfg.guard, signals: [...cfg.guard.signals, { phrase: "", category: "human_request" }] },
+            })
+          }
+        >
+          <Plus className="size-3.5" /> Add phrase
+        </Button>
+      </section>
+
+      {/* Escalation rules */}
+      <section className="rounded-xl border border-border bg-card/40 p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <ShieldCheck className="size-4 text-primary" />
+          <h3 className="text-sm font-semibold">Escalation rules</h3>
+          <span className="text-xs text-muted-foreground">Which conditions are allowed to open a human escalation</span>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Toggle checked={rules.hard_guard} onChange={(v) => setRule("hard_guard", v)} label="Hard signal match" hint="A hard-check phrase was detected" />
+          <Toggle checked={rules.high_severity} onChange={(v) => setRule("high_severity", v)} label="High severity" hint="Impact assessed as high" />
+          <Toggle checked={rules.unresolved} onChange={(v) => setRule("unresolved", v)} label="Unresolved by agents" hint="Investigation could not resolve it" />
+          <Toggle checked={rules.conflicts} onChange={(v) => setRule("conflicts", v)} label="Conflicting findings" hint="Agents disagreed" />
+          <Toggle checked={rules.specialist_handoff} onChange={(v) => setRule("specialist_handoff", v)} label="Specialist handoff" hint="A specialist explicitly requested a human" />
+          <Toggle checked={rules.frustration_repeat} onChange={(v) => setRule("frustration_repeat", v)} label="Frustration + repeat" hint="Frustrated tone on a repeat/unresolved contact" />
+        </div>
+      </section>
+
+      {/* Intent router */}
+      <section className="rounded-xl border border-border bg-card/40 p-5">
+        <div className="mb-3 flex items-center gap-2">
+          <Scale className="size-4 text-emerald-500" />
+          <h3 className="text-sm font-semibold">Intent router</h3>
+          <span className="text-xs text-muted-foreground">Confidence thresholds for routing</span>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ThresholdField
+            label="Multi-issue threshold"
+            hint="A domain counts toward a multi-issue split at/above this confidence."
+            value={cfg.intents.multi_threshold}
+            onChange={(v) => setCfg({ ...cfg, intents: { ...cfg.intents, multi_threshold: v } })}
+          />
+          <ThresholdField
+            label="Fallback threshold"
+            hint="Below this top confidence, route to the safe policy review instead of guessing."
+            value={cfg.intents.fallback_threshold}
+            onChange={(v) => setCfg({ ...cfg, intents: { ...cfg.intents, fallback_threshold: v } })}
+          />
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Per-domain routing keywords live on each specialist (Specialists tab).
+        </p>
+      </section>
+
+      <ErrorNote msg={err} />
+      <div className="flex items-center gap-3">
+        <Button size="sm" className="gap-2" onClick={() => void save()} disabled={busy}>
+          {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />} Save policies
+        </Button>
+        {saved && <span className="text-xs text-emerald-500">Saved — live on the next ticket.</span>}
+      </div>
+    </div>
+  );
+}
+
+function ThresholdField({
+  label,
+  hint,
+  value,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-card px-3 py-3">
+      <div className="flex items-center justify-between">
+        <label className="text-sm font-medium">{label}</label>
+        <span className="font-mono text-sm tabular-nums text-primary">{value.toFixed(2)}</span>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={1}
+        step={0.05}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="mt-2 w-full accent-primary"
+      />
+      <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>
     </div>
   );
 }

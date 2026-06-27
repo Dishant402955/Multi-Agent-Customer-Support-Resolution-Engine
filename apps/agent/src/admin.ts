@@ -9,20 +9,31 @@
 import { Router } from "express";
 import { ENV } from "./env";
 import { deleteKbDoc, listKbDocs, readKbDoc, writeKbDoc } from "./shared/kb/store";
+import { generateKbArticle, type KbSource } from "./shared/kb/generate";
 import {
   deleteUseCase,
-  listAgentNames,
   listUseCases,
   upsertUseCase,
 } from "./shared/handlers/usecase-store";
 import { listSpecs, deleteSpec, reloadHttpTools, upsertSpec } from "./shared/tools/http-store";
 import { listTools } from "./shared/tools/registry";
 import { registerAllTools } from "./shared/tools/index";
+import { getPolicies, updatePolicies } from "./shared/policies/store";
+import {
+  deleteAgentRecord,
+  initCustomAgents,
+  listAgentRecords,
+  listDomains,
+  upsertAgentRecord,
+} from "./shared/policies/agents";
+import { deleteFaq, listFaqs, upsertFaq } from "./shared/policies/faq";
 
 export const adminRouter = Router();
 
 // Ensure built-ins + stored HTTP tools are present before serving config reads.
 registerAllTools();
+// Re-create any admin-defined specialist agents so they're editable + routable.
+initCustomAgents();
 
 adminRouter.use((req, res, next) => {
   if ((req.header("x-admin-token") || "") !== ENV.ADMIN_TOKEN) {
@@ -56,9 +67,22 @@ adminRouter.delete("/kb/:file", (req, res) => {
   }
 });
 
+// Generate a suggested KB article draft from a resolved interaction. Returns the
+// draft only — saving is a separate, explicit PUT /kb/:file by the admin.
+adminRouter.post("/kb/generate", async (req, res) => {
+  try {
+    const draft = await generateKbArticle((req.body ?? {}) as KbSource);
+    res.json({ draft });
+  } catch (e) {
+    fail(res, e);
+  }
+});
+
 // ---- Use cases -------------------------------------------------------------
+// Agent list comes from the specialist registry (built-ins + admin-defined) so
+// newly added agents appear here immediately, and removed ones disappear.
 adminRouter.get("/usecases", (_req, res) =>
-  res.json({ agents: listAgentNames(), usecases: listUseCases() })
+  res.json({ agents: listDomains(), usecases: listUseCases() })
 );
 
 adminRouter.put("/usecases/:agent", (req, res) => {
@@ -107,4 +131,64 @@ adminRouter.delete("/tools/:name", (req, res) => {
 adminRouter.post("/reload", (_req, res) => {
   reloadHttpTools();
   res.json({ ok: true });
+});
+
+// ---- Policies (hard checks, escalation rules, intent router) ----------------
+adminRouter.get("/policies", (_req, res) => res.json({ policies: getPolicies() }));
+
+adminRouter.put("/policies", (req, res) => {
+  try {
+    res.json({ policies: updatePolicies(req.body) });
+  } catch (e) {
+    fail(res, e);
+  }
+});
+
+// ---- Specialist agents -----------------------------------------------------
+adminRouter.get("/agents", (_req, res) => res.json({ agents: listAgentRecords() }));
+
+adminRouter.put("/agents/:name", (req, res) => {
+  try {
+    res.json({ agent: upsertAgentRecord({ ...req.body, name: req.params.name }) });
+  } catch (e) {
+    fail(res, e);
+  }
+});
+
+adminRouter.delete("/agents/:name", (req, res) => {
+  try {
+    deleteAgentRecord(req.params.name);
+    res.json({ ok: true });
+  } catch (e) {
+    fail(res, e);
+  }
+});
+
+// ---- FAQ / canned responses ------------------------------------------------
+adminRouter.get("/faq", (_req, res) => res.json({ faqs: listFaqs() }));
+
+adminRouter.put("/faq/:id", (req, res) => {
+  try {
+    res.json({ faq: upsertFaq({ ...req.body, id: req.params.id }) });
+  } catch (e) {
+    fail(res, e);
+  }
+});
+
+// Create (no id yet) — the store mints one.
+adminRouter.post("/faq", (req, res) => {
+  try {
+    res.json({ faq: upsertFaq(req.body) });
+  } catch (e) {
+    fail(res, e);
+  }
+});
+
+adminRouter.delete("/faq/:id", (req, res) => {
+  try {
+    deleteFaq(req.params.id);
+    res.json({ ok: true });
+  } catch (e) {
+    fail(res, e);
+  }
 });

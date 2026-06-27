@@ -255,7 +255,7 @@ Used later at escalation gate — does not skip investigation.
 }
 ```
 
-`primary_intent`: `technical` | `billing` | `policy` | `mixed` | `unknown`  
+`primary_intent`: `technical` | `billing` | `policy` | `orders` | `products` | `mixed` | `unknown`  
 `fallback: true` → safe route when confidence is low.
 
 ---

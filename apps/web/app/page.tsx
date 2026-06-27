@@ -15,6 +15,8 @@ import {
   PanelLeftOpen,
   Route,
   Search,
+  ThumbsDown,
+  ThumbsUp,
   Trash2,
   X,
 } from "lucide-react";
@@ -23,10 +25,13 @@ import { NotificationBell } from "@/components/notification-bell";
 import {
   deleteTicket,
   getTicket,
+  getTicketFeedback,
   listTickets,
   postCustomerMessage,
+  submitFeedback,
   submitTicket,
   submitTicketStream,
+  type FeedbackRating,
 } from "@/lib/api";
 import { useAuth, useRequireRole } from "@/lib/auth";
 import type {
@@ -100,6 +105,8 @@ function Home() {
   const [escStatus, setEscStatus] = useState<"open" | "resolved" | null>(null);
   const [escAssignee, setEscAssignee] = useState<string | null>(null);
   const [liveSending, setLiveSending] = useState(false);
+  // Customer feedback (thumbs) keyed by assistant message id.
+  const [feedback, setFeedback] = useState<Record<number, FeedbackRating>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const resizing = useRef(false);
   const liveMode = !!activeId && escStatus === "open";
@@ -203,6 +210,18 @@ function Home() {
     setActiveSummary(data?.summary ?? data?.run?.resolution?.summary ?? null);
     setEscStatus(data?.escalation_status ?? null);
     setEscAssignee(data?.escalation_assignee ?? null);
+    setFeedback(await getTicketFeedback(id));
+  }
+
+  // Rate an assistant reply (optimistic). Re-clicking the same thumb keeps it.
+  async function onFeedback(messageId: number, rating: FeedbackRating) {
+    if (!activeId) return;
+    setFeedback((prev) => ({ ...prev, [messageId]: rating }));
+    const res = await submitFeedback(activeId, messageId, rating);
+    if (!res.ok) {
+      // Revert on failure by reloading the server truth.
+      setFeedback(await getTicketFeedback(activeId));
+    }
   }
 
   function newChat() {
@@ -219,6 +238,7 @@ function Home() {
     setActiveSummary(null);
     setLiveAudit([]);
     setAnimateTurnIdx(-1);
+    setFeedback({});
     setEscStatus(null);
     setEscAssignee(null);
   }
@@ -525,6 +545,8 @@ function Home() {
                     liveSteps={loading ? traceDone : null}
                     liveAudit={loading ? liveAudit : null}
                     animateTurnIdx={animateTurnIdx}
+                    feedback={feedback}
+                    onFeedback={onFeedback}
                   />
                 </div>
               )}
@@ -944,12 +966,16 @@ function ChatThread({
   liveSteps,
   liveAudit,
   animateTurnIdx,
+  feedback,
+  onFeedback,
 }: {
   messages: Message[];
   traceHistory: TurnThought[];
   liveSteps: PipelineStepId[] | null;
   liveAudit: AuditEvent[] | null;
   animateTurnIdx: number;
+  feedback: Record<number, FeedbackRating>;
+  onFeedback: (messageId: number, rating: FeedbackRating) => void;
 }) {
   // Build a render list. Customer→system pairs become AI turns (with a thought
   // block); standalone customer messages and human-agent messages render on
@@ -1010,7 +1036,17 @@ function ChatThread({
             {thought && (
               <ThinkingBlock thought={thought} isLive={!ai} liveAudit={!ai ? liveAudit : null} />
             )}
-            {ai && <AgentBubble text={ai.text} animate={turnIdx === animateTurnIdx} />}
+            {ai && (
+              <div className="space-y-1.5">
+                <AgentBubble text={ai.text} animate={turnIdx === animateTurnIdx} />
+                {typeof ai.id === "number" && (
+                  <FeedbackBar
+                    rating={feedback[ai.id]}
+                    onRate={(r) => onFeedback(ai.id as number, r)}
+                  />
+                )}
+              </div>
+            )}
           </div>
         );
       })}
@@ -1110,6 +1146,51 @@ function AgentBubble({ text, animate }: { text: string; animate: boolean }) {
       <div className="max-w-[76%] whitespace-pre-wrap rounded-2xl rounded-tl-md border border-border/60 bg-card px-4 py-3 text-sm leading-relaxed text-card-foreground shadow-sm">
         <StreamingText text={text} animate={animate} />
       </div>
+    </div>
+  );
+}
+
+// ── Feedback bar (thumbs up/down under an AI reply) ───────────────────────────
+function FeedbackBar({
+  rating,
+  onRate,
+}: {
+  rating?: FeedbackRating;
+  onRate: (rating: FeedbackRating) => void;
+}) {
+  return (
+    <div className="ml-10 flex items-center gap-1">
+      <button
+        type="button"
+        onClick={() => onRate("up")}
+        aria-label="Helpful"
+        title="Helpful"
+        className={
+          "rounded-md p-1 transition-colors " +
+          (rating === "up"
+            ? "bg-emerald-500/15 text-emerald-500"
+            : "text-muted-foreground/50 hover:bg-secondary hover:text-foreground")
+        }
+      >
+        <ThumbsUp className="size-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={() => onRate("down")}
+        aria-label="Not helpful"
+        title="Not helpful"
+        className={
+          "rounded-md p-1 transition-colors " +
+          (rating === "down"
+            ? "bg-destructive/15 text-destructive"
+            : "text-muted-foreground/50 hover:bg-secondary hover:text-foreground")
+        }
+      >
+        <ThumbsDown className="size-3.5" />
+      </button>
+      {rating && (
+        <span className="ml-1 text-[10px] text-muted-foreground/70">Thanks for the feedback</span>
+      )}
     </div>
   );
 }

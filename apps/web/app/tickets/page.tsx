@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetBody, SheetHeader } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdminHeader } from "@/components/admin-nav";
+import { SentimentBadge } from "@/components/sentiment-badge";
 import { getDashboardTicket, listDashboardTickets } from "@/lib/api";
 import { useRequireRole } from "@/lib/auth";
 import type {
@@ -246,6 +247,7 @@ export default function TicketsDashboardPage() {
                 <th className="px-4 py-2.5 font-medium">Customer</th>
                 <th className="px-4 py-2.5 font-medium">Status</th>
                 <th className="hidden px-4 py-2.5 font-medium lg:table-cell">Intent</th>
+                <th className="hidden px-4 py-2.5 font-medium md:table-cell">Mood</th>
                 <th className="hidden px-4 py-2.5 font-medium md:table-cell">Activity</th>
                 <th className="px-4 py-2.5 text-right font-medium">Updated</th>
               </tr>
@@ -261,13 +263,14 @@ export default function TicketsDashboardPage() {
                     <td className="px-4 py-3"><Skeleton className="h-3.5 w-24" /></td>
                     <td className="px-4 py-3"><Skeleton className="h-5 w-16 rounded-full" /></td>
                     <td className="hidden px-4 py-3 lg:table-cell"><Skeleton className="h-5 w-20 rounded-full" /></td>
+                    <td className="hidden px-4 py-3 md:table-cell"><Skeleton className="h-5 w-20 rounded-full" /></td>
                     <td className="hidden px-4 py-3 md:table-cell"><Skeleton className="h-3.5 w-20" /></td>
                     <td className="px-4 py-3"><Skeleton className="ml-auto h-3.5 w-14" /></td>
                   </tr>
                 ))
               ) : paged.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-16 text-center">
+                  <td colSpan={7} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
                       <Inbox className="size-6 opacity-40" />
                       No tickets match your filters.
@@ -302,6 +305,14 @@ export default function TicketsDashboardPage() {
                         {t.primary_intent && <Badge variant="outline">{t.primary_intent}</Badge>}
                         {t.severity && <Badge variant="outline">{t.severity}</Badge>}
                       </div>
+                    </td>
+                    <td className="hidden px-4 py-3 md:table-cell">
+                      <SentimentBadge
+                        label={t.sentiment}
+                        score={t.sentiment_score}
+                        frustration={t.frustration}
+                        size="xs"
+                      />
                     </td>
                     <td className="hidden px-4 py-3 text-xs text-muted-foreground md:table-cell">
                       {t.message_count} msg · {t.run_count} run{t.run_count === 1 ? "" : "s"}
@@ -411,6 +422,12 @@ function TicketDetail({ detail }: { detail: TicketDashboardDetail }) {
           {ticket.primary_intent && <Badge variant="outline">intent: {ticket.primary_intent}</Badge>}
           {ticket.severity && <Badge variant="outline">severity: {ticket.severity}</Badge>}
           {ticket.priority && <Badge variant="outline">{ticket.priority}</Badge>}
+          <SentimentBadge
+            label={ticket.sentiment}
+            score={ticket.sentiment_score}
+            frustration={ticket.frustration}
+            size="xs"
+          />
           <div className="ml-auto flex gap-2">
             {escalation && (
               <Link href="/escalations">

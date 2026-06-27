@@ -15,7 +15,7 @@ Simple description of what the user sees, does, and gets from the product.
 | **See classification + confidence** | Intent label and how sure the system is | Classification **3** |
 | **See fallback when unsure** | Low confidence → safe route (e.g. policy review), not a wild guess | Classification **3** |
 | **Watch parallel investigation** | Mixed tickets split; agents run in parallel; results merged | Decomposition **3** |
-| **See named specialists** | Technical, Billing, Policy, Escalation — each visibly different | Agents **2** |
+| **See named specialists** | Technical, Billing, Policy, Orders, Products, Escalation — each visibly different | Agents **2** |
 | **Read structured resolution** | Summary, actions, **reasoning**, **evidence** | Output **3** |
 | **See customer sentiment** | Frustration / tone detected; may affect urgency | Stretch **2** |
 | **Check structured audit trail** | Timeline of every step and which agent did what | Logs **2** |
@@ -36,7 +36,7 @@ Optional: same ticket ID/conversation  for a follow-up.
 ### Step 2 — Classification (must feel smart)
 
 **User sees:**
-- Intent: **technical** / **billing** / **policy** / **mixed** / **unknown**
+- Intent: **technical** / **billing** / **policy** / **orders** / **products** / **mixed** / **unknown**
 - **Confidence score** per intent (e.g. Billing 0.92)
 - If **mixed** → message that ticket will be split
 - If **low confidence** → **fallback** visible (e.g. “Routed to Policy for review” or “Needs manual review”) — never silent wrong routing

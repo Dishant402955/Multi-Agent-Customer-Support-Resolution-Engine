@@ -10,6 +10,7 @@ import {
   Inbox,
   Loader2,
   Search,
+  StickyNote,
   Workflow,
   X,
 } from "lucide-react";
@@ -18,15 +19,19 @@ import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetBody, SheetHeader } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdminHeader } from "@/components/admin-nav";
+import { SentimentBadge } from "@/components/sentiment-badge";
 import {
+  getCaseNotes,
   getDashboardTicket,
   handoffEscalation,
   listEscalations,
   postAgentReply,
+  postCaseNote,
   resolveEscalation,
+  sendHeartbeat,
 } from "@/lib/api";
 import { useRequireRole } from "@/lib/auth";
-import type { EscalationRecord, Message, TicketDashboardDetail } from "@/lib/types";
+import type { CaseNote, EscalationRecord, Message, TicketDashboardDetail } from "@/lib/types";
 
 type Filter = "open" | "resolved" | "all";
 type SortKey = "recent" | "oldest" | "urgency";
@@ -71,6 +76,14 @@ export default function EscalationsPage() {
     const t = setInterval(() => void load(true), 10000);
     return () => clearInterval(t);
   }, [account, load]);
+
+  // Heartbeat so this agent shows as online on the Team dashboard while working.
+  useEffect(() => {
+    if (!account) return;
+    void sendHeartbeat();
+    const t = setInterval(() => void sendHeartbeat(), 15000);
+    return () => clearInterval(t);
+  }, [account]);
 
   useEffect(() => {
     setPage(0);
@@ -367,9 +380,37 @@ function CaseDetail({
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [replyError, setReplyError] = useState("");
+  const [notes, setNotes] = useState<CaseNote[]>([]);
+  const [noteText, setNoteText] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
   const convoRef = useRef<HTMLDivElement>(null);
   const sendingRef = useRef(false);
   const atManager = (e.assignee_level ?? "agent") === "manager";
+
+  // Load internal team notes for this case, then poll so teammates' notes appear.
+  useEffect(() => {
+    let alive = true;
+    void getCaseNotes(e.id).then((n) => alive && setNotes(n));
+    const id = setInterval(() => {
+      void getCaseNotes(e.id).then((n) => alive && setNotes(n));
+    }, 8000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [e.id]);
+
+  async function addNote() {
+    const body = noteText.trim();
+    if (!body || savingNote) return;
+    setSavingNote(true);
+    const res = await postCaseNote(e.id, body);
+    if (res.note) {
+      setNotes((prev) => [...prev, res.note!]);
+      setNoteText("");
+    }
+    setSavingNote(false);
+  }
 
   // Load once on open, then poll so the agent sees customer replies live.
   useEffect(() => {
@@ -428,8 +469,9 @@ function CaseDetail({
     sendingRef.current = false;
   }
 
-  const suggested =
-    detail && detail.runs.length > 0 ? detail.runs[detail.runs.length - 1].state.resolution?.summary : null;
+  const lastRun = detail && detail.runs.length > 0 ? detail.runs[detail.runs.length - 1].state : null;
+  const suggested = lastRun?.resolution?.summary ?? null;
+  const mood = lastRun?.sentiment ?? null;
   const canReply = e.status === "open";
 
   return (
@@ -486,6 +528,26 @@ function CaseDetail({
       </SheetHeader>
 
       <SheetBody>
+        {mood && (
+          <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-border bg-card/40 p-3.5">
+            <div>
+              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Customer mood
+              </p>
+              {mood.drivers?.length ? (
+                <p className="text-xs text-muted-foreground">{mood.drivers.join(" · ")}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">Tone detected by the engine</p>
+              )}
+            </div>
+            <SentimentBadge
+              label={mood.label}
+              score={mood.score}
+              frustration={mood.frustration}
+              trend={mood.trend}
+            />
+          </div>
+        )}
         {e.handoff_note && (
           <div className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/10 p-3.5">
             <p className="mb-1 text-[10px] font-semibold uppercase tracking-wider text-amber-400">
@@ -551,6 +613,49 @@ function CaseDetail({
             </p>
           </div>
         )}
+
+        {/* Internal team notes — agent-to-agent collaboration, not customer-visible */}
+        <div className="mt-5 border-t border-border pt-4">
+          <p className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+            <StickyNote className="size-3.5" /> Team notes ({notes.length})
+          </p>
+          {notes.length > 0 && (
+            <div className="mb-2 space-y-2">
+              {notes.map((n) => (
+                <div key={n.id} className="rounded-lg border border-border bg-card/60 px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium">{n.author_name}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {new Date(n.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-sm leading-relaxed text-muted-foreground">{n.body}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex items-end gap-2 rounded-2xl border border-border bg-card p-2 transition-colors focus-within:border-foreground/30">
+            <textarea
+              value={noteText}
+              onChange={(ev) => setNoteText(ev.target.value)}
+              onKeyDown={(ev) => {
+                if (ev.key === "Enter" && !ev.shiftKey) {
+                  ev.preventDefault();
+                  void addNote();
+                }
+              }}
+              rows={1}
+              placeholder="Add an internal note for the team…"
+              className="max-h-28 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
+            />
+            <Button size="icon" variant="outline" className="size-8 shrink-0 rounded-xl" onClick={() => void addNote()} disabled={savingNote || !noteText.trim()}>
+              {savingNote ? <Loader2 className="size-3.5 animate-spin" /> : <StickyNote className="size-3.5" />}
+            </Button>
+          </div>
+          <p className="mt-1 px-0.5 text-[10px] text-muted-foreground/50">
+            Visible to the team on the Team dashboard. The customer never sees these.
+          </p>
+        </div>
 
         {/* Full pipeline trace — opens the dedicated trace viewer in a new tab */}
         {detail && detail.runs.length > 0 && (

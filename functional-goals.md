@@ -4,6 +4,10 @@
 
 What the system must **do**. High level, in simple words.
 
+> **Domain:** an online store (e-commerce). Five specialist agents cover the
+> full post- and pre-purchase journey: **Technical, Billing, Policy, Orders,
+> Products** (plus an Escalation agent for human handoff).
+
 ---
 
 ## FG1 — Accept support requests
@@ -16,7 +20,7 @@ What the system must **do**. High level, in simple words.
 
 ## FG2 — Classify intent and route correctly
 
-- Detect intent: technical, billing, policy, mixed, or unknown
+- Detect intent: technical, billing, policy, orders, products, mixed, or unknown
 - Show confidence per intent
 - Use fallback when unsure — don’t silently guess wrong
 
@@ -32,9 +36,11 @@ What the system must **do**. High level, in simple words.
 
 ## FG4 — Investigate with specialized agents
 
-- **Technical** — crashes, errors, troubleshooting
-- **Billing** — charges, refunds, invoices
-- **Policy** — rules, eligibility, terms
+- **Technical** — login/account access, checkout & payment-page errors, site issues
+- **Billing** — charges, failed/double payments, invoices, refunds
+- **Policy** — return policy, cancellation rules, warranty, data/privacy
+- **Orders** — order status, tracking, delivery, cancel/change an order
+- **Products** — availability, stock, price, variants, specs (pre-purchase)
 - **Escalation** — handoff when high-risk or unresolved
 
 Each agent returns findings, actions, reasoning, and evidence.

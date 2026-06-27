@@ -1,16 +1,23 @@
 import type {
   Account,
+  CaseNote,
+  CollabOverview,
   ConfigAuditRecord,
   EscalationRecord,
+  FaqEntry,
+  FeedbackRow,
   HttpToolSpec,
   HumanAgent,
   HumanAgentAdmin,
   KbDoc,
+  KbDraft,
   Message,
   NotificationRecord,
   PipelineProgressEvent,
+  PolicyConfig,
   RunSessionDetail,
   RunSessionRow,
+  SpecialistAgentRecord,
   StoredUseCase,
   TicketDashboardDetail,
   TicketDashboardRow,
@@ -405,6 +412,8 @@ export const platform = {
   listKb: () => pf("GET", "/kb") as Promise<{ docs: KbDoc[] }>,
   putKb: (file: string, content: string) => pf("PUT", `/kb/${encodeURIComponent(file)}`, { content }),
   deleteKb: (file: string) => pf("DELETE", `/kb/${encodeURIComponent(file)}`),
+  suggestKb: (body: { ticket_id?: string; source?: Record<string, unknown> }) =>
+    pf("POST", "/kb/suggest", body) as Promise<{ draft: KbDraft }>,
 
   listUseCases: () =>
     pf("GET", "/usecases") as Promise<{ agents: string[]; usecases: StoredUseCase[] }>,
@@ -418,6 +427,23 @@ export const platform = {
   deleteTool: (name: string) => pf("DELETE", `/tools/${encodeURIComponent(name)}`),
 
   listAudit: () => pf("GET", "/audit") as Promise<{ audit: ConfigAuditRecord[] }>,
+
+  getPolicies: () => pf("GET", "/policies") as Promise<{ policies: PolicyConfig }>,
+  putPolicies: (policies: PolicyConfig) =>
+    pf("PUT", "/policies", policies) as Promise<{ policies: PolicyConfig }>,
+
+  listSpecialists: () =>
+    pf("GET", "/specialists") as Promise<{ agents: SpecialistAgentRecord[] }>,
+  putSpecialist: (name: string, body: Omit<SpecialistAgentRecord, "builtin">) =>
+    pf("PUT", `/specialists/${encodeURIComponent(name)}`, body),
+  deleteSpecialist: (name: string) => pf("DELETE", `/specialists/${encodeURIComponent(name)}`),
+
+  listFaqs: () => pf("GET", "/faq") as Promise<{ faqs: FaqEntry[] }>,
+  createFaq: (body: Omit<FaqEntry, "id">) =>
+    pf("POST", "/faq", body) as Promise<{ faq: FaqEntry }>,
+  putFaq: (id: string, body: Omit<FaqEntry, "id">) =>
+    pf("PUT", `/faq/${encodeURIComponent(id)}`, body) as Promise<{ faq: FaqEntry }>,
+  deleteFaq: (id: string) => pf("DELETE", `/faq/${encodeURIComponent(id)}`),
 };
 
 // ---- Admin: human-agent management -----------------------------------------
@@ -444,3 +470,115 @@ export const adminAgents = {
     level?: "agent" | "manager";
   }) => adm("POST", "/agents", body),
 };
+
+// ---- Real-time agent collaboration -----------------------------------------
+
+export async function getCollabOverview(): Promise<CollabOverview | null> {
+  try {
+    const res = await fetch(`${API}/api/collab/overview`, { headers: authHeaders() });
+    if (!res.ok) return null;
+    return (await res.json()) as CollabOverview;
+  } catch {
+    return null;
+  }
+}
+
+export async function sendHeartbeat(): Promise<void> {
+  try {
+    await fetch(`${API}/api/collab/heartbeat`, { method: "POST", headers: authHeaders() });
+  } catch {
+    // best-effort
+  }
+}
+
+/** SSE URL for the live collaboration feed (token in query — EventSource has no headers). */
+export function collabStreamUrl(): string {
+  const token = getToken() ?? "";
+  return `${API}/api/collab/stream?token=${encodeURIComponent(token)}`;
+}
+
+export async function getCaseNotes(escalationId: string): Promise<CaseNote[]> {
+  try {
+    const res = await fetch(`${API}/api/escalations/${encodeURIComponent(escalationId)}/notes`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { notes: CaseNote[] };
+    return data.notes ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export async function postCaseNote(
+  escalationId: string,
+  body: string
+): Promise<{ note?: CaseNote; error?: string }> {
+  try {
+    const res = await fetch(`${API}/api/escalations/${encodeURIComponent(escalationId)}/note`, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ body }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { error: data?.error || "Could not save note" };
+    return { note: data.note as CaseNote };
+  } catch {
+    return { error: "Network error" };
+  }
+}
+
+// ---- Feedback (thumbs up/down on AI replies) -------------------------------
+
+export type FeedbackRating = "up" | "down";
+
+/** Customer rates an AI reply. Idempotent per message (re-rating replaces). */
+export async function submitFeedback(
+  ticketId: string,
+  messageId: number,
+  rating: FeedbackRating,
+  comment?: string
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API}/api/feedback`, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ ticket_id: ticketId, message_id: messageId, rating, comment }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { ok: false, error: data?.error || "Could not save feedback" };
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Network error" };
+  }
+}
+
+/** Current ratings for one ticket's messages, so the chat can show the state. */
+export async function getTicketFeedback(
+  ticketId: string
+): Promise<Record<number, FeedbackRating>> {
+  try {
+    const res = await fetch(`${API}/api/feedback/${encodeURIComponent(ticketId)}`, {
+      headers: authHeaders(),
+    });
+    if (!res.ok) return {};
+    const data = (await res.json()) as { feedback: { message_id: number; rating: FeedbackRating }[] };
+    const map: Record<number, FeedbackRating> = {};
+    for (const f of data.feedback ?? []) map[f.message_id] = f.rating;
+    return map;
+  } catch {
+    return {};
+  }
+}
+
+/** Admin: every piece of feedback, newest first. */
+export async function listFeedback(): Promise<FeedbackRow[]> {
+  try {
+    const res = await fetch(`${API}/api/admin/feedback`, { headers: authHeaders() });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { feedback: FeedbackRow[] };
+    return data.feedback ?? [];
+  } catch {
+    return [];
+  }
+}

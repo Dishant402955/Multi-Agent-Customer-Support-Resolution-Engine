@@ -12,6 +12,7 @@
 import type { AgentReport, Escalation, Message, PriorRunContext, Resolution, TicketStatus } from "../contracts/types";
 import { callLLM, availableProviders } from "../shared/gateway/index";
 import { log } from "../shared/core/logger";
+import { GUARDRAILS_BLOCK } from "../shared/core/guardrails";
 
 interface SynthOpts {
   traceId?: string;
@@ -128,6 +129,8 @@ export async function runSynthesizer(
 
   const traceId = opts.traceId ?? "synthesize";
   const system = [
+    GUARDRAILS_BLOCK,
+    "",
     "You are the response synthesizer for a customer-support resolution engine.",
     "You are continuing an EXISTING support ticket with this customer. The full",
     "conversation so far and the ticket's current status are provided below — you",

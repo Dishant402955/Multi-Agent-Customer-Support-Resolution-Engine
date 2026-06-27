@@ -23,6 +23,7 @@ export const agentAdmin = {
   putKb: (file: string, content: string) =>
     call("PUT", `/kb/${encodeURIComponent(file)}`, { content }),
   deleteKb: (file: string) => call("DELETE", `/kb/${encodeURIComponent(file)}`),
+  generateKb: (source: unknown) => call("POST", "/kb/generate", source),
   // Use cases
   listUseCases: () => call("GET", "/usecases"),
   putUseCase: (agent: string, def: unknown) =>
@@ -34,4 +35,17 @@ export const agentAdmin = {
   putTool: (name: string, spec: unknown) =>
     call("PUT", `/tools/${encodeURIComponent(name)}`, spec),
   deleteTool: (name: string) => call("DELETE", `/tools/${encodeURIComponent(name)}`),
+  // Policies (hard checks, escalation rules, intent router)
+  getPolicies: () => call("GET", "/policies"),
+  putPolicies: (body: unknown) => call("PUT", "/policies", body),
+  // Specialist agents
+  listSpecialists: () => call("GET", "/agents"),
+  putSpecialist: (name: string, body: unknown) =>
+    call("PUT", `/agents/${encodeURIComponent(name)}`, body),
+  deleteSpecialist: (name: string) => call("DELETE", `/agents/${encodeURIComponent(name)}`),
+  // FAQ / canned responses
+  listFaqs: () => call("GET", "/faq"),
+  createFaq: (body: unknown) => call("POST", "/faq", body),
+  putFaq: (id: string, body: unknown) => call("PUT", `/faq/${encodeURIComponent(id)}`, body),
+  deleteFaq: (id: string) => call("DELETE", `/faq/${encodeURIComponent(id)}`),
 };
