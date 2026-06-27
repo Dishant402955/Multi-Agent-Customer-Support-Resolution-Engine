@@ -1,6 +1,7 @@
 import express from "express";
 import { agentAdmin } from "../agentAdmin";
 import { recordConfigAudit, getLatestRun, getMessages, listConfigAudit } from "../db";
+import { getSlaConfig, setSlaConfig } from "../sla";
 import { requireRole, type AuthedRequest } from "./middleware";
 
 const router = express.Router();
@@ -138,6 +139,18 @@ router.delete("/faq/:id", requireRole("admin"), (req: AuthedRequest, res) =>
     return out;
   })
 );
+
+// SLA policy (per-department × priority deadlines, in hours)
+router.get("/sla", requireRole("admin"), (_req, res) => res.json(getSlaConfig()));
+router.put("/sla", requireRole("admin"), (req: AuthedRequest, res) => {
+  try {
+    const out = setSlaConfig(req.body ?? {});
+    audit(req, "sla.update", "sla.policy");
+    res.json(out);
+  } catch (e) {
+    res.status(400).json({ error: (e as Error).message });
+  }
+});
 
 // Audit feed
 router.get("/audit", requireRole("admin"), (_req, res) => {

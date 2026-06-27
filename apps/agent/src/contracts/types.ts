@@ -152,6 +152,15 @@ export interface PriorRunContext {
 
 export type StepKind = "llm" | "heuristic";
 
+// Reopen triage — on a ticket that already had a human escalation, decide whether
+// the new message continues that SAME problem (route back to the same owner who
+// has the context) or raises a NEW issue (open a fresh, load-balanced case).
+export interface ContinuityDecision {
+  is_continuation: boolean;
+  reason: string;
+  method: "llm" | "heuristic";
+}
+
 export interface AuditEvent {
   step: string;
   actor: string;
@@ -179,6 +188,8 @@ export interface PipelineState {
 
   guard?: Guard;
   classification?: Classification;
+  /** On a reopened ticket: is this the same problem or a new one? */
+  continuity?: ContinuityDecision;
   sentiment?: Sentiment;
   sub_problems?: SubProblem[];
   agent_reports?: AgentReport[];

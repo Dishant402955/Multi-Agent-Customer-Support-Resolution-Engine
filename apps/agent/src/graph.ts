@@ -25,6 +25,7 @@ const StateAnnotation = Annotation.Root({
   history: Annotation<PipelineState["history"]>,
   guard: Annotation<PipelineState["guard"]>,
   classification: Annotation<PipelineState["classification"]>,
+  continuity: Annotation<PipelineState["continuity"]>,
   sentiment: Annotation<PipelineState["sentiment"]>,
   sub_problems: Annotation<PipelineState["sub_problems"]>,
   agent_reports: Annotation<PipelineState["agent_reports"]>,

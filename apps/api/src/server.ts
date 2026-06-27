@@ -6,12 +6,14 @@ import {
   ensureTicket, addMessage, getMessages, saveRun, getLatestRun, getLatestRunContext,
   getTicketDisplayId, ticketExists, getTicketCustomer, listTickets, getCustomerHistory,
   countCustomerMessages, getOpenEscalationForTicket, getLatestEscalationForTicket,
-  createEscalation, countOpenByAssignee, deleteTicket, listRunsForTicket,
+  createEscalation, reopenEscalation, countOpenByAssignee, deleteTicket, listRunsForTicket,
   getTicketDashboardRow, type EscalationRecord,
 } from "./db";
 import { runAgentPipeline, runAgentPipelineStream, type RunRequest } from "./agentClient";
 import { seedAccounts, login, signup, deleteSession, type Account } from "./auth";
 import { seedHumanAgents, pickAssignee, type Department } from "./humans";
+import { computeDueAt } from "./sla";
+import { startSlaSweeper } from "./slaScheduler";
 import { notifyCustomerReply } from "./notify";
 import { recordTeamActivity } from "./db";
 import { emitCollab } from "./collab";
@@ -97,6 +99,14 @@ function assigneeFromRecord(rec: EscalationRecord): Assignee {
   return { id: rec.assignee_id, name: rec.assignee_name, title: rec.assignee_title, department: rec.department };
 }
 
+// Surface the reopen/continuity decision as a visible "thought" in the trace, so
+// the routing choice (same case vs. new issue) is explainable like every other
+// agentic step — Observe (prior case) → Think (compare domains) → Decide (route).
+function pushReopenThought(state: any, summary: string, detail: string): void {
+  if (!Array.isArray(state.audit_trail)) state.audit_trail = [];
+  state.audit_trail.push({ step: "reopen_triage", actor: "Continuity router", timestamp: new Date().toISOString(), summary, kind: "llm", detail });
+}
+
 function finalizeTicketRun(opts: { state: any; ticketId: string; customerId: string | null; parentTicketId?: string | null; isNewTicket?: boolean; history: { role: string; text: string }[]; message: string; isFollowUp: boolean; priorEsc: EscalationRecord | null; runId: string }) {
   const { state, ticketId, customerId, parentTicketId, isNewTicket, history, message, isFollowUp, priorEsc, runId } = opts;
   const category: string = state?.classification?.category ?? "support";
@@ -117,13 +127,56 @@ function finalizeTicketRun(opts: { state: any; ticketId: string; customerId: str
 
   if (state?.escalation?.escalate) {
     const existingOpen = getOpenEscalationForTicket(ticketId);
-    if (existingOpen) { assignee = assigneeFromRecord(existingOpen); escalationRecord = existingOpen; }
+    const newDept = departmentFor(state);
+    // A genuine continuation is the SAME problem coming back — which, by definition,
+    // is the same domain. So we require BOTH the agent's reopen-triage to say
+    // "continuation" AND the new message to land in the prior case's department.
+    // A different domain (e.g. a billing dispute after a resolved login issue) is
+    // always a new issue, no matter what the triage text says.
+    const sameDomain = !!priorEsc && priorEsc.department === newDept;
+    const treatAsContinuation = !!state?.continuity?.is_continuation && sameDomain;
+    if (existingOpen) {
+      // A human case is already open on this ticket — keep it with its owner.
+      assignee = assigneeFromRecord(existingOpen); escalationRecord = existingOpen;
+    }
+    else if (priorEsc && treatAsContinuation) {
+      // Reopened, same domain, and judged the SAME problem → genuine continuation.
+      // Reuse the original case and route back to the human who has the context.
+      reopenEscalation(priorEsc.id);
+      escalationRecord = { ...priorEsc, status: "open", reopened: 1 };
+      assignee = assigneeFromRecord(escalationRecord);
+      pushReopenThought(
+        state,
+        `Reopened — same ${priorEsc.department} problem → back to ${assignee.name}`,
+        `Observed: this ticket was already escalated to ${priorEsc.department} (handled by ${priorEsc.assignee_name}). Reopen-triage judged the new message a continuation of that same problem (${state.continuity?.reason ?? "same issue"}), and it still classifies as ${newDept}. Decision: reopen the original case and route it back to ${assignee.name} (${assignee.title}), who already has the history.`
+      );
+      const act = recordTeamActivity({ kind: "escalation_reopened", actor_name: "Engine", ticket_id: ticketId, escalation_id: escalationRecord.id, summary: `Reopened ${escalationRecord.department} case → ${escalationRecord.assignee_name}` });
+      emitCollab({ type: "escalation_created", activity: act });
+    }
+    else if (priorEsc) {
+      // Reopened, but it's a NEW issue — either a different domain than the prior
+      // case, or the same domain but a different problem. Open a fresh case and pick
+      // the LEAST-LOADED front-line agent in the right department, so a busy prior
+      // owner isn't piled on again. The prior case stays resolved.
+      const human = pickAssignee(newDept, countOpenByAssignee());
+      assignee = { id: human.id, name: human.name, title: human.title, department: newDept };
+      escalationRecord = createEscalation({ ticket_id: ticketId, customer_id: customerId, customer_name: displayCustomerName(customerId), subject: firstCustomerMessage.slice(0, 140), department: newDept, team: state.escalation.recommended_team ?? null, urgency: state.escalation.urgency ?? null, reason: state.escalation.reason ?? null, assignee_id: human.id, assignee_name: human.name, assignee_title: human.title, reopened: 1, sla_due_at: computeDueAt(newDept, state.escalation.urgency) });
+      const why = !sameDomain
+        ? `it now classifies as ${newDept} (different from the prior ${priorEsc.department} case), so it's a new issue`
+        : `reopen-triage judged it a new problem (${state.continuity?.reason ?? "different problem"}), not the prior case`;
+      pushReopenThought(
+        state,
+        `Reopened — new ${newDept} issue → ${human.name}`,
+        `Observed: this ticket was previously escalated to ${priorEsc.department} (handled by ${priorEsc.assignee_name}) and resolved. Thought: ${why}. Decision: open a fresh ${newDept} case and assign the most available front-line agent, ${human.name} (${human.title}), by current open-case load; the prior ${priorEsc.department} case stays resolved.`
+      );
+      const act = recordTeamActivity({ kind: "escalation_created", actor_name: "Engine", ticket_id: ticketId, escalation_id: escalationRecord.id, summary: `Reopened ticket, new ${newDept} issue → ${human.name}` });
+      emitCollab({ type: "escalation_created", activity: act });
+    }
     else {
-      const dept = departmentFor(state);
-      const human = pickAssignee(dept, countOpenByAssignee());
-      assignee = { id: human.id, name: human.name, title: human.title, department: dept };
-      escalationRecord = createEscalation({ ticket_id: ticketId, customer_id: customerId, customer_name: displayCustomerName(customerId), subject: firstCustomerMessage.slice(0, 140), department: dept, team: state.escalation.recommended_team ?? null, urgency: state.escalation.urgency ?? null, reason: state.escalation.reason ?? null, assignee_id: human.id, assignee_name: human.name, assignee_title: human.title });
-      const act = recordTeamActivity({ kind: "escalation_created", actor_name: "Engine", ticket_id: ticketId, escalation_id: escalationRecord.id, summary: `New ${state.escalation.urgency ?? ""} case → ${human.name} (${dept})`.replace(/\s+/g, " ").trim() });
+      const human = pickAssignee(newDept, countOpenByAssignee());
+      assignee = { id: human.id, name: human.name, title: human.title, department: newDept };
+      escalationRecord = createEscalation({ ticket_id: ticketId, customer_id: customerId, customer_name: displayCustomerName(customerId), subject: firstCustomerMessage.slice(0, 140), department: newDept, team: state.escalation.recommended_team ?? null, urgency: state.escalation.urgency ?? null, reason: state.escalation.reason ?? null, assignee_id: human.id, assignee_name: human.name, assignee_title: human.title, sla_due_at: computeDueAt(newDept, state.escalation.urgency) });
+      const act = recordTeamActivity({ kind: "escalation_created", actor_name: "Engine", ticket_id: ticketId, escalation_id: escalationRecord.id, summary: `New ${state.escalation.urgency ?? ""} case → ${human.name} (${newDept})`.replace(/\s+/g, " ").trim() });
       emitCollab({ type: "escalation_created", activity: act });
     }
     state.escalation.assigned_agent = assignee;
@@ -257,4 +310,5 @@ app.use("/api", adminRouter);
 app.listen(ENV.API_PORT, () => {
   console.log(`[api] listening on http://localhost:${ENV.API_PORT}`);
   console.log(`[api] agent at ${ENV.AGENT_URL}`);
+  startSlaSweeper();
 });

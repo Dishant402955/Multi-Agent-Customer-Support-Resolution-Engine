@@ -4,24 +4,22 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowUp,
   Check,
-  ChevronLeft,
-  ChevronRight,
   Headset,
   LayoutDashboard,
   Loader2,
   LogOut,
   MessageSquarePlus,
+  Mic,
   PanelLeftClose,
   PanelLeftOpen,
-  Route,
-  Search,
+  RefreshCw,
   ThumbsDown,
   ThumbsUp,
   Trash2,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/notification-bell";
+import { ThemeToggle } from "@/components/theme-toggle";
 import {
   deleteTicket,
   getTicket,
@@ -95,7 +93,7 @@ function Home() {
   const [animateTurnIdx, setAnimateTurnIdx] = useState<number>(-1);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(240);
-  const [view, setView] = useState<"chat" | "dashboard" | "tracing">("chat");
+  const [view, setView] = useState<"chat" | "dashboard">("chat");
   const [_escalationId, setEscalationId] = useState<string | null>(null);
   const [activeStatus, setActiveStatus] = useState<TicketLifecycleStatus | null>(null);
   const [_activeSummary, setActiveSummary] = useState<string | null>(null);
@@ -347,7 +345,7 @@ function Home() {
       setActiveSummary(data.summary ?? data.run?.resolution?.summary ?? null);
       // If the pipeline escalated, switch to live human-chat mode so the next
       // message reaches the assigned agent instead of re-running the AI.
-      if (data.status === "escalated") {
+      if (data.status === "escalated" || data.status === "reopened") {
         setEscStatus("open");
         setEscAssignee(data.run?.escalation?.assigned_agent?.name ?? null);
       } else {
@@ -448,16 +446,8 @@ function Home() {
             ))}
           </nav>
 
-          {/* Nav: Tracing, Dashboard */}
+          {/* Nav: Dashboard */}
           <div className="space-y-0.5 border-t border-border px-1.5 py-2">
-            <Button
-              variant={view === "tracing" ? "secondary" : "ghost"}
-              size="sm"
-              className="w-full justify-start gap-2 text-xs"
-              onClick={() => setView("tracing")}
-            >
-              <Route className="size-3.5" /> Ticket tracing
-            </Button>
             <Button
               variant={view === "dashboard" ? "secondary" : "ghost"}
               size="sm"
@@ -493,8 +483,6 @@ function Home() {
               <h1 className="truncate text-sm font-medium leading-none">
                 {view === "dashboard"
                   ? "Dashboard"
-                  : view === "tracing"
-                  ? "Ticket tracing"
                   : activeId
                   ? activeTitle ?? "Conversation"
                   : "New chat"}
@@ -506,14 +494,13 @@ function Home() {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            <ThemeToggle />
             <NotificationBell onOpenTicket={(id) => void openConversation(id)} />
           </div>
         </header>
 
         {view === "dashboard" ? (
           <UserDashboard conversations={conversations} onOpen={(id) => void openConversation(id)} onNewChat={newChat} />
-        ) : view === "tracing" ? (
-          <TicketTracing conversations={conversations} onOpen={(id) => void openConversation(id)} />
         ) : (
           <>
             {/* Live human-chat banner — shown while an escalation is open */}
@@ -591,6 +578,12 @@ function Home() {
                     }
                     className="max-h-40 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
                   />
+                  <MicButton
+                    disabled={loading || liveSending}
+                    onText={(t) =>
+                      setInput((cur) => (cur.trim() ? cur.replace(/\s*$/, "") + " " : "") + t)
+                    }
+                  />
                   <Button
                     size="icon"
                     className="size-8 shrink-0 rounded-xl"
@@ -618,6 +611,191 @@ function Home() {
   );
 }
 
+// ── Voice dictation button ────────────────────────────────────────────────────
+// Uses the browser's SpeechRecognition API to turn speech into editable text in
+// the composer. While listening it shows a live audio waveform (driven by the
+// real mic input) plus the interim transcript, so the user can see it's catching
+// their words. Renders nothing on browsers without support.
+const WAVE_BARS = 18;
+
+function MicButton({ onText, disabled }: { onText: (text: string) => void; disabled?: boolean }) {
+  const [listening, setListening] = useState(false);
+  const [supported, setSupported] = useState(true);
+  const [interim, setInterim] = useState("");
+  const recRef = useRef<SpeechRecognition | null>(null);
+  const onTextRef = useRef(onText);
+  onTextRef.current = onText;
+
+  // Audio-level metering for the waveform.
+  const barRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const rafRef = useRef<number | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  const stopMeter = useCallback(() => {
+    if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (audioCtxRef.current) {
+      void audioCtxRef.current.close().catch(() => {});
+      audioCtxRef.current = null;
+    }
+    barRefs.current.forEach((b) => {
+      if (b) b.style.transform = "scaleY(0.15)";
+    });
+  }, []);
+
+  const startMeter = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const Ctx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const ctx = new Ctx();
+      audioCtxRef.current = ctx;
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 64;
+      source.connect(analyser);
+      const data = new Uint8Array(analyser.frequencyBinCount);
+      const tick = () => {
+        analyser.getByteFrequencyData(data);
+        const bars = barRefs.current;
+        for (let i = 0; i < bars.length; i++) {
+          // Spread the low-frequency bins across the bars for a lively shape.
+          const v = data[Math.min(i + 1, data.length - 1)] / 255;
+          const scale = Math.max(0.15, Math.min(1, v * 1.6));
+          if (bars[i]) bars[i]!.style.transform = `scaleY(${scale})`;
+        }
+        rafRef.current = requestAnimationFrame(tick);
+      };
+      tick();
+    } catch {
+      /* mic permission denied — recognition can still work, just no waveform */
+    }
+  }, []);
+
+  useEffect(() => {
+    const SR =
+      (window as unknown as { SpeechRecognition?: typeof SpeechRecognition }).SpeechRecognition ||
+      (window as unknown as { webkitSpeechRecognition?: typeof SpeechRecognition }).webkitSpeechRecognition;
+    if (!SR) {
+      setSupported(false);
+      return;
+    }
+    const rec = new SR();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = (typeof navigator !== "undefined" && navigator.language) || "en-US";
+    rec.onresult = (e: SpeechRecognitionEvent) => {
+      let finalText = "";
+      let interimText = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const seg = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalText += seg;
+        else interimText += seg;
+      }
+      setInterim(interimText);
+      const trimmed = finalText.trim();
+      if (trimmed) {
+        onTextRef.current(trimmed);
+        setInterim("");
+      }
+    };
+    rec.onend = () => {
+      setListening(false);
+      setInterim("");
+      stopMeter();
+    };
+    rec.onerror = () => {
+      setListening(false);
+      setInterim("");
+      stopMeter();
+    };
+    recRef.current = rec;
+    return () => {
+      try {
+        rec.stop();
+      } catch {
+        /* ignore */
+      }
+      stopMeter();
+    };
+  }, [stopMeter]);
+
+  function toggle() {
+    const rec = recRef.current;
+    if (!rec) return;
+    if (listening) {
+      try {
+        rec.stop();
+      } catch {
+        /* ignore */
+      }
+      setListening(false);
+      stopMeter();
+    } else {
+      try {
+        rec.start();
+        setListening(true);
+        void startMeter();
+      } catch {
+        /* already started — ignore */
+      }
+    }
+  }
+
+  if (!supported) return null;
+
+  return (
+    <div className="relative shrink-0">
+      {listening && (
+        <div className="absolute bottom-full right-0 z-20 mb-2 w-72 animate-rise rounded-xl border border-zinc-500/30 bg-card p-3 shadow-lg">
+          <div className="flex items-center gap-2">
+            <span className="flex size-2 items-center justify-center">
+              <span className="absolute size-2 animate-ping rounded-full bg-zinc-500/60" />
+              <span className="size-2 rounded-full bg-zinc-500" />
+            </span>
+            <span className="text-xs font-medium text-zinc-500">Listening…</span>
+          </div>
+          <div className="mt-2 flex h-8 items-center justify-center gap-[3px]">
+            {Array.from({ length: WAVE_BARS }).map((_, i) => (
+              <span
+                key={i}
+                ref={(el) => {
+                  barRefs.current[i] = el;
+                }}
+                className="w-[3px] rounded-full bg-zinc-500/70 transition-transform duration-75"
+                style={{ height: "100%", transform: "scaleY(0.15)" }}
+              />
+            ))}
+          </div>
+          <p className="mt-2 min-h-[1.25rem] text-xs text-muted-foreground">
+            {interim ? <span className="text-foreground">{interim}</span> : "Speak now — your words appear in the box."}
+          </p>
+        </div>
+      )}
+      <button
+        type="button"
+        onClick={toggle}
+        disabled={disabled}
+        title={listening ? "Stop dictation" : "Dictate with your microphone"}
+        aria-pressed={listening}
+        className={
+          "flex size-8 shrink-0 items-center justify-center rounded-xl transition-colors disabled:opacity-40 " +
+          (listening
+            ? "bg-zinc-500/15 text-zinc-500"
+            : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground")
+        }
+      >
+        <Mic className={"size-4" + (listening ? " animate-pulse" : "")} />
+      </button>
+    </div>
+  );
+}
+
 // ── Live human-chat banner ────────────────────────────────────────────────────
 // Shown while an escalation is open: the customer is now talking to a human.
 function LiveModeBanner({ assignee }: { assignee: string | null }) {
@@ -638,7 +816,8 @@ function LiveModeBanner({ assignee }: { assignee: string | null }) {
 // ── Tiny status dot (sidebar) ─────────────────────────────────────────────────
 const DOT_META: Record<TicketLifecycleStatus, string> = {
   active: "bg-amber-400",
-  escalated: "bg-red-500",
+  escalated: "bg-zinc-500",
+  reopened: "bg-orange-500",
   resolved: "bg-emerald-500",
 };
 function StatusDot({ status }: { status: TicketLifecycleStatus }) {
@@ -650,6 +829,7 @@ function StatusDot({ status }: { status: TicketLifecycleStatus }) {
 const STATUS_META: Record<TicketLifecycleStatus, { label: string; badge: string }> = {
   active:   { label: "Active",    badge: "bg-amber-500/15 text-amber-400 border border-amber-500/25" },
   escalated:{ label: "Escalated", badge: "bg-destructive/15 text-destructive border border-destructive/25" },
+  reopened: { label: "Reopened",  badge: "bg-orange-500/15 text-orange-400 border border-orange-500/25" },
   resolved: { label: "Resolved",  badge: "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25" },
 };
 function StatusBadge({ status }: { status: TicketLifecycleStatus }) {
@@ -695,7 +875,7 @@ const LIFECYCLE_STAGES = ["Submitted", "In progress", "Escalated", "Resolved"];
 
 function statusToStep(status: TicketLifecycleStatus): { current: number; complete: boolean } {
   if (status === "resolved") return { current: LIFECYCLE_STAGES.length - 1, complete: true };
-  if (status === "escalated") return { current: 2, complete: false };
+  if (status === "escalated" || status === "reopened") return { current: 2, complete: false };
   return { current: 1, complete: false };
 }
 
@@ -717,134 +897,6 @@ function Stepper({ current, complete }: { current: number; complete: boolean }) 
   );
 }
 
-// ── Ticket tracing page — with search + pagination ────────────────────────────
-const PAGE_SIZE = 6;
-
-function TicketTracing({
-  conversations,
-  onOpen,
-}: {
-  conversations: TicketSummary[];
-  onOpen: (id: string) => void;
-}) {
-  const [query, setQuery] = useState("");
-  const [page, setPage] = useState(0);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return conversations;
-    return conversations.filter(
-      (c) =>
-        c.title.toLowerCase().includes(q) ||
-        c.display_id.toLowerCase().includes(q) ||
-        c.status.toLowerCase().includes(q),
-    );
-  }, [conversations, query]);
-
-  // Reset to first page when query changes
-  useEffect(() => { setPage(0); }, [query]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages - 1);
-  const paged = filtered.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
-
-  return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="mx-auto max-w-3xl space-y-4 px-4 py-6">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold">Ticket tracing</h2>
-            <p className="text-sm text-muted-foreground">
-              Track every ticket and see exactly where it is in our support process.
-            </p>
-          </div>
-          <span className="text-sm text-muted-foreground tabular-nums">
-            {filtered.length} ticket{filtered.length !== 1 ? "s" : ""}
-          </span>
-        </div>
-
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by title, ticket ID, or status…"
-            className="w-full rounded-lg border border-border bg-card py-2 pl-9 pr-9 text-sm placeholder:text-muted-foreground/60 outline-none focus:border-ring/60 focus:ring-1 focus:ring-ring/20"
-          />
-          {query && (
-            <button
-              onClick={() => setQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/40 hover:text-muted-foreground"
-            >
-              <X className="size-3.5" />
-            </button>
-          )}
-        </div>
-
-        {/* Ticket cards */}
-        {filtered.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">
-            {conversations.length === 0 ? "No tickets yet. Start a new chat to get help." : "No tickets match your search."}
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {paged.map((c) => {
-              const { current, complete } = statusToStep(c.status);
-              const currentLabel = LIFECYCLE_STAGES[complete ? LIFECYCLE_STAGES.length - 1 : current];
-              return (
-                <button
-                  key={c.ticket_id}
-                  onClick={() => onOpen(c.ticket_id)}
-                  className="block w-full rounded-lg border border-border bg-card p-4 text-left transition-colors hover:border-foreground/25 hover:bg-card/80"
-                >
-                  <div className="mb-1 flex items-center justify-between gap-2">
-                    <span className="truncate text-sm font-medium">{c.title}</span>
-                    <StatusBadge status={c.status} />
-                  </div>
-                  <p className="mb-3 font-mono text-[10px] text-muted-foreground/60">
-                    {c.display_id}{c.parent_ticket_id ? " · linked" : ""}
-                  </p>
-                  <Stepper current={current} complete={complete} />
-                  <p className="mt-2.5 text-[11px] text-muted-foreground">
-                    Current stage: <span className="font-medium text-foreground">{currentLabel}</span>
-                  </p>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={safePage === 0}
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-            >
-              <ChevronLeft className="size-3.5" /> Previous
-            </Button>
-            <span className="text-xs text-muted-foreground">
-              Page {safePage + 1} of {totalPages}
-            </span>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={safePage >= totalPages - 1}
-              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-            >
-              Next <ChevronRight className="size-3.5" />
-            </Button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-
 // ── User dashboard ────────────────────────────────────────────────────────────
 function UserDashboard({
   conversations,
@@ -862,8 +914,9 @@ function UserDashboard({
   const total = conversations.length;
   const active = conversations.filter((c) => c.status === "active").length;
   const escalated = conversations.filter((c) => c.status === "escalated").length;
+  const reopened = conversations.filter((c) => c.status === "reopened").length;
   const resolved = conversations.filter((c) => c.status === "resolved").length;
-  const unresolved = active + escalated;
+  const unresolved = active + escalated + reopened;
 
   const stats: { key: typeof filter; label: string; value: number; hint: string }[] = [
     { key: "all",        label: "Total tickets", value: total,      hint: "All conversations you've started" },
@@ -876,7 +929,7 @@ function UserDashboard({
     if (filter === "all") return true;
     if (filter === "active") return c.status === "active";
     if (filter === "resolved") return c.status === "resolved";
-    return c.status === "active" || c.status === "escalated";
+    return c.status === "active" || c.status === "escalated" || c.status === "reopened";
   });
   const filterLabel = stats.find((s) => s.key === filter)?.label ?? "All";
 
@@ -936,21 +989,31 @@ function UserDashboard({
             </p>
           ) : (
             <div className="space-y-2">
-              {filtered.map((c) => (
-                <button
-                  key={c.ticket_id}
-                  onClick={() => onOpen(c.ticket_id)}
-                  className="flex w-full items-center justify-between gap-2 rounded-lg border border-border bg-card p-3 text-left transition-colors hover:border-foreground/25"
-                >
-                  <span className="flex min-w-0 flex-col">
-                    <span className="truncate text-sm font-medium">{c.title}</span>
-                    <span className="font-mono text-[10px] text-muted-foreground/60">
+              {filtered.map((c) => {
+                const { current, complete } = statusToStep(c.status);
+                const currentLabel =
+                  LIFECYCLE_STAGES[complete ? LIFECYCLE_STAGES.length - 1 : current];
+                return (
+                  <button
+                    key={c.ticket_id}
+                    onClick={() => onOpen(c.ticket_id)}
+                    className="block w-full rounded-lg border border-border bg-card p-3.5 text-left transition-colors hover:border-foreground/25"
+                  >
+                    <div className="mb-1 flex items-center justify-between gap-2">
+                      <span className="truncate text-sm font-medium">{c.title}</span>
+                      <StatusBadge status={c.status} />
+                    </div>
+                    <p className="mb-3 font-mono text-[10px] text-muted-foreground/60">
                       {c.display_id}{c.parent_ticket_id ? " · linked" : ""}
-                    </span>
-                  </span>
-                  <StatusBadge status={c.status} />
-                </button>
-              ))}
+                    </p>
+                    {/* Lifecycle status bar — merged in from Ticket tracing. */}
+                    <Stepper current={current} complete={complete} />
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      Current stage: <span className="font-medium text-foreground">{currentLabel}</span>
+                    </p>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
@@ -1015,6 +1078,10 @@ function ChatThread({
     <div className="space-y-8">
       {items.map((it) => {
         if (it.kind === "agent") {
+          const UPDATE = "[[case-update]] ";
+          if (it.msg.text.startsWith(UPDATE)) {
+            return <CaseUpdateNotice key={it.key} text={it.msg.text.slice(UPDATE.length)} />;
+          }
           return <HumanAgentBubble key={it.key} text={it.msg.text} />;
         }
         if (it.kind === "user") {
@@ -1066,6 +1133,23 @@ function UserBubble({ text }: { text: string }) {
 }
 
 // ── Human agent bubble (live support) ─────────────────────────────────────────
+// A centered, low-key "update" chip for case events (e.g. the handler changed),
+// styled distinctly from a Support agent's reply.
+function CaseUpdateNotice({ text }: { text: string }) {
+  return (
+    <div className="animate-rise flex justify-center">
+      <div className="inline-flex max-w-[88%] items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-1.5 text-xs text-amber-600 dark:text-amber-400">
+        <RefreshCw className="size-3.5 shrink-0" />
+        <span>
+          <span className="font-semibold uppercase tracking-wide">Update</span>
+          <span className="mx-1.5 opacity-50">·</span>
+          {text}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function HumanAgentBubble({ text }: { text: string }) {
   return (
     <div className="animate-rise flex items-start gap-3">

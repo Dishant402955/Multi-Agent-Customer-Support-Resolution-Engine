@@ -1392,3 +1392,413 @@
 {"traceId":"SP-1-b9f48ad5","ts":"2026-06-26T21:07:50.690Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":null,"confidence":0.42,"rationale":"The customer reports generic 'billing issues' without specifying whether it's an unrecognized charge, failed payment/past due, refund request, or subscription change, so no specific handler can be confidently selected."}}
 {"traceId":"SP-1-b9f48ad5","ts":"2026-06-26T21:07:50.691Z","node":"agent","message":"[billing] out of domain","data":{"confidence":0.42,"domainThreshold":0.3}}
 {"traceId":"R-710f130d","ts":"2026-06-26T21:07:50.695Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"config","ts":"2026-06-27T14:44:18.204Z","node":"http-store","message":"http tools reloaded","data":{"tools":["githubRepo"]}}
+{"traceId":"boot","ts":"2026-06-27T14:44:18.209Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","refund_eligibility"]}}
+{"traceId":"boot","ts":"2026-06-27T14:44:18.210Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","refund_eligibility"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T14:44:18.213Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["cancellation_policy","escalate_to_human","return_policy"]}}
+{"traceId":"boot","ts":"2026-06-27T14:44:18.213Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["cancellation_policy","escalate_to_human","return_policy"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T14:44:18.216Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-27T14:44:18.217Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T14:44:18.219Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\orders\\usecases","registered":["cancel_change_order","order_tracking"]}}
+{"traceId":"boot","ts":"2026-06-27T14:44:18.221Z","node":"agent-factory","message":"agent \"orders\" ready","data":{"useCaseIds":["cancel_change_order","order_tracking"],"registrySize":2}}
+{"traceId":"boot","ts":"2026-06-27T14:44:18.223Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\products\\usecases","registered":["product_availability","product_info"]}}
+{"traceId":"boot","ts":"2026-06-27T14:44:18.224Z","node":"agent-factory","message":"agent \"products\" ready","data":{"useCaseIds":["product_availability","product_info"],"registrySize":2}}
+{"traceId":"config","ts":"2026-06-27T14:48:11.138Z","node":"http-store","message":"http tools reloaded","data":{"tools":["githubRepo"]}}
+{"traceId":"boot","ts":"2026-06-27T14:48:11.143Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","refund_eligibility"]}}
+{"traceId":"boot","ts":"2026-06-27T14:48:11.144Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","refund_eligibility"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T14:48:11.149Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["cancellation_policy","escalate_to_human","return_policy"]}}
+{"traceId":"boot","ts":"2026-06-27T14:48:11.149Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["cancellation_policy","escalate_to_human","return_policy"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T14:48:11.152Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-27T14:48:11.153Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T14:48:11.155Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\orders\\usecases","registered":["cancel_change_order","order_tracking"]}}
+{"traceId":"boot","ts":"2026-06-27T14:48:11.156Z","node":"agent-factory","message":"agent \"orders\" ready","data":{"useCaseIds":["cancel_change_order","order_tracking"],"registrySize":2}}
+{"traceId":"boot","ts":"2026-06-27T14:48:11.157Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\products\\usecases","registered":["product_availability","product_info"]}}
+{"traceId":"boot","ts":"2026-06-27T14:48:11.158Z","node":"agent-factory","message":"agent \"products\" ready","data":{"useCaseIds":["product_availability","product_info"],"registrySize":2}}
+{"traceId":"R-acf4e26b","ts":"2026-06-27T14:53:13.071Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-acf4e26b","ts":"2026-06-27T14:53:14.479Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-acf4e26b","ts":"2026-06-27T14:53:16.112Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-acf4e26b","ts":"2026-06-27T14:53:18.058Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-acf4e26b","ts":"2026-06-27T14:53:18.960Z","node":"classifier","message":"LLM classify failed, using keyword fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"R-acf4e26b","ts":"2026-06-27T14:53:18.965Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-acf4e26b","ts":"2026-06-27T14:53:20.362Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-acf4e26b","ts":"2026-06-27T14:53:22.128Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-acf4e26b","ts":"2026-06-27T14:53:24.162Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-acf4e26b","ts":"2026-06-27T14:53:25.075Z","node":"sentiment","message":"LLM sentiment failed, using heuristic","data":{"error":"Error: Connection error."}}
+{"traceId":"R-43f01831","ts":"2026-06-27T14:53:42.991Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-43f01831","ts":"2026-06-27T14:53:44.294Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-43f01831","ts":"2026-06-27T14:53:45.911Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-43f01831","ts":"2026-06-27T14:53:47.763Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-43f01831","ts":"2026-06-27T14:53:48.675Z","node":"classifier","message":"LLM classify failed, using keyword fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"R-43f01831","ts":"2026-06-27T14:53:48.679Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-43f01831","ts":"2026-06-27T14:53:49.911Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-43f01831","ts":"2026-06-27T14:53:51.543Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-43f01831","ts":"2026-06-27T14:53:53.586Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-43f01831","ts":"2026-06-27T14:53:54.491Z","node":"sentiment","message":"LLM sentiment failed, using heuristic","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-83cfb9be","ts":"2026-06-27T14:53:54.494Z","node":"agent","message":"[technical] received ticket","data":{"text":"i am unable to login to my amazon account"}}
+{"traceId":"SP-1-83cfb9be","ts":"2026-06-27T14:53:54.496Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-83cfb9be","ts":"2026-06-27T14:53:55.942Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-83cfb9be","ts":"2026-06-27T14:53:57.645Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-83cfb9be","ts":"2026-06-27T14:53:59.476Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-83cfb9be","ts":"2026-06-27T14:54:00.391Z","node":"classifier","message":"LLM routing failed, keyword fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-83cfb9be","ts":"2026-06-27T14:54:00.393Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":"account_access","confidence":0.8500000000000001,"rationale":"Keyword fallback matched \"account_access\" (3 overlaps)."}}
+{"traceId":"SP-1-83cfb9be","ts":"2026-06-27T14:54:00.444Z","node":"graph:gather","message":"handler \"account_access\" gathering"}
+{"traceId":"SP-1-83cfb9be","ts":"2026-06-27T14:54:00.445Z","node":"declarative","message":"running use case \"account_access\""}
+{"traceId":"SP-1-83cfb9be","ts":"2026-06-27T14:54:00.446Z","node":"tool","message":"calling accountStatus","data":{"args":{"customerId":"cust_001"}}}
+{"traceId":"SP-1-83cfb9be","ts":"2026-06-27T14:54:00.447Z","node":"tool","message":"accountStatus returned","data":{"result":{"found":true,"customerId":"cust_001","locked":false,"mfaEnabled":true,"lastLogin":"2026-06-22T08:14:00Z"}}}
+{"traceId":"SP-1-83cfb9be","ts":"2026-06-27T14:54:00.448Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["account_help.md"]}}
+{"traceId":"SP-1-83cfb9be","ts":"2026-06-27T14:54:00.449Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-83cfb9be","ts":"2026-06-27T14:54:01.760Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-83cfb9be","ts":"2026-06-27T14:54:03.284Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-83cfb9be","ts":"2026-06-27T14:54:05.245Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-83cfb9be","ts":"2026-06-27T14:54:06.157Z","node":"declarative","message":"answer failed, attempting fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-83cfb9be","ts":"2026-06-27T14:54:06.163Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-1-83cfb9be","ts":"2026-06-27T14:54:06.166Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":2}}
+{"traceId":"R-43f01831","ts":"2026-06-27T14:54:06.180Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-43f01831","ts":"2026-06-27T14:54:07.527Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-43f01831","ts":"2026-06-27T14:54:09.209Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-43f01831","ts":"2026-06-27T14:54:11.094Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-43f01831","ts":"2026-06-27T14:54:12.008Z","node":"escalation","message":"Escalation agent failed, deterministic fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"R-43f01831","ts":"2026-06-27T14:54:12.010Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-43f01831","ts":"2026-06-27T14:54:13.325Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-43f01831","ts":"2026-06-27T14:54:15.015Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-43f01831","ts":"2026-06-27T14:54:17.049Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-43f01831","ts":"2026-06-27T14:54:17.963Z","node":"synthesize","message":"LLM synthesis failed, deterministic fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"kb-generate","ts":"2026-06-27T16:30:06.811Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"kb-generate","ts":"2026-06-27T16:30:08.290Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"kb-generate","ts":"2026-06-27T16:30:09.987Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"kb-generate","ts":"2026-06-27T16:30:11.874Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"kb-generate","ts":"2026-06-27T16:30:12.788Z","node":"kb-generate","message":"LLM draft failed, using template","data":{"error":"Error: Connection error."}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:37:33.702Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:37:35.039Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:37:36.759Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:37:38.600Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:37:39.518Z","node":"classifier","message":"LLM classify failed, using keyword fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:37:39.525Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:37:40.775Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:37:42.491Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:37:44.443Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:37:45.349Z","node":"sentiment","message":"LLM sentiment failed, using heuristic","data":{"error":"Error: Connection error."}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:37:45.353Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:37:46.640Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:37:48.461Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:37:50.322Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:37:51.231Z","node":"decompose","message":"LLM decompose failed, heuristic fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-91685d39","ts":"2026-06-27T16:37:51.234Z","node":"agent","message":"[policy] received ticket","data":{"text":"i tried but still facing the same issue"}}
+{"traceId":"SP-1-91685d39","ts":"2026-06-27T16:37:51.237Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-91685d39","ts":"2026-06-27T16:37:52.657Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-91685d39","ts":"2026-06-27T16:37:54.257Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-91685d39","ts":"2026-06-27T16:37:56.271Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-91685d39","ts":"2026-06-27T16:37:57.179Z","node":"classifier","message":"LLM routing failed, keyword fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-91685d39","ts":"2026-06-27T16:37:57.184Z","node":"classifier","message":"classified ticket","data":{"agent":"policy","handlerId":"escalate_to_human","confidence":0.95,"rationale":"Keyword fallback matched \"escalate_to_human\" (8 overlaps)."}}
+{"traceId":"SP-1-91685d39","ts":"2026-06-27T16:37:57.213Z","node":"graph:gather","message":"handler \"escalate_to_human\" gathering"}
+{"traceId":"SP-1-91685d39","ts":"2026-06-27T16:37:57.216Z","node":"declarative","message":"running use case \"escalate_to_human\""}
+{"traceId":"SP-1-91685d39","ts":"2026-06-27T16:37:57.217Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["escalation_matrix.md"]}}
+{"traceId":"SP-1-91685d39","ts":"2026-06-27T16:37:57.220Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-91685d39","ts":"2026-06-27T16:37:58.625Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-91685d39","ts":"2026-06-27T16:38:00.434Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-91685d39","ts":"2026-06-27T16:38:02.533Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-91685d39","ts":"2026-06-27T16:38:03.449Z","node":"declarative","message":"answer failed, attempting fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-91685d39","ts":"2026-06-27T16:38:03.457Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-1-91685d39","ts":"2026-06-27T16:38:03.478Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":1}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:38:03.487Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:38:04.789Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:38:06.392Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:38:08.443Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:38:09.356Z","node":"escalation","message":"Escalation agent failed, deterministic fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:38:09.360Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:38:10.672Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:38:12.407Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:38:14.489Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-8a521a07","ts":"2026-06-27T16:38:15.392Z","node":"synthesize","message":"LLM synthesis failed, deterministic fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"config","ts":"2026-06-27T17:09:11.429Z","node":"http-store","message":"http tools reloaded","data":{"tools":["githubRepo"]}}
+{"traceId":"boot","ts":"2026-06-27T17:09:11.437Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","refund_eligibility"]}}
+{"traceId":"boot","ts":"2026-06-27T17:09:11.438Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","refund_eligibility"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T17:09:11.442Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["cancellation_policy","escalate_to_human","return_policy"]}}
+{"traceId":"boot","ts":"2026-06-27T17:09:11.442Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["cancellation_policy","escalate_to_human","return_policy"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T17:09:11.446Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-27T17:09:11.447Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T17:09:11.450Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\orders\\usecases","registered":["cancel_change_order","order_tracking"]}}
+{"traceId":"boot","ts":"2026-06-27T17:09:11.451Z","node":"agent-factory","message":"agent \"orders\" ready","data":{"useCaseIds":["cancel_change_order","order_tracking"],"registrySize":2}}
+{"traceId":"boot","ts":"2026-06-27T17:09:11.453Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\products\\usecases","registered":["product_availability","product_info"]}}
+{"traceId":"boot","ts":"2026-06-27T17:09:11.454Z","node":"agent-factory","message":"agent \"products\" ready","data":{"useCaseIds":["product_availability","product_info"],"registrySize":2}}
+{"traceId":"config","ts":"2026-06-27T17:09:18.608Z","node":"http-store","message":"http tools reloaded","data":{"tools":["githubRepo"]}}
+{"traceId":"boot","ts":"2026-06-27T17:09:18.613Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","refund_eligibility"]}}
+{"traceId":"boot","ts":"2026-06-27T17:09:18.614Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","refund_eligibility"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T17:09:18.617Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["cancellation_policy","escalate_to_human","return_policy"]}}
+{"traceId":"boot","ts":"2026-06-27T17:09:18.617Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["cancellation_policy","escalate_to_human","return_policy"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T17:09:18.619Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-27T17:09:18.620Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T17:09:18.621Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\orders\\usecases","registered":["cancel_change_order","order_tracking"]}}
+{"traceId":"boot","ts":"2026-06-27T17:09:18.622Z","node":"agent-factory","message":"agent \"orders\" ready","data":{"useCaseIds":["cancel_change_order","order_tracking"],"registrySize":2}}
+{"traceId":"boot","ts":"2026-06-27T17:09:18.624Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\products\\usecases","registered":["product_availability","product_info"]}}
+{"traceId":"boot","ts":"2026-06-27T17:09:18.624Z","node":"agent-factory","message":"agent \"products\" ready","data":{"useCaseIds":["product_availability","product_info"],"registrySize":2}}
+{"traceId":"config","ts":"2026-06-27T17:09:54.007Z","node":"http-store","message":"http tools reloaded","data":{"tools":["githubRepo"]}}
+{"traceId":"boot","ts":"2026-06-27T17:09:54.013Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","refund_eligibility"]}}
+{"traceId":"boot","ts":"2026-06-27T17:09:54.014Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","refund_eligibility"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T17:09:54.017Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["cancellation_policy","escalate_to_human","return_policy"]}}
+{"traceId":"boot","ts":"2026-06-27T17:09:54.018Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["cancellation_policy","escalate_to_human","return_policy"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T17:09:54.021Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-27T17:09:54.022Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T17:09:54.025Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\orders\\usecases","registered":["cancel_change_order","order_tracking"]}}
+{"traceId":"boot","ts":"2026-06-27T17:09:54.026Z","node":"agent-factory","message":"agent \"orders\" ready","data":{"useCaseIds":["cancel_change_order","order_tracking"],"registrySize":2}}
+{"traceId":"boot","ts":"2026-06-27T17:09:54.029Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\products\\usecases","registered":["product_availability","product_info"]}}
+{"traceId":"boot","ts":"2026-06-27T17:09:54.029Z","node":"agent-factory","message":"agent \"products\" ready","data":{"useCaseIds":["product_availability","product_info"],"registrySize":2}}
+{"traceId":"config","ts":"2026-06-27T17:10:08.414Z","node":"http-store","message":"http tools reloaded","data":{"tools":["githubRepo"]}}
+{"traceId":"boot","ts":"2026-06-27T17:10:08.421Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","refund_eligibility"]}}
+{"traceId":"boot","ts":"2026-06-27T17:10:08.422Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","refund_eligibility"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T17:10:08.425Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["cancellation_policy","escalate_to_human","return_policy"]}}
+{"traceId":"boot","ts":"2026-06-27T17:10:08.426Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["cancellation_policy","escalate_to_human","return_policy"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T17:10:08.429Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-27T17:10:08.430Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T17:10:08.434Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\orders\\usecases","registered":["cancel_change_order","order_tracking"]}}
+{"traceId":"boot","ts":"2026-06-27T17:10:08.434Z","node":"agent-factory","message":"agent \"orders\" ready","data":{"useCaseIds":["cancel_change_order","order_tracking"],"registrySize":2}}
+{"traceId":"boot","ts":"2026-06-27T17:10:08.436Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\products\\usecases","registered":["product_availability","product_info"]}}
+{"traceId":"boot","ts":"2026-06-27T17:10:08.437Z","node":"agent-factory","message":"agent \"products\" ready","data":{"useCaseIds":["product_availability","product_info"],"registrySize":2}}
+{"traceId":"R-7e08e560","ts":"2026-06-27T17:36:51.937Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-7e08e560","ts":"2026-06-27T17:36:53.400Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-7e08e560","ts":"2026-06-27T17:36:54.995Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-7e08e560","ts":"2026-06-27T17:36:57.119Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-7e08e560","ts":"2026-06-27T17:36:58.024Z","node":"classifier","message":"LLM classify failed, using keyword fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"R-7e08e560","ts":"2026-06-27T17:36:58.028Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-7e08e560","ts":"2026-06-27T17:36:59.328Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-7e08e560","ts":"2026-06-27T17:37:00.926Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-7e08e560","ts":"2026-06-27T17:37:03.011Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-7e08e560","ts":"2026-06-27T17:37:03.925Z","node":"sentiment","message":"LLM sentiment failed, using heuristic","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-9b95aa24","ts":"2026-06-27T17:37:03.930Z","node":"agent","message":"[technical] received ticket","data":{"text":"i am unable to login to my amazon account"}}
+{"traceId":"SP-1-9b95aa24","ts":"2026-06-27T17:37:03.931Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-9b95aa24","ts":"2026-06-27T17:37:05.142Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-9b95aa24","ts":"2026-06-27T17:37:06.812Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-9b95aa24","ts":"2026-06-27T17:37:08.728Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-9b95aa24","ts":"2026-06-27T17:37:09.641Z","node":"classifier","message":"LLM routing failed, keyword fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-9b95aa24","ts":"2026-06-27T17:37:09.644Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":"account_access","confidence":0.8500000000000001,"rationale":"Keyword fallback matched \"account_access\" (3 overlaps)."}}
+{"traceId":"SP-1-9b95aa24","ts":"2026-06-27T17:37:09.693Z","node":"graph:gather","message":"handler \"account_access\" gathering"}
+{"traceId":"SP-1-9b95aa24","ts":"2026-06-27T17:37:09.694Z","node":"declarative","message":"running use case \"account_access\""}
+{"traceId":"SP-1-9b95aa24","ts":"2026-06-27T17:37:09.695Z","node":"tool","message":"calling accountStatus","data":{"args":{"customerId":"cust_001"}}}
+{"traceId":"SP-1-9b95aa24","ts":"2026-06-27T17:37:09.696Z","node":"tool","message":"accountStatus returned","data":{"result":{"found":true,"customerId":"cust_001","locked":false,"mfaEnabled":true,"lastLogin":"2026-06-22T08:14:00Z"}}}
+{"traceId":"SP-1-9b95aa24","ts":"2026-06-27T17:37:09.697Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["account_help.md"]}}
+{"traceId":"SP-1-9b95aa24","ts":"2026-06-27T17:37:09.701Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-9b95aa24","ts":"2026-06-27T17:37:11.056Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-9b95aa24","ts":"2026-06-27T17:37:12.694Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-9b95aa24","ts":"2026-06-27T17:37:14.508Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-9b95aa24","ts":"2026-06-27T17:37:15.412Z","node":"declarative","message":"answer failed, attempting fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-9b95aa24","ts":"2026-06-27T17:37:15.417Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-1-9b95aa24","ts":"2026-06-27T17:37:15.426Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":2}}
+{"traceId":"R-7e08e560","ts":"2026-06-27T17:37:15.438Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-7e08e560","ts":"2026-06-27T17:37:16.908Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-7e08e560","ts":"2026-06-27T17:37:18.511Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-7e08e560","ts":"2026-06-27T17:37:20.479Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-7e08e560","ts":"2026-06-27T17:37:21.390Z","node":"escalation","message":"Escalation agent failed, deterministic fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"R-7e08e560","ts":"2026-06-27T17:37:21.393Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-7e08e560","ts":"2026-06-27T17:37:22.771Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-7e08e560","ts":"2026-06-27T17:37:24.309Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-7e08e560","ts":"2026-06-27T17:37:26.275Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-7e08e560","ts":"2026-06-27T17:37:27.176Z","node":"synthesize","message":"LLM synthesis failed, deterministic fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:15.784Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:17.120Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:18.755Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:20.573Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:21.484Z","node":"classifier","message":"LLM classify failed, using keyword fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:21.487Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:22.751Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:24.355Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:26.220Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:27.134Z","node":"continuity","message":"LLM triage failed, heuristic fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:27.137Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:28.570Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:30.209Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:32.171Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:33.085Z","node":"sentiment","message":"LLM sentiment failed, using heuristic","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-5b39437b","ts":"2026-06-27T17:43:33.087Z","node":"agent","message":"[technical] received ticket","data":{"text":"still unable to login"}}
+{"traceId":"SP-1-5b39437b","ts":"2026-06-27T17:43:33.088Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-5b39437b","ts":"2026-06-27T17:43:34.467Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-5b39437b","ts":"2026-06-27T17:43:36.229Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-5b39437b","ts":"2026-06-27T17:43:38.337Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-5b39437b","ts":"2026-06-27T17:43:39.252Z","node":"classifier","message":"LLM routing failed, keyword fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-5b39437b","ts":"2026-06-27T17:43:39.255Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":"account_access","confidence":0.95,"rationale":"Keyword fallback matched \"account_access\" (15 overlaps)."}}
+{"traceId":"SP-1-5b39437b","ts":"2026-06-27T17:43:39.261Z","node":"graph:gather","message":"handler \"account_access\" gathering"}
+{"traceId":"SP-1-5b39437b","ts":"2026-06-27T17:43:39.263Z","node":"declarative","message":"running use case \"account_access\""}
+{"traceId":"SP-1-5b39437b","ts":"2026-06-27T17:43:39.263Z","node":"tool","message":"calling accountStatus","data":{"args":{"customerId":"cust_001"}}}
+{"traceId":"SP-1-5b39437b","ts":"2026-06-27T17:43:39.265Z","node":"tool","message":"accountStatus returned","data":{"result":{"found":true,"customerId":"cust_001","locked":false,"mfaEnabled":true,"lastLogin":"2026-06-22T08:14:00Z"}}}
+{"traceId":"SP-1-5b39437b","ts":"2026-06-27T17:43:39.266Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["account_help.md"]}}
+{"traceId":"SP-1-5b39437b","ts":"2026-06-27T17:43:39.269Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-5b39437b","ts":"2026-06-27T17:43:40.534Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-5b39437b","ts":"2026-06-27T17:43:42.020Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-5b39437b","ts":"2026-06-27T17:43:43.956Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-5b39437b","ts":"2026-06-27T17:43:44.868Z","node":"declarative","message":"answer failed, attempting fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-5b39437b","ts":"2026-06-27T17:43:44.871Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-1-5b39437b","ts":"2026-06-27T17:43:44.874Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":2}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:44.879Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:46.270Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:48.020Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:49.993Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:50.901Z","node":"escalation","message":"Escalation agent failed, deterministic fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:50.905Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:52.237Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:53.854Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:55.793Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b5d9287f","ts":"2026-06-27T17:43:56.701Z","node":"synthesize","message":"LLM synthesis failed, deterministic fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"R-16aa6177","ts":"2026-06-27T17:46:13.519Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-16aa6177","ts":"2026-06-27T17:46:14.874Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-16aa6177","ts":"2026-06-27T17:46:16.503Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-16aa6177","ts":"2026-06-27T17:46:18.430Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-16aa6177","ts":"2026-06-27T17:46:19.334Z","node":"classifier","message":"LLM classify failed, using keyword fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"R-16aa6177","ts":"2026-06-27T17:46:19.337Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-16aa6177","ts":"2026-06-27T17:46:20.704Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-16aa6177","ts":"2026-06-27T17:46:22.420Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-16aa6177","ts":"2026-06-27T17:46:24.485Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-16aa6177","ts":"2026-06-27T17:46:25.396Z","node":"continuity","message":"LLM triage failed, heuristic fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"R-16aa6177","ts":"2026-06-27T17:46:25.398Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-16aa6177","ts":"2026-06-27T17:46:26.601Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-16aa6177","ts":"2026-06-27T17:46:28.373Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-16aa6177","ts":"2026-06-27T17:46:30.306Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-16aa6177","ts":"2026-06-27T17:46:31.219Z","node":"sentiment","message":"LLM sentiment failed, using heuristic","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-96b23f95","ts":"2026-06-27T17:46:31.221Z","node":"agent","message":"[billing] received ticket","data":{"text":"i am charged twice by mistake. why?"}}
+{"traceId":"SP-1-96b23f95","ts":"2026-06-27T17:46:31.221Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-96b23f95","ts":"2026-06-27T17:46:32.687Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-96b23f95","ts":"2026-06-27T17:46:34.472Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-96b23f95","ts":"2026-06-27T17:46:36.456Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-96b23f95","ts":"2026-06-27T17:46:37.369Z","node":"classifier","message":"LLM routing failed, keyword fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-96b23f95","ts":"2026-06-27T17:46:37.372Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":"explain_charge","confidence":0.95,"rationale":"Keyword fallback matched \"explain_charge\" (8 overlaps)."}}
+{"traceId":"SP-1-96b23f95","ts":"2026-06-27T17:46:37.378Z","node":"graph:gather","message":"handler \"explain_charge\" gathering"}
+{"traceId":"SP-1-96b23f95","ts":"2026-06-27T17:46:37.379Z","node":"declarative","message":"running use case \"explain_charge\""}
+{"traceId":"SP-1-96b23f95","ts":"2026-06-27T17:46:37.381Z","node":"tool","message":"calling dbQuery","data":{"args":{"customerId":"cust_001"}}}
+{"traceId":"SP-1-96b23f95","ts":"2026-06-27T17:46:37.381Z","node":"tool","message":"dbQuery returned","data":{"result":{"charges":[{"id":"txn_1","amount":49,"desc":"Pro plan monthly"},{"id":"txn_2","amount":49,"desc":"Pro plan monthly (duplicate)"}]}}}
+{"traceId":"SP-1-96b23f95","ts":"2026-06-27T17:46:37.383Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-96b23f95","ts":"2026-06-27T17:46:38.690Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-96b23f95","ts":"2026-06-27T17:46:40.272Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-96b23f95","ts":"2026-06-27T17:46:42.370Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-96b23f95","ts":"2026-06-27T17:46:43.285Z","node":"declarative","message":"answer failed, attempting fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-96b23f95","ts":"2026-06-27T17:46:43.289Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-1-96b23f95","ts":"2026-06-27T17:46:43.292Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":1}}
+{"traceId":"R-16aa6177","ts":"2026-06-27T17:46:43.295Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-16aa6177","ts":"2026-06-27T17:46:44.805Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-16aa6177","ts":"2026-06-27T17:46:46.521Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-16aa6177","ts":"2026-06-27T17:46:48.610Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-16aa6177","ts":"2026-06-27T17:46:49.518Z","node":"synthesize","message":"LLM synthesis failed, deterministic fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"R-6b684861","ts":"2026-06-27T18:02:31.979Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-6b684861","ts":"2026-06-27T18:02:33.304Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-6b684861","ts":"2026-06-27T18:02:34.903Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-6b684861","ts":"2026-06-27T18:02:36.787Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-6b684861","ts":"2026-06-27T18:02:37.700Z","node":"classifier","message":"LLM classify failed, using keyword fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"R-6b684861","ts":"2026-06-27T18:02:37.704Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-6b684861","ts":"2026-06-27T18:02:39.120Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-6b684861","ts":"2026-06-27T18:02:40.853Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-6b684861","ts":"2026-06-27T18:02:42.843Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-6b684861","ts":"2026-06-27T18:02:43.750Z","node":"sentiment","message":"LLM sentiment failed, using heuristic","data":{"error":"Error: Connection error."}}
+{"traceId":"config","ts":"2026-06-27T18:10:56.188Z","node":"http-store","message":"http tools reloaded","data":{"tools":["githubRepo"]}}
+{"traceId":"boot","ts":"2026-06-27T18:10:56.192Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","refund_eligibility"]}}
+{"traceId":"boot","ts":"2026-06-27T18:10:56.193Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","refund_eligibility"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T18:10:56.196Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["cancellation_policy","escalate_to_human","return_policy"]}}
+{"traceId":"boot","ts":"2026-06-27T18:10:56.197Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["cancellation_policy","escalate_to_human","return_policy"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T18:10:56.200Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-27T18:10:56.201Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T18:10:56.203Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\orders\\usecases","registered":["cancel_change_order","order_tracking"]}}
+{"traceId":"boot","ts":"2026-06-27T18:10:56.204Z","node":"agent-factory","message":"agent \"orders\" ready","data":{"useCaseIds":["cancel_change_order","order_tracking"],"registrySize":2}}
+{"traceId":"boot","ts":"2026-06-27T18:10:56.206Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\products\\usecases","registered":["product_availability","product_info"]}}
+{"traceId":"boot","ts":"2026-06-27T18:10:56.207Z","node":"agent-factory","message":"agent \"products\" ready","data":{"useCaseIds":["product_availability","product_info"],"registrySize":2}}
+{"traceId":"config","ts":"2026-06-27T18:57:52.157Z","node":"http-store","message":"http tools reloaded","data":{"tools":["githubRepo"]}}
+{"traceId":"boot","ts":"2026-06-27T18:57:52.161Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","refund_eligibility"]}}
+{"traceId":"boot","ts":"2026-06-27T18:57:52.161Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","refund_eligibility"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T18:57:52.163Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["cancellation_policy","escalate_to_human","return_policy"]}}
+{"traceId":"boot","ts":"2026-06-27T18:57:52.163Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["cancellation_policy","escalate_to_human","return_policy"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T18:57:52.164Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-27T18:57:52.165Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T18:57:52.166Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\orders\\usecases","registered":["cancel_change_order","order_tracking"]}}
+{"traceId":"boot","ts":"2026-06-27T18:57:52.166Z","node":"agent-factory","message":"agent \"orders\" ready","data":{"useCaseIds":["cancel_change_order","order_tracking"],"registrySize":2}}
+{"traceId":"boot","ts":"2026-06-27T18:57:52.167Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\products\\usecases","registered":["product_availability","product_info"]}}
+{"traceId":"boot","ts":"2026-06-27T18:57:52.168Z","node":"agent-factory","message":"agent \"products\" ready","data":{"useCaseIds":["product_availability","product_info"],"registrySize":2}}
+{"traceId":"config","ts":"2026-06-27T19:10:37.540Z","node":"http-store","message":"http tools reloaded","data":{"tools":["githubRepo"]}}
+{"traceId":"boot","ts":"2026-06-27T19:10:37.543Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\billing\\usecases","registered":["explain_charge","failed_payment","refund_eligibility"]}}
+{"traceId":"boot","ts":"2026-06-27T19:10:37.544Z","node":"agent-factory","message":"agent \"billing\" ready","data":{"useCaseIds":["explain_charge","failed_payment","refund_eligibility"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T19:10:37.546Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\policy\\usecases","registered":["cancellation_policy","escalate_to_human","return_policy"]}}
+{"traceId":"boot","ts":"2026-06-27T19:10:37.546Z","node":"agent-factory","message":"agent \"policy\" ready","data":{"useCaseIds":["cancellation_policy","escalate_to_human","return_policy"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T19:10:37.548Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\technical\\usecases","registered":["account_access","error_diagnosis","service_status"]}}
+{"traceId":"boot","ts":"2026-06-27T19:10:37.548Z","node":"agent-factory","message":"agent \"technical\" ready","data":{"useCaseIds":["account_access","error_diagnosis","service_status"],"registrySize":3}}
+{"traceId":"boot","ts":"2026-06-27T19:10:37.549Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\orders\\usecases","registered":["cancel_change_order","order_tracking"]}}
+{"traceId":"boot","ts":"2026-06-27T19:10:37.550Z","node":"agent-factory","message":"agent \"orders\" ready","data":{"useCaseIds":["cancel_change_order","order_tracking"],"registrySize":2}}
+{"traceId":"boot","ts":"2026-06-27T19:10:37.551Z","node":"loader","message":"use cases registered","data":{"dir":"C:\\Users\\niharika.paluvadi\\work\\techathon\\apps\\agent\\src\\agents\\products\\usecases","registered":["product_availability","product_info"]}}
+{"traceId":"boot","ts":"2026-06-27T19:10:37.551Z","node":"agent-factory","message":"agent \"products\" ready","data":{"useCaseIds":["product_availability","product_info"],"registrySize":2}}
+{"traceId":"R-b18d03b3","ts":"2026-06-27T19:18:24.280Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-b18d03b3","ts":"2026-06-27T19:18:25.830Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b18d03b3","ts":"2026-06-27T19:18:27.492Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b18d03b3","ts":"2026-06-27T19:18:29.456Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b18d03b3","ts":"2026-06-27T19:18:30.372Z","node":"classifier","message":"LLM classify failed, using keyword fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b18d03b3","ts":"2026-06-27T19:18:30.377Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-b18d03b3","ts":"2026-06-27T19:18:31.655Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b18d03b3","ts":"2026-06-27T19:18:33.276Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b18d03b3","ts":"2026-06-27T19:18:35.141Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b18d03b3","ts":"2026-06-27T19:18:36.052Z","node":"sentiment","message":"LLM sentiment failed, using heuristic","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-b83d7a78","ts":"2026-06-27T19:18:36.057Z","node":"agent","message":"[technical] received ticket","data":{"text":"i am unable to login to my amazon account"}}
+{"traceId":"SP-1-b83d7a78","ts":"2026-06-27T19:18:36.061Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-b83d7a78","ts":"2026-06-27T19:18:37.393Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-b83d7a78","ts":"2026-06-27T19:18:39.168Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-b83d7a78","ts":"2026-06-27T19:18:41.123Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-b83d7a78","ts":"2026-06-27T19:18:42.040Z","node":"classifier","message":"LLM routing failed, keyword fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-b83d7a78","ts":"2026-06-27T19:18:42.043Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":"account_access","confidence":0.8500000000000001,"rationale":"Keyword fallback matched \"account_access\" (3 overlaps)."}}
+{"traceId":"SP-1-b83d7a78","ts":"2026-06-27T19:18:42.103Z","node":"graph:gather","message":"handler \"account_access\" gathering"}
+{"traceId":"SP-1-b83d7a78","ts":"2026-06-27T19:18:42.106Z","node":"declarative","message":"running use case \"account_access\""}
+{"traceId":"SP-1-b83d7a78","ts":"2026-06-27T19:18:42.108Z","node":"tool","message":"calling accountStatus","data":{"args":{"customerId":"cust_001"}}}
+{"traceId":"SP-1-b83d7a78","ts":"2026-06-27T19:18:42.109Z","node":"tool","message":"accountStatus returned","data":{"result":{"found":true,"customerId":"cust_001","locked":false,"mfaEnabled":true,"lastLogin":"2026-06-22T08:14:00Z"}}}
+{"traceId":"SP-1-b83d7a78","ts":"2026-06-27T19:18:42.111Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["account_help.md"]}}
+{"traceId":"SP-1-b83d7a78","ts":"2026-06-27T19:18:42.116Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-b83d7a78","ts":"2026-06-27T19:18:43.409Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-b83d7a78","ts":"2026-06-27T19:18:45.187Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-b83d7a78","ts":"2026-06-27T19:18:47.021Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-b83d7a78","ts":"2026-06-27T19:18:47.939Z","node":"declarative","message":"answer failed, attempting fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"SP-1-b83d7a78","ts":"2026-06-27T19:18:47.947Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-1-b83d7a78","ts":"2026-06-27T19:18:47.956Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":2}}
+{"traceId":"R-b18d03b3","ts":"2026-06-27T19:18:47.975Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-b18d03b3","ts":"2026-06-27T19:18:49.395Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b18d03b3","ts":"2026-06-27T19:18:50.924Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b18d03b3","ts":"2026-06-27T19:18:52.824Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b18d03b3","ts":"2026-06-27T19:18:53.733Z","node":"escalation","message":"Escalation agent failed, deterministic fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b18d03b3","ts":"2026-06-27T19:18:53.737Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-b18d03b3","ts":"2026-06-27T19:18:55.071Z","node":"gateway","message":"LLM call failed (attempt 1)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b18d03b3","ts":"2026-06-27T19:18:56.791Z","node":"gateway","message":"LLM call failed (attempt 2)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b18d03b3","ts":"2026-06-27T19:18:58.678Z","node":"gateway","message":"LLM call failed (attempt 3)","data":{"error":"Error: Connection error."}}
+{"traceId":"R-b18d03b3","ts":"2026-06-27T19:18:59.592Z","node":"synthesize","message":"LLM synthesis failed, deterministic fallback","data":{"error":"Error: Connection error."}}
+{"traceId":"R-61af552b","ts":"2026-06-27T20:35:59.990Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-61af552b","ts":"2026-06-27T20:36:01.785Z","node":"classifier","message":"classified ticket","data":{"category":"support","primary_intent":"policy","is_multi_issue":false,"fallback":false,"intents":[{"type":"policy","confidence":0.98}]}}
+{"traceId":"R-61af552b","ts":"2026-06-27T20:36:01.788Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-a92301ce","ts":"2026-06-27T20:36:03.400Z","node":"agent","message":"[policy] received ticket","data":{"text":"What is your return policy?"}}
+{"traceId":"SP-1-a92301ce","ts":"2026-06-27T20:36:03.402Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-a92301ce","ts":"2026-06-27T20:36:04.603Z","node":"classifier","message":"classified ticket","data":{"agent":"policy","handlerId":"return_policy","confidence":0.99,"rationale":"Customer asks directly about the return policy."}}
+{"traceId":"SP-1-a92301ce","ts":"2026-06-27T20:36:04.637Z","node":"graph:gather","message":"handler \"return_policy\" gathering"}
+{"traceId":"SP-1-a92301ce","ts":"2026-06-27T20:36:04.638Z","node":"declarative","message":"running use case \"return_policy\""}
+{"traceId":"SP-1-a92301ce","ts":"2026-06-27T20:36:04.642Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["refund_policy.md","cancellation_policy.md"]}}
+{"traceId":"SP-1-a92301ce","ts":"2026-06-27T20:36:04.649Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-a92301ce","ts":"2026-06-27T20:36:06.669Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":false,"evidenceCount":2}}
+{"traceId":"R-61af552b","ts":"2026-06-27T20:36:06.679Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-61af552b","ts":"2026-06-27T20:36:09.698Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-45e866e4","ts":"2026-06-27T20:38:36.563Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-45e866e4","ts":"2026-06-27T20:38:39.050Z","node":"classifier","message":"classified ticket","data":{"category":"support","primary_intent":"mixed","is_multi_issue":true,"fallback":false,"intents":[{"type":"billing","confidence":0.9},{"type":"technical","confidence":0.78}]}}
+{"traceId":"R-45e866e4","ts":"2026-06-27T20:38:39.052Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-45e866e4","ts":"2026-06-27T20:38:40.037Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-45e866e4","ts":"2026-06-27T20:38:41.303Z","node":"decompose","message":"LLM split","data":{"count":2,"domains":["technical","billing"]}}
+{"traceId":"SP-1-c299307b","ts":"2026-06-27T20:38:41.305Z","node":"agent","message":"[technical] received ticket","data":{"text":"Checkout keeps failing and I was charged twice."}}
+{"traceId":"SP-1-c299307b","ts":"2026-06-27T20:38:41.307Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-2-16c1d20d","ts":"2026-06-27T20:38:41.308Z","node":"agent","message":"[billing] received ticket","data":{"text":"Checkout keeps failing and I was charged twice."}}
+{"traceId":"SP-2-16c1d20d","ts":"2026-06-27T20:38:41.310Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-c299307b","ts":"2026-06-27T20:38:42.605Z","node":"classifier","message":"classified ticket","data":{"agent":"technical","handlerId":"error_diagnosis","confidence":0.86,"rationale":"Customer reports checkout failing and mentions being charged twice, which aligns with diagnosing checkout/payment errors and related issues."}}
+{"traceId":"SP-1-c299307b","ts":"2026-06-27T20:38:42.615Z","node":"graph:gather","message":"handler \"error_diagnosis\" gathering"}
+{"traceId":"SP-1-c299307b","ts":"2026-06-27T20:38:42.617Z","node":"declarative","message":"running use case \"error_diagnosis\""}
+{"traceId":"SP-1-c299307b","ts":"2026-06-27T20:38:42.619Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-2-16c1d20d","ts":"2026-06-27T20:38:43.320Z","node":"classifier","message":"classified ticket","data":{"agent":"billing","handlerId":"failed_payment","confidence":0.72,"rationale":"Customer reports checkout failures (payment not completing) alongside duplicate charges; primary issue is diagnosing failed payment/checkout behavior, which may also explain pending/duplicate authorizations."}}
+{"traceId":"SP-2-16c1d20d","ts":"2026-06-27T20:38:43.328Z","node":"graph:gather","message":"handler \"failed_payment\" gathering"}
+{"traceId":"SP-2-16c1d20d","ts":"2026-06-27T20:38:43.331Z","node":"declarative","message":"running use case \"failed_payment\""}
+{"traceId":"SP-2-16c1d20d","ts":"2026-06-27T20:38:43.332Z","node":"tool","message":"calling paymentStatus","data":{"args":{"customerId":"cust_001"}}}
+{"traceId":"SP-2-16c1d20d","ts":"2026-06-27T20:38:43.333Z","node":"tool","message":"paymentStatus returned","data":{"result":{"found":true,"customerId":"cust_001","method":"Visa ****4242","lastPayment":{"amount":49,"status":"succeeded"}}}}
+{"traceId":"SP-2-16c1d20d","ts":"2026-06-27T20:38:43.334Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["billing_policy.md"]}}
+{"traceId":"SP-2-16c1d20d","ts":"2026-06-27T20:38:43.336Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-1-c299307b","ts":"2026-06-27T20:38:43.618Z","node":"tool","message":"calling lookupErrorCode","data":{"args":{"customerId":"cust_001"}}}
+{"traceId":"SP-1-c299307b","ts":"2026-06-27T20:38:43.620Z","node":"tool","message":"lookupErrorCode returned","data":{"result":{"found":false,"errorCode":null}}}
+{"traceId":"SP-1-c299307b","ts":"2026-06-27T20:38:43.623Z","node":"kb","message":"retrieving from scope","data":{"kbScope":["troubleshooting.md"]}}
+{"traceId":"SP-1-c299307b","ts":"2026-06-27T20:38:43.625Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"SP-2-16c1d20d","ts":"2026-06-27T20:38:45.591Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-2-16c1d20d","ts":"2026-06-27T20:38:45.597Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":2}}
+{"traceId":"SP-1-c299307b","ts":"2026-06-27T20:38:46.228Z","node":"graph:verify","message":"handler produced output, stopping"}
+{"traceId":"SP-1-c299307b","ts":"2026-06-27T20:38:46.239Z","node":"graph:emit","message":"execution complete","data":{"hasAnswer":true,"evidenceCount":2}}
+{"traceId":"R-45e866e4","ts":"2026-06-27T20:38:46.246Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-6f10ff0f","ts":"2026-06-27T20:39:21.015Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}
+{"traceId":"R-6f10ff0f","ts":"2026-06-27T20:39:22.513Z","node":"classifier","message":"classified ticket","data":{"category":"greeting","primary_intent":"unknown","is_multi_issue":false,"fallback":false,"intents":[]}}
+{"traceId":"R-6f10ff0f","ts":"2026-06-27T20:39:22.516Z","node":"gateway","message":"LLM call","data":{"provider":"custom","json":true}}

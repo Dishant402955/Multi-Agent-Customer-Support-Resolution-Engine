@@ -17,6 +17,7 @@ import type {
   PolicyConfig,
   RunSessionDetail,
   RunSessionRow,
+  SlaConfig,
   SpecialistAgentRecord,
   StoredUseCase,
   TicketDashboardDetail,
@@ -253,16 +254,48 @@ export async function deleteTicket(ticketId: string): Promise<void> {
 
 // ---- Escalation dashboard --------------------------------------------------
 
+export type EscalationScope = "admin" | "manager" | "agent";
+export interface EscalationViewer {
+  id: string; name: string; email: string; role: string;
+  agent_id?: string | null;
+  level?: string | null; department?: string | null;
+}
+
 export async function listEscalations(): Promise<{
   escalations: EscalationRecord[];
   agents: HumanAgent[];
+  scope?: EscalationScope;
+  me?: EscalationViewer;
 }> {
   try {
     const res = await fetch(`${API}/api/escalations`, { headers: authHeaders() });
     if (!res.ok) return { escalations: [], agents: [] };
-    return (await res.json()) as { escalations: EscalationRecord[]; agents: HumanAgent[] };
+    return (await res.json()) as {
+      escalations: EscalationRecord[]; agents: HumanAgent[];
+      scope?: EscalationScope; me?: EscalationViewer;
+    };
   } catch {
     return { escalations: [], agents: [] };
+  }
+}
+
+// Manager/admin reassigns (or self-claims) a case, declaring a disposition.
+export async function reassignEscalation(
+  id: string,
+  assigneeId: string,
+  disposition: "handling" | "delegated",
+  note = ""
+): Promise<{ error?: string }> {
+  try {
+    const res = await fetch(`${API}/api/escalations/${encodeURIComponent(id)}/reassign`, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ assignee_id: assigneeId, disposition, note }),
+    });
+    if (!res.ok) return { error: ((await res.json().catch(() => ({}))) as any)?.error || "Reassign failed" };
+    return {};
+  } catch {
+    return { error: "Network error" };
   }
 }
 
@@ -431,6 +464,9 @@ export const platform = {
   getPolicies: () => pf("GET", "/policies") as Promise<{ policies: PolicyConfig }>,
   putPolicies: (policies: PolicyConfig) =>
     pf("PUT", "/policies", policies) as Promise<{ policies: PolicyConfig }>,
+
+  getSla: () => pf("GET", "/sla") as Promise<SlaConfig>,
+  putSla: (cfg: SlaConfig) => pf("PUT", "/sla", cfg) as Promise<SlaConfig>,
 
   listSpecialists: () =>
     pf("GET", "/specialists") as Promise<{ agents: SpecialistAgentRecord[] }>,

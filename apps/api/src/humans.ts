@@ -144,8 +144,14 @@ export function pickAssignee(
   openCounts: Record<string, number>
 ): HumanAgent {
   const pool = agentsByDepartment(dept);
-  const candidates = pool.length ? pool : listHumanAgents();
-  return candidates.reduce((best, a) =>
+  // New escalations go to FRONT-LINE agents; managers only receive cases via an
+  // explicit hand-up (see the /handoff route). Fall back to the manager only if a
+  // department has no front-line agents, and to the whole roster as a last resort.
+  const frontline = pool.filter((a) => a.level === "agent");
+  const candidates =
+    frontline.length ? frontline : pool.length ? pool : listHumanAgents().filter((a) => a.level === "agent");
+  const finalPool = candidates.length ? candidates : listHumanAgents();
+  return finalPool.reduce((best, a) =>
     (openCounts[a.id] ?? 0) < (openCounts[best.id] ?? 0) ? a : best
   );
 }

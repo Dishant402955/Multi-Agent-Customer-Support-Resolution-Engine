@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { platform } from "@/lib/api";
 import type { StoredUseCase } from "@/lib/types";
-import { ErrorNote, Field } from "../ui";
+import { ErrorNote, Field, MultiSearchSelect, Pager, usePager } from "../ui";
 
 interface UseCaseForm {
   use_case_id: string;
@@ -97,14 +97,16 @@ export function UseCasesTab() {
     });
   }
 
+  const { pageItems, ...pager } = usePager(items, 5);
+
   return (
     <div className="grid gap-6 md:grid-cols-[1fr_420px]">
       <div>
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-          Registered use cases
+          Registered use cases ({items.length})
         </p>
         <div className="space-y-2">
-          {items.map((u) => (
+          {pageItems.map((u) => (
             <div key={`${u.agent}/${u.def.use_case_id}`} className="rounded-lg border border-border px-3 py-2.5">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -131,6 +133,7 @@ export function UseCasesTab() {
             </div>
           ))}
         </div>
+        <Pager {...pager} />
       </div>
 
       <div className="space-y-3">
@@ -167,26 +170,32 @@ export function UseCasesTab() {
               <textarea value={form.prompt} onChange={(e) => setForm({ ...form, prompt: e.target.value })} rows={4} className="input" />
             </Field>
             <Field label="Tools">
-              <div className="flex flex-wrap gap-1.5">
-                {availableTools.length === 0 && <span className="text-xs text-muted-foreground">No tools available.</span>}
-                {availableTools.map((t) => (
-                  <button key={t} type="button" onClick={() => setForm({ ...form, tools: toggle(form.tools, t) })}
-                    className={"rounded-md border px-2 py-1 text-xs transition-colors " + (form.tools.includes(t) ? "border-foreground bg-foreground text-background" : "border-border text-muted-foreground hover:text-foreground")}>
-                    {t}
-                  </button>
-                ))}
-              </div>
+              {availableTools.length === 0 ? (
+                <span className="text-xs text-muted-foreground">No tools available.</span>
+              ) : (
+                <MultiSearchSelect
+                  options={availableTools.map((t) => ({ value: t, label: t }))}
+                  values={form.tools}
+                  onToggle={(t) => setForm({ ...form, tools: toggle(form.tools, t) })}
+                  placeholder="Choose tools…"
+                  searchPlaceholder="Search tools…"
+                  emptyText="No tools match"
+                />
+              )}
             </Field>
             <Field label="Knowledge base docs">
-              <div className="flex flex-wrap gap-1.5">
-                {availableKb.length === 0 && <span className="text-xs text-muted-foreground">No KB docs available.</span>}
-                {availableKb.map((f) => (
-                  <button key={f} type="button" onClick={() => setForm({ ...form, kbFiles: toggle(form.kbFiles, f) })}
-                    className={"rounded-md border px-2 py-1 text-xs transition-colors " + (form.kbFiles.includes(f) ? "border-foreground bg-foreground text-background" : "border-border text-muted-foreground hover:text-foreground")}>
-                    {f}
-                  </button>
-                ))}
-              </div>
+              {availableKb.length === 0 ? (
+                <span className="text-xs text-muted-foreground">No KB docs available.</span>
+              ) : (
+                <MultiSearchSelect
+                  options={availableKb.map((f) => ({ value: f, label: f }))}
+                  values={form.kbFiles}
+                  onToggle={(f) => setForm({ ...form, kbFiles: toggle(form.kbFiles, f) })}
+                  placeholder="Choose KB docs…"
+                  searchPlaceholder="Search docs…"
+                  emptyText="No docs match"
+                />
+              )}
             </Field>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" checked={form.canAskUser} onChange={(e) => setForm({ ...form, canAskUser: e.target.checked })} />

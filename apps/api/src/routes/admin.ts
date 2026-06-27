@@ -9,7 +9,7 @@ import {
   listHumanAgentRows,
 } from "../db";
 import { assertEmailAvailable, createAgentAccount, getAccountByAgentId } from "../auth";
-import { createHumanAgent, listHumanAgents, DEPARTMENTS, type Department } from "../humans";
+import { createHumanAgent, listHumanAgents, getHumanAgent, DEPARTMENTS, type Department } from "../humans";
 import { addCollabClient, emitCollab } from "../collab";
 import { requireRole, displayCustomerName, canAccessTicket, type AuthedRequest } from "./middleware";
 
@@ -17,18 +17,43 @@ const router = express.Router();
 
 const PRESENCE_ONLINE_MS = 35_000;
 
-function collabOverview() {
+// The Team dashboard is department-scoped: an agent (front-line OR manager)
+// sees only their own team's roster, load, and activity. Admins see everyone.
+function viewerDepartment(account: AuthedRequest["account"]): string | null {
+  if (!account || account.role === "admin" || !account.agent_id) return null;
+  return getHumanAgent(account.agent_id)?.department ?? null;
+}
+
+function collabOverview(account: AuthedRequest["account"]) {
+  const dept = viewerDepartment(account);
   const presence = listAgentPresence();
   const seen = new Map(presence.map((p) => [p.agent_id, p.last_seen]));
   const openCounts = countOpenByAssignee();
   const now = Date.now();
-  const agents = listHumanAgentRows().map((a) => ({
+  const roster = listHumanAgentRows().filter((a) => !dept || a.department === dept);
+  const agents = roster.map((a) => ({
     ...a, open_cases: openCounts[a.id] ?? 0,
     online: now - (seen.get(a.id) ?? 0) < PRESENCE_ONLINE_MS,
     last_seen: seen.get(a.id) ? new Date(seen.get(a.id)!).toISOString() : null,
   }));
-  const open = listEscalations().filter((e) => e.status === "open");
-  return { agents, online_count: agents.filter((a) => a.online).length, open_cases: open.length, activity: listTeamActivity(60), notes: listRecentCaseNotes(20), open_escalations: open };
+
+  // Which escalations belong to this team (by stored dept or current owner's dept).
+  const deptAgentIds = new Set(roster.map((a) => a.id));
+  const allEsc = listEscalations();
+  const inTeam = (e: (typeof allEsc)[number]) => e.department === dept || deptAgentIds.has(e.assignee_id);
+  const open = (dept ? allEsc.filter(inTeam) : allEsc).filter((e) => e.status === "open");
+
+  // Scope the activity feed + notes to this team's cases (open OR resolved). Pull
+  // a wider window first, then filter, so the team still gets a meaningful list.
+  const teamEscIds = dept ? new Set(allEsc.filter(inTeam).map((e) => e.id)) : null;
+  const activity = listTeamActivity(dept ? 300 : 60)
+    .filter((ev) => !teamEscIds || (ev.escalation_id ? teamEscIds.has(ev.escalation_id) : false))
+    .slice(0, 60);
+  const notes = listRecentCaseNotes(dept ? 100 : 20)
+    .filter((n) => !teamEscIds || (n.escalation_id ? teamEscIds.has(n.escalation_id) : false))
+    .slice(0, 20);
+
+  return { agents, online_count: agents.filter((a) => a.online).length, open_cases: open.length, activity, notes, open_escalations: open };
 }
 
 // Notifications
@@ -126,7 +151,7 @@ router.post("/collab/heartbeat", requireRole("admin", "agent"), (req: AuthedRequ
   if (account.agent_id) { recordAgentPresence(account.agent_id, account.id, account.name); emitCollab({ type: "presence", agent_id: account.agent_id, online: true }); }
   res.json({ ok: true });
 });
-router.get("/collab/overview", requireRole("admin", "agent"), (_req, res) => res.json(collabOverview()));
+router.get("/collab/overview", requireRole("admin", "agent"), (req: AuthedRequest, res) => res.json(collabOverview(req.account)));
 router.get("/collab/stream", requireRole("admin", "agent"), (req: AuthedRequest, res) => {
   res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", Connection: "keep-alive", "X-Accel-Buffering": "no" });
   res.write(`data: ${JSON.stringify({ type: "hello", ts: new Date().toISOString() })}\n\n`);

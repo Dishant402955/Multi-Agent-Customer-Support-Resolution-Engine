@@ -106,6 +106,8 @@ export interface TicketSummary {
   updated_at: string;
   status: TicketLifecycleStatus;
   parent_ticket_id: string | null;
+  // Stable per-session ticket number (creation order). Shown in the dashboard.
+  seq: number;
 }
 
 // A customer you can act as, with live presence info.
@@ -143,6 +145,23 @@ export interface EscalationRecord {
   handoff_note?: string | null;
   status: "open" | "resolved";
   created_at: string;
+  reopened?: number;
+  // SLA tracking
+  sla_started_at?: string | null;
+  sla_due_at?: string | null;
+  sla_state?: "on_track" | "warning" | "breached";
+  escalation_source?: "auto" | "agent" | "sla" | "manager" | "admin";
+  missed_by_id?: string | null;
+  missed_by_name?: string | null;
+  manager_disposition?: string | null;
+  breach_count?: number;
+}
+
+// SLA policy editable in the Platform panel: deadlines (in hours) per
+// department × priority, plus the fraction of the window at which a warning fires.
+export interface SlaConfig {
+  matrix: Record<string, { P1: number; P2: number; P3: number }>;
+  warn_pct: number;
 }
 
 // In-app notification addressed to the signed-in account.
@@ -214,7 +233,7 @@ export interface ConfigAuditRecord {
   created_at: string;
 }
 
-export type TicketLifecycleStatus = "active" | "escalated" | "resolved";
+export type TicketLifecycleStatus = "active" | "escalated" | "reopened" | "resolved";
 
 /** Row in the tickets ops dashboard. */
 export interface TicketDashboardRow {
@@ -388,6 +407,7 @@ export interface FeedbackRow {
   question: string | null;
   answer: string | null;
   created_at: string;
+  department: string | null;
 }
 
 /** Full detail for one run — the complete pipeline state for the trace view. */

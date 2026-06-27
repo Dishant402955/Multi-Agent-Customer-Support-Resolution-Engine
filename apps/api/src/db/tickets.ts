@@ -41,12 +41,15 @@ export interface TicketSummary {
   ticket_id: string; display_id: string; title: string;
   message_count: number; updated_at: string; status: TicketLifecycleStatus;
   parent_ticket_id: string | null;
+  // Stable per-customer creation sequence (1, 2, 3 …). Never changes once set,
+  // so it's safe to show as the in-session ticket number.
+  seq: number;
 }
 
-export type TicketLifecycleStatus = "active" | "escalated" | "resolved";
+export type TicketLifecycleStatus = "active" | "escalated" | "reopened" | "resolved";
 
-function lifecycleStatus(escalationStatus: string | null | undefined, _runCount: number, overallStatus?: string | null): TicketLifecycleStatus {
-  if (escalationStatus === "open") return "escalated";
+function lifecycleStatus(escalationStatus: string | null | undefined, _runCount: number, overallStatus?: string | null, reopened = false): TicketLifecycleStatus {
+  if (escalationStatus === "open") return reopened ? "reopened" : "escalated";
   if (escalationStatus === "resolved") return "resolved";
   if (overallStatus === "resolved") return "resolved";
   return "active";
@@ -60,6 +63,7 @@ export function listTickets(customerId?: string | null): TicketSummary[] {
       (SELECT COUNT(*) FROM runs r WHERE r.ticket_id = t.ticket_id) AS run_count,
       (SELECT r.state_json FROM runs r WHERE r.ticket_id = t.ticket_id ORDER BY r.created_at DESC LIMIT 1) AS latest_state,
       (SELECT e.status FROM escalations e WHERE e.ticket_id = t.ticket_id ORDER BY e.created_at DESC LIMIT 1) AS escalation_status,
+      (SELECT e.reopened FROM escalations e WHERE e.ticket_id = t.ticket_id ORDER BY e.created_at DESC LIMIT 1) AS reopened,
       COALESCE((SELECT MAX(m.created_at) FROM messages m WHERE m.ticket_id = t.ticket_id), t.created_at) AS updated_at
     FROM tickets t WHERE t.customer_id IS ? ORDER BY updated_at DESC`
   ).all(customerId ?? null) as any[];
@@ -70,8 +74,9 @@ export function listTickets(customerId?: string | null): TicketSummary[] {
       ticket_id: r.ticket_id, display_id: friendlyId(r.seq, r.ticket_id),
       title: r.title || friendlyId(r.seq, r.ticket_id),
       message_count: Number(r.message_count ?? 0), updated_at: r.updated_at,
-      status: lifecycleStatus(r.escalation_status, Number(r.run_count ?? 0), overall),
+      status: lifecycleStatus(r.escalation_status, Number(r.run_count ?? 0), overall, !!r.reopened),
       parent_ticket_id: r.parent_ticket_id ?? null,
+      seq: Number(r.seq ?? 0),
     };
   });
 }
@@ -149,7 +154,7 @@ function rowFromDb(r: any): TicketDashboardRow {
     title: r.title || friendlyId(r.seq, r.ticket_id), customer_id: r.customer_id ?? null,
     parent_ticket_id: r.parent_ticket_id ?? null, created_at: r.created_at, updated_at: r.updated_at,
     message_count: Number(r.message_count ?? 0), run_count: Number(r.run_count ?? 0),
-    status: lifecycleStatus(escalation_status, Number(r.run_count ?? 0), state?.investigation?.overall_status),
+    status: lifecycleStatus(escalation_status, Number(r.run_count ?? 0), state?.investigation?.overall_status, !!r.reopened),
     primary_intent: state?.classification?.primary_intent ?? null, severity: state?.severity?.level ?? null,
     priority: state?.severity?.priority ?? null, sentiment: state?.sentiment?.label ?? null,
     sentiment_score: typeof state?.sentiment?.score === "number" ? state.sentiment.score : null,
@@ -166,7 +171,8 @@ const DASHBOARD_SELECT = `
     COALESCE((SELECT MAX(m.created_at) FROM messages m WHERE m.ticket_id = t.ticket_id), t.created_at) AS updated_at,
     (SELECT r.state_json FROM runs r WHERE r.ticket_id = t.ticket_id ORDER BY r.created_at DESC LIMIT 1) AS latest_state,
     (SELECT e.id FROM escalations e WHERE e.ticket_id = t.ticket_id ORDER BY e.created_at DESC LIMIT 1) AS escalation_id,
-    (SELECT e.status FROM escalations e WHERE e.ticket_id = t.ticket_id ORDER BY e.created_at DESC LIMIT 1) AS escalation_status
+    (SELECT e.status FROM escalations e WHERE e.ticket_id = t.ticket_id ORDER BY e.created_at DESC LIMIT 1) AS escalation_status,
+    (SELECT e.reopened FROM escalations e WHERE e.ticket_id = t.ticket_id ORDER BY e.created_at DESC LIMIT 1) AS reopened
   FROM tickets t`;
 
 export function listTicketsDashboard(): TicketDashboardRow[] {

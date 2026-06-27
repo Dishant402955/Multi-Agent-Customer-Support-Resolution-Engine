@@ -67,6 +67,24 @@ db.exec(`
   const has = (name: string) => cols.some((c) => c.name === name);
   if (!has("assignee_level")) db.exec("ALTER TABLE escalations ADD COLUMN assignee_level TEXT");
   if (!has("handoff_note")) db.exec("ALTER TABLE escalations ADD COLUMN handoff_note TEXT");
+  // Marks a case that was re-activated after the ticket had already been resolved
+  // (customer came back). Drives the "Reopened" status in the dashboards.
+  if (!has("reopened")) db.exec("ALTER TABLE escalations ADD COLUMN reopened INTEGER NOT NULL DEFAULT 0");
+  // ── SLA tracking ──────────────────────────────────────────────────────────
+  // When the current owner's clock started, when it's due, and where it stands.
+  if (!has("sla_started_at")) db.exec("ALTER TABLE escalations ADD COLUMN sla_started_at TEXT");
+  if (!has("sla_due_at")) db.exec("ALTER TABLE escalations ADD COLUMN sla_due_at TEXT");
+  // on_track | warning | breached
+  if (!has("sla_state")) db.exec("ALTER TABLE escalations ADD COLUMN sla_state TEXT NOT NULL DEFAULT 'on_track'");
+  // How this case reached its CURRENT owner: auto | agent | sla | manager | admin
+  if (!has("escalation_source")) db.exec("ALTER TABLE escalations ADD COLUMN escalation_source TEXT NOT NULL DEFAULT 'auto'");
+  // The owner who let it breach (so they can see it as "Missed").
+  if (!has("missed_by_id")) db.exec("ALTER TABLE escalations ADD COLUMN missed_by_id TEXT");
+  if (!has("missed_by_name")) db.exec("ALTER TABLE escalations ADD COLUMN missed_by_name TEXT");
+  // Manager's call once it lands with them: handling | delegated
+  if (!has("manager_disposition")) db.exec("ALTER TABLE escalations ADD COLUMN manager_disposition TEXT");
+  // How many times this case has breached an SLA (for top-tier escalation).
+  if (!has("breach_count")) db.exec("ALTER TABLE escalations ADD COLUMN breach_count INTEGER NOT NULL DEFAULT 0");
 }
 
 export function friendlyId(seq: number | null | undefined, ticketId: string): string {

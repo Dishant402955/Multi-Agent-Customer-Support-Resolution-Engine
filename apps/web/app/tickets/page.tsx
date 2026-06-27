@@ -33,6 +33,7 @@ const PAGE_SIZE = 12;
 
 function statusVariant(s: TicketLifecycleStatus) {
   if (s === "escalated") return "destructive" as const;
+  if (s === "reopened") return "warning" as const;
   if (s === "resolved") return "success" as const;
   return "warning" as const;
 }
