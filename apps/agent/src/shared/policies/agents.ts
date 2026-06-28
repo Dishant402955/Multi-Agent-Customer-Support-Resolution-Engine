@@ -55,7 +55,7 @@ const BUILTINS: AgentRecord[] = [
   {
     name: "billing",
     label: "Billing & Payments",
-    description: "money matters: charges, double/failed charges, declined cards, invoices, receipts, and refund processing",
+    description: "money matters: charges, double/failed charges, declined cards, invoices, receipts, refund processing, and explaining payment/billing policies (billing cycle, plans, proration, dunning)",
     keywords: [
       "charge", "charged", "charges", "refund", "refunded", "invoice", "receipt",
       "payment", "paid", "billed", "billing", "card", "declined", "double", "twice",

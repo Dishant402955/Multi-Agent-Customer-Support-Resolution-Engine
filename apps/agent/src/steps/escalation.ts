@@ -44,26 +44,45 @@ export function shouldEscalate(input: GateInput): { escalate: boolean; reasons: 
   if (rules.unresolved && input.investigation.overall_status === "unresolved") {
     reasons.push("Unresolved by agents");
   }
-  if (rules.conflicts && input.investigation.conflicts.length > 0) {
+  // Mixed resolved + unresolved on a multi-issue ticket is normal partial coverage,
+  // not contradictory findings that require a human.
+  const anyResolved = reports.some((r) => r.status === "resolved");
+  const productivePartial =
+    input.investigation.overall_status === "partial" && anyResolved;
+  if (
+    rules.conflicts &&
+    input.investigation.conflicts.length > 0 &&
+    !productivePartial
+  ) {
     reasons.push("Conflicting agent findings");
   }
 
-  // A specialist explicitly handed off to a human (e.g. GDPR / legal queue) even
-  // when the merged investigation is only "partial" because another agent was
-  // out-of-domain or needs_info.
+  // "Specialist handoff" means NO agent at all could help — the whole
+  // investigation came back unresolved, not just one agent having a KB gap in
+  // an otherwise partial result. A single unresolved agent when others resolved
+  // is normal partial coverage, not a signal that a human must take over.
   const handoff = reports.filter((r) => r.status === "unresolved");
-  if (rules.specialist_handoff && handoff.length > 0) {
+  if (
+    rules.specialist_handoff &&
+    handoff.length > 0 &&
+    input.investigation.overall_status === "unresolved"
+  ) {
     reasons.push(
       `Specialist handoff requested (${handoff.map((r) => r.agent).join(", ")})`
     );
   }
 
-  // Prefer the analyzer's explicit frustration flag; fall back to the label.
   const frustrated =
     input.sentiment.frustration ??
     (input.sentiment.label === "frustrated" || input.sentiment.label === "angry");
   const repeat = input.messageCount > 1;
-  if (rules.frustration_repeat && frustrated && (repeat || input.investigation.overall_status !== "resolved")) {
+  const status = input.investigation.overall_status;
+  // Frustration alone on a first message where at least one specialist already
+  // helped is not an escalation signal — give self-serve a chance on follow-ups.
+  const repeatAndStillBlocked = repeat && frustrated && status !== "resolved";
+  const firstContactTotalFailure =
+    !repeat && frustrated && status === "unresolved" && !anyResolved;
+  if (rules.frustration_repeat && (repeatAndStillBlocked || firstContactTotalFailure)) {
     const why = input.sentiment.trend === "rising" ? "rising frustration" : "frustration";
     reasons.push(`${why} with repeat contact / unresolved`);
   }

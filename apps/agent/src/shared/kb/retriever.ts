@@ -134,13 +134,13 @@ export async function retrieveFromScope(
   }
 
   for (const [file, sections] of sectionsByFile) {
-    const ranked = sections
+    const scored = sections
       .map((s) => ({ s, score: scoreSection(s) }))
-      .filter((r) => r.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, Math.max(config.kbTopSectionsPerFile, 1));
+      .sort((a, b) => b.score - a.score);
 
-    if (ranked.length === 0) {
+    const matching = scored.filter((r) => r.score > 0);
+
+    if (matching.length === 0) {
       // Tier-1 fallback: no query term matched — return the whole (capped) doc.
       const whole = sections.map((s) => s.text).join("\n\n");
       results.push({
@@ -153,6 +153,14 @@ export async function retrieveFromScope(
       });
       continue;
     }
+
+    // When the query matches MOST sections of a document (broad/overview query),
+    // return all matching sections so the model sees the full policy picture.
+    // For narrow queries where only a few sections match, apply the normal cap.
+    // "Most" = the matching fraction exceeds 50% of the document's total sections.
+    const capDefault = Math.max(config.kbTopSectionsPerFile, 1);
+    const broadQuery = matching.length >= Math.ceil(sections.length * 0.5);
+    const ranked = broadQuery ? matching : matching.slice(0, capDefault);
 
     results.push({
       source: `kb:${file}`,

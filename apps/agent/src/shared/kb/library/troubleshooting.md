@@ -19,6 +19,20 @@ try again.
 quantities. The fix is to refresh the page or sign out and back in. This is
 display-only and does not affect any placed order.
 
+## App crashes on account or billing pages
+If the app crashes or closes when opening **My Account**, **Billing**, or
+**Invoices** (without a quoted error code), the most common cause is a stale
+session or corrupted local cache. The fix is:
+1. Sign out completely, close the browser tab, and sign back in.
+2. Clear the site cache/cookies for the store domain, then retry.
+3. Try an incognito/private window to rule out extensions.
+4. If it still crashes, note whether it happens on mobile or desktop and share
+   any error message shown before the crash — escalate to engineering if it
+   persists after cache clear.
+
+These account-page crashes are read-only — they do not change billing, charge
+cards, or cancel subscriptions.
+
 ## When to escalate
 If an error code is not in this runbook, or the recommended fix does not resolve
 the issue, escalate to engineering with the trace id.

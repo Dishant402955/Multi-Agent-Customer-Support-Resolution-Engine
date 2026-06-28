@@ -60,6 +60,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await apiLogout();
     clearToken();
     setAccount(null);
+    // Hard-navigate to /login so the whole app state resets cleanly. A pure SPA
+    // replace can race the per-page role guards (the home route's guard fires as
+    // `account` flips to null), which on the customer home (homeForRole = "/")
+    // could bounce back and forth. A full load lands on /login with no token.
+    if (typeof window !== "undefined") window.location.href = "/login";
   }, []);
 
   return (

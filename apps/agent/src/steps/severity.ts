@@ -19,7 +19,6 @@ const HIGH_IMPACT = [
   "data loss",
   "breach",
   "outage",
-  "down",
   "security",
   "fraud",
   "legal",
@@ -27,6 +26,12 @@ const HIGH_IMPACT = [
   "ccpa",
 ];
 const MEDIUM_IMPACT = ["refund", "charge", "charged", "duplicate", "payment", "invoice", "subscription", "$"];
+
+/** Match a keyword as a whole word/phrase so "pin down" doesn't hit "down". */
+function blobMatches(blob: string, keyword: string): boolean {
+  if (keyword.includes(" ")) return blob.includes(keyword);
+  return new RegExp(`\\b${keyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(blob);
+}
 
 export function runSeverity(
   reports: AgentReport[],
@@ -42,16 +47,25 @@ export function runSeverity(
     .toLowerCase();
 
   let level: SeverityLevel = "low";
-  if (HIGH_IMPACT.some((k) => blob.includes(k))) level = "high";
-  else if (MEDIUM_IMPACT.some((k) => blob.includes(k))) level = "medium";
+  if (HIGH_IMPACT.some((k) => blobMatches(blob, k))) level = "high";
+  else if (MEDIUM_IMPACT.some((k) => blobMatches(blob, k))) level = "medium";
+  else if (/\boutage\b|\bdown\b/.test(blob) && /\bservice\b|\bsite\b|\bapp\b|\bstorefront\b/.test(blob)) {
+    level = "high";
+  }
+  // An overall-unresolved investigation (all agents failed) is worth a medium
+  // floor — something genuinely couldn't be handled. But a single KB-gap agent
+  // in an otherwise partial result does NOT warrant high severity; escalating
+  // to P1 just because a policy doc was missing is noise, not signal.
   if (investigation.overall_status === "unresolved" && level === "low") level = "medium";
-  if (reports.some((r) => r.status === "unresolved")) level = "high";
 
   const base: Record<SeverityLevel, number> = { low: 1, medium: 2, high: 3 };
   let p = base[level];
   const factors: string[] = [`severity:${level}`];
 
-  if (sentiment.label === "angry") {
+  const anyResolved = reports.some((r) => r.status === "resolved");
+  const productivePartial = investigation.overall_status === "partial" && anyResolved;
+
+  if (sentiment.label === "angry" && !productivePartial) {
     p += 1;
     factors.push("angry(+1)");
   } else if (sentiment.label === "frustrated") {
@@ -61,7 +75,9 @@ export function runSeverity(
     p += 1;
     factors.push(`repeat_contact:${messageCount}(+1)`);
   }
-  if (investigation.conflicts.length > 0) {
+  // Mixed outcomes across specialists on a multi-issue ticket are normal partial
+  // coverage, not a priority conflict worth bumping on first contact.
+  if (investigation.conflicts.length > 0 && !productivePartial) {
     p += 1;
     factors.push("conflict(+1)");
   }

@@ -107,8 +107,17 @@ function Home() {
   // Customer feedback (thumbs) keyed by assistant message id.
   const [feedback, setFeedback] = useState<Record<number, FeedbackRating>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const resizing = useRef(false);
   const liveMode = !!activeId && escStatus === "open";
+
+  // Auto-grow the composer from one line up to ~4 lines, then scroll internally.
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [input]);
 
   useEffect(() => {
     const saved = Number(window.localStorage.getItem("se.sidebarWidth"));
@@ -566,6 +575,7 @@ function Home() {
                   }
                 >
                   <textarea
+                    ref={inputRef}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={onKeyDown}
@@ -577,7 +587,7 @@ function Home() {
                         ? "Reply to continue this conversation…"
                         : "Describe your issue…"
                     }
-                    className="max-h-40 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
+                    className="max-h-[120px] flex-1 resize-none overflow-y-auto bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
                   />
                   <MicButton
                     disabled={loading || liveSending}

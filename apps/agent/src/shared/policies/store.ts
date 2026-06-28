@@ -50,6 +50,11 @@ const DEFAULT_SIGNALS: GuardSignal[] = [
   { phrase: "want a human", category: "human_request" },
   { phrase: "speak to a human", category: "human_request" },
   { phrase: "speak to a person", category: "human_request" },
+  { phrase: "need someone to fix", category: "human_request" },
+  { phrase: "someone to actually fix", category: "human_request" },
+  { phrase: "someone to fix this", category: "human_request" },
+  { phrase: "get someone to fix", category: "human_request" },
+  { phrase: "connect me to support", category: "human_request" },
   { phrase: "real person", category: "human_request" },
   { phrase: "real human", category: "human_request" },
   { phrase: "i'll sue", category: "legal" },
@@ -59,7 +64,17 @@ const DEFAULT_SIGNALS: GuardSignal[] = [
   { phrase: "attorney", category: "legal" },
   { phrase: "legal action", category: "legal" },
   { phrase: "take legal action", category: "legal" },
-  { phrase: "data breach", category: "legal" },
+  { phrase: "data breach", category: "security" },
+  { phrase: "account was hacked", category: "security" },
+  { phrase: "was hacked", category: "security" },
+  { phrase: "account hacked", category: "security" },
+  { phrase: "my account is hacked", category: "security" },
+  { phrase: "account compromised", category: "security" },
+  { phrase: "unauthorized charge", category: "security" },
+  { phrase: "unauthorized charges", category: "security" },
+  { phrase: "charges i didn't make", category: "security" },
+  { phrase: "didn't make these charges", category: "security" },
+  { phrase: "someone accessed my account", category: "security" },
   { phrase: "gdpr", category: "legal" },
   { phrase: "ccpa", category: "legal" },
   { phrase: "chargeback", category: "financial_dispute" },
@@ -97,14 +112,23 @@ function num(v: unknown, fallback: number): number {
   return Number.isFinite(n) && n >= 0 && n <= 1 ? n : fallback;
 }
 
+/** Union default + stored guard signals so new built-in phrases appear without wiping admin edits. */
+function mergeGuardSignals(defaults: GuardSignal[], fromFile: GuardSignal[]): GuardSignal[] {
+  const byPhrase = new Map<string, GuardSignal>();
+  for (const s of defaults) byPhrase.set(s.phrase.toLowerCase(), s);
+  for (const s of fromFile) byPhrase.set(s.phrase.toLowerCase(), s);
+  return [...byPhrase.values()];
+}
+
 /** Deep-merge a raw object over DEFAULTS so partial/legacy files stay valid. */
 function withDefaults(raw: any): PolicyConfig {
-  const signals = Array.isArray(raw?.guard?.signals)
+  const fromFile = Array.isArray(raw?.guard?.signals)
     ? raw.guard.signals
         .map((s: unknown) => guardSignalSchema.safeParse(s))
         .filter((r: any) => r.success)
-        .map((r: any) => r.data)
-    : DEFAULT_POLICIES.guard.signals;
+        .map((r: any) => r.data as GuardSignal)
+    : [];
+  const signals = mergeGuardSignals(DEFAULT_POLICIES.guard.signals, fromFile);
   return {
     guard: {
       enabled: typeof raw?.guard?.enabled === "boolean" ? raw.guard.enabled : DEFAULT_POLICIES.guard.enabled,

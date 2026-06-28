@@ -196,6 +196,29 @@ export async function decomposeNode(s: PipelineState): Promise<Partial<PipelineS
     };
   }
 
+  // Hard-signal messages (legal, security, human-request) bypass multi-domain
+  // decomposition and go straight to the policy escalation handler.
+  if (s.guard?.force_escalation) {
+    const sub_problems = [
+      {
+        id: "SP-1",
+        domain: "policy",
+        description: s.message.replace(/\s+/g, " ").trim().slice(0, 200),
+      },
+    ];
+    return {
+      sub_problems,
+      audit_trail: [
+        audit("decompose", "Decomposer", "Hard signal → policy escalation handoff", {
+          kind: "heuristic",
+          detail:
+            `Matched hard signal "${s.guard.matched_phrase}" (${s.guard.reason}). ` +
+            "Skipping multi-domain split — routing directly to the policy escalation handler.",
+        }),
+      ],
+    };
+  }
+
   const { subProblems: sub_problems, method } = await runDecomposer(
     s.message,
     s.classification!,

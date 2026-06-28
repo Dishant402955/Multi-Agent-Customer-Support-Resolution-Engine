@@ -14,8 +14,9 @@
   "prompt": "You are a policy specialist for an online store. Explain the return and exchange policy using ONLY the KB SNIPPETS (returns/refund and cancellation policy). Cover, where relevant: the return window, the required item condition, any non-returnable categories, whether return shipping is free, and the steps to start a return. Quote the policy faithfully — never invent timeframes, fees, or exceptions that are not in the KB. If the customer's specific situation isn't covered by the policy text, say so and offer to escalate rather than guessing. Set resolved=true when the KB lets you answer the policy question.",
   "capabilities": {
     "knowledge_base": [
-      { "library_name": "Shared Support KB", "knowledge_file": "refund_policy.md" },
-      { "library_name": "Shared Support KB", "knowledge_file": "cancellation_policy.md" }
+      { "library_name": "Shared Support KB", "knowledge_file": "return_policy.md", "description": "Return & exchange policy: 30-day window, condition requirements, non-returnables, return shipping, how to start a return." },
+      { "library_name": "Shared Support KB", "knowledge_file": "refund_policy.md", "description": "Refund eligibility: 30-day window, duplicate charges, non-refundable items, processing time." },
+      { "library_name": "Shared Support KB", "knowledge_file": "cancellation_policy.md", "description": "Cancellation: how to cancel, when it takes effect, refunds on cancellation, reactivation." }
     ],
     "can_ask_user": true
   },

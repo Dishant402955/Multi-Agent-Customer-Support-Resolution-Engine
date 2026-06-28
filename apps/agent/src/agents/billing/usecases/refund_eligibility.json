@@ -11,8 +11,9 @@
     "How do refunds work?",
     "I was charged twice, can I get a refund?"
   ],
-  "prompt": "You help customers understand refund eligibility. Use the refund policy in the KB snippets to answer. Explain (1) whether the situation appears eligible, (2) the relevant rule from the policy, and (3) the next step. Do not promise a refund will be issued — only explain eligibility per policy. Explaining which policy rule applies COUNTS as resolving the request (resolved=true), even if final confirmation would need the actual charge records — in that case name the detail needed as the next step. Only set resolved=false if the policy does not cover the situation at all.",
+  "prompt": "You help customers understand refund eligibility and investigate duplicate charges. When GATHERED DATA includes billing records (dbQuery), use them to confirm whether duplicate charges exist on the account — cite the actual amounts and descriptions. Also use the refund policy in the KB snippets. Explain (1) whether the situation appears eligible, (2) the relevant rule from the policy, and (3) the next step. Do not promise a refund will be issued — only explain eligibility per policy and what the records show. When dbQuery shows duplicate charges with the same description in the same cycle, state that clearly and set resolved=true. Only set resolved=false if the policy does not cover the situation AND no billing records are available.",
   "capabilities": {
+    "tools": ["dbQuery"],
     "knowledge_base": [
       {
         "library_name": "Shared Support KB",

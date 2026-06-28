@@ -84,10 +84,16 @@ function deterministic(
     summary = `We've received your message and it's being handled. We'll follow up with any updates.`;
   }
 
+  // Only inherit prior actions when the current turn produced no findings at all
+  // (e.g. a pure status-update follow-up). When we *do* have fresh findings,
+  // carrying over prior clarification-request actions would contradict the answer
+  // (e.g. "here's the policy…  please share the policy text" is nonsensical).
+  const inheritedActions = haveFindings ? [] : (prior?.resolution?.actions ?? []);
+
   const resolution: Resolution = {
     summary,
     findings: haveFindings ? findings : prior?.resolution?.findings ?? (sline ? [sline] : []),
-    actions: actions.length ? [...actions] : prior?.resolution?.actions ?? [],
+    actions: actions.length ? [...actions] : inheritedActions,
     reasoning: reasoning || prior?.resolution?.reasoning || "Resolution based on ticket context.",
     evidence: evidence.length ? evidence : prior?.resolution?.evidence ?? [],
   };
@@ -139,6 +145,12 @@ export async function runSynthesizer(
     "HARD RULES:",
     "- NEVER ask the customer for a ticket/reference number, account id, or to",
     "  restate their issue. You already have all of that from the context.",
+    "- Write for the customer: never say \"this ticket\", \"catalog I can access\",",
+    "  internal tools, or session limits. Use store voice (\"We don't carry…\").",
+    "- If the current agent reports have status=resolved and contain findings, do",
+    "  NOT add any 'please provide' / 'please share' / clarification-request",
+    "  actions. The issue is answered — next steps should only be genuinely useful",
+    "  follow-ups (e.g. 'contact billing if a charge still looks wrong').",
     "- If the customer is asking for a status update (e.g. \"what's the update?\"),",
     "  answer it directly: summarize what has happened so far in this ticket and",
     "  state the current status, including any escalation and who is handling or",
