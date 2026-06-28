@@ -4,6 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AuthBackground } from "@/components/auth-background";
+import { AuthBrandHero } from "@/components/auth-brand-hero";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { TypedBrand } from "@/components/typed-brand";
 import { useAuth, homeForRole } from "@/lib/auth";
 
 const DEMO_ACCOUNTS = [
@@ -39,13 +43,15 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4 text-foreground">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded bg-foreground text-xs font-bold text-background">
-            SE
-          </span>
-          <span className="text-base font-semibold tracking-tight">Support Engine</span>
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 text-foreground sm:px-8 lg:justify-end lg:px-0 lg:pr-[12vw]">
+      <AuthBackground />
+      <AuthBrandHero />
+      <div className="absolute right-4 top-4 z-10">
+        <ThemeToggle />
+      </div>
+      <div className="relative w-full max-w-sm rounded-2xl border border-border/80 bg-card/80 p-6 shadow-2xl shadow-black/10 backdrop-blur-md dark:border-border/60 dark:bg-card/70 dark:shadow-black/20 sm:p-8">
+        <div className="mb-8 lg:hidden">
+          <TypedBrand text="Support Engine" className="font-serif text-2xl font-semibold tracking-tight" />
         </div>
 
         <h1 className="text-lg font-medium">Sign in</h1>

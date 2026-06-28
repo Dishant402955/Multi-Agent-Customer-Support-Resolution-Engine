@@ -1,11 +1,10 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Save, ShieldCheck, Trash2 } from "lucide-react";
+import { Loader2, Plus, Save, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { platform } from "@/lib/api";
 import type { HttpToolSpec, ToolInfo } from "@/lib/types";
-import { ErrorNote, Field } from "../ui";
+import { ErrorNote, Field, SearchSelect } from "../ui";
 
 const EMPTY_TOOL: HttpToolSpec = {
   name: "",
@@ -66,26 +65,30 @@ export function ToolsTab() {
         </div>
 
         <div>
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Declarative HTTP tools</p>
-          <div className="space-y-2">
-            {declarative.length === 0 && <p className="text-sm text-muted-foreground">None yet — add one on the right.</p>}
-            {declarative.map((t) => (
-              <div key={t.name} className="rounded-lg border border-border px-3 py-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">{t.method}</Badge>
-                    <span className="text-sm font-medium">{t.name}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => editTool(t)} className="text-xs text-muted-foreground hover:text-foreground">Edit</button>
-                    <button onClick={() => void remove(t.name)} className="text-muted-foreground hover:text-destructive"><Trash2 className="size-3.5" /></button>
-                  </div>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{t.description}</p>
-                <p className="mt-1 font-mono text-[11px] text-muted-foreground">{t.url_template}</p>
-              </div>
-            ))}
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Declarative HTTP tools</p>
+            <Button size="sm" variant="outline" className="h-7 gap-1.5 text-xs" onClick={fresh}>
+              <Plus className="size-3.5" /> New tool
+            </Button>
           </div>
+          <SearchSelect
+            options={declarative.map((t) => ({ value: t.name, label: t.name, hint: t.method }))}
+            value={declarative.some((t) => t.name === form.name) ? form.name : null}
+            onSelect={(name) => {
+              const t = declarative.find((x) => x.name === name);
+              if (t) editTool(t);
+            }}
+            onDelete={(name) => void remove(name)}
+            placeholder={declarative.length ? `${declarative.length} tool${declarative.length === 1 ? "" : "s"} — choose one to edit` : "None yet — add one on the right"}
+            searchPlaceholder="Search tools…"
+            emptyText="No tools match"
+          />
+          {form.name && declarative.some((t) => t.name === form.name) && (
+            <div className="mt-2 rounded-lg border border-border px-3 py-2.5">
+              <p className="text-xs text-muted-foreground">{form.description || "No description"}</p>
+              <p className="mt-1 font-mono text-[11px] text-muted-foreground">{form.url_template}</p>
+            </div>
+          )}
         </div>
 
         <div>

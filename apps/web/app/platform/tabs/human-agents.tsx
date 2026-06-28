@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { adminAgents, listEscalations } from "@/lib/api";
 import type { EscalationRecord, HumanAgentAdmin } from "@/lib/types";
-import { ErrorNote, Field } from "../ui";
+import { ErrorNote, Field, Pager, usePager } from "../ui";
 
 export function HumanAgentsTab() {
   const [agents, setAgents] = useState<HumanAgentAdmin[]>([]);
@@ -13,6 +13,7 @@ export function HumanAgentsTab() {
   const [escalations, setEscalations] = useState<EscalationRecord[]>([]);
   const [query, setQuery] = useState("");
   const [deptFilter, setDeptFilter] = useState("all");
+  const [levelFilter, setLevelFilter] = useState<"all" | "agent" | "manager">("all");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [caseFilter, setCaseFilter] = useState<"open" | "resolved" | "all">("all");
   const [name, setName] = useState("");
@@ -34,9 +35,17 @@ export function HumanAgentsTab() {
   useEffect(() => void load(), [load]);
 
   const visible = useMemo(
-    () => agents.filter((a) => (deptFilter === "all" || a.department === deptFilter) && a.name.toLowerCase().includes(query.toLowerCase())),
-    [agents, deptFilter, query]
+    () =>
+      agents.filter(
+        (a) =>
+          (deptFilter === "all" || a.department === deptFilter) &&
+          (levelFilter === "all" || a.level === levelFilter) &&
+          a.name.toLowerCase().includes(query.toLowerCase())
+      ),
+    [agents, deptFilter, levelFilter, query]
   );
+
+  const { pageItems, ...pager } = usePager(visible, 5);
 
   async function create() {
     setErr(""); setBusy(true);
@@ -51,17 +60,24 @@ export function HumanAgentsTab() {
   return (
     <div className="grid gap-6 md:grid-cols-[1fr_360px]">
       <div>
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name…" className="input max-w-[220px]" />
-          <select value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)} className="input max-w-[200px]">
-            <option value="all">All departments</option>
-            {departments.map((d) => <option key={d} value={d}>{d}</option>)}
-          </select>
-          <span className="text-xs text-muted-foreground">{visible.length} agents</span>
+        <div className="mb-3 space-y-2">
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name…" className="input h-11 w-full text-base" />
+          <div className="flex items-center gap-2">
+            <select value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)} className="input flex-1">
+              <option value="all">All departments</option>
+              {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <select value={levelFilter} onChange={(e) => setLevelFilter(e.target.value as "all" | "agent" | "manager")} className="input flex-1">
+              <option value="all">All levels</option>
+              <option value="agent">Agent (front-line)</option>
+              <option value="manager">Manager</option>
+            </select>
+            <span className="shrink-0 text-xs text-muted-foreground">{visible.length} agents</span>
+          </div>
         </div>
 
         <div className="space-y-2">
-          {visible.map((a) => {
+          {pageItems.map((a) => {
             const isOpen = expanded === a.id;
             const cases = escalations.filter((e) => e.assignee_id === a.id).filter((e) => (caseFilter === "all" ? true : e.status === caseFilter));
             return (
@@ -113,6 +129,7 @@ export function HumanAgentsTab() {
             );
           })}
         </div>
+        <Pager {...pager} />
       </div>
 
       <div className="space-y-3">

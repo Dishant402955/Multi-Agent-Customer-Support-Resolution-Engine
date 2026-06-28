@@ -1,6 +1,7 @@
 import express from "express";
 import { agentAdmin } from "../agentAdmin";
 import { recordConfigAudit, getLatestRun, getMessages, listConfigAudit } from "../db";
+import { getSlaConfig, setSlaConfig } from "../sla";
 import { requireRole, type AuthedRequest } from "./middleware";
 
 const router = express.Router();
@@ -135,6 +136,35 @@ router.delete("/faq/:id", requireRole("admin"), (req: AuthedRequest, res) =>
   platform(res, async () => {
     const out = await agentAdmin.deleteFaq(req.params.id);
     audit(req, "faq.delete", req.params.id);
+    return out;
+  })
+);
+
+// SLA policy (per-department × priority deadlines, in hours)
+router.get("/sla", requireRole("admin"), (_req, res) => res.json(getSlaConfig()));
+router.put("/sla", requireRole("admin"), (req: AuthedRequest, res) => {
+  try {
+    const out = setSlaConfig(req.body ?? {});
+    audit(req, "sla.update", "sla.policy");
+    res.json(out);
+  } catch (e) {
+    res.status(400).json({ error: (e as Error).message });
+  }
+});
+
+// Help Center (customer-facing self-service articles)
+router.get("/helpcenter", requireRole("admin"), (_req, res) => platform(res, () => agentAdmin.listHelp()));
+router.put("/helpcenter/:file", requireRole("admin"), (req: AuthedRequest, res) =>
+  platform(res, async () => {
+    const out = await agentAdmin.putHelp(req.params.file, String((req.body ?? {}).content ?? ""));
+    audit(req, "helpcenter.upsert", req.params.file);
+    return out;
+  })
+);
+router.delete("/helpcenter/:file", requireRole("admin"), (req: AuthedRequest, res) =>
+  platform(res, async () => {
+    const out = await agentAdmin.deleteHelp(req.params.file);
+    audit(req, "helpcenter.delete", req.params.file);
     return out;
   })
 );

@@ -16,6 +16,7 @@ import {
 } from "./contracts/types";
 import { runGuard } from "./steps/guard";
 import { runClassifier } from "./steps/classifier";
+import { triageReopen } from "./steps/continuity";
 import { matchFaq } from "./shared/policies/faq";
 import { analyzeSentiment } from "./steps/sentiment";
 import { availableProviders } from "./shared/gateway/index";
@@ -102,20 +103,49 @@ export async function classifyNode(s: PipelineState): Promise<Partial<PipelineSt
     : classification.fallback
       ? "The top confidence fell below the threshold, so it routes to a safe policy review rather than guessing."
       : "One domain clearly dominated.";
-  return {
-    classification,
-    audit_trail: [
+  const events = [
+    audit(
+      "classify",
+      "Intent classifier",
+      `${classification.primary_intent}${classification.fallback ? " (fallback)" : ""} [${top}]`,
+      {
+        kind: "llm",
+        detail: `LLM router (temperature 0) judged which domains the message touches. Confidences: ${top || "none"}. ${why}`,
+      }
+    ),
+  ];
+
+  // Reopen triage — only when this ticket already had a human escalation. Decides
+  // continuation (same problem → keep the existing owner) vs new issue (open a
+  // fresh, load-balanced case). The routing layer reads `continuity` to assign.
+  let continuity: PipelineState["continuity"];
+  if (s.ticket_status?.has_escalation) {
+    continuity = await triageReopen({
+      message: s.message,
+      history: s.history,
+      priorContext: s.prior_context,
+      ticketStatus: s.ticket_status,
+      traceId: s.run_id,
+    });
+    events.push(
       audit(
-        "classify",
-        "Intent classifier",
-        `${classification.primary_intent}${classification.fallback ? " (fallback)" : ""} [${top}]`,
+        "reopen_triage",
+        "Reopen triage",
+        continuity.is_continuation ? "Continuation of the prior case" : "New issue (not the prior case)",
         {
-          kind: "llm",
-          detail: `LLM router (temperature 0) judged which domains the message touches. Confidences: ${top || "none"}. ${why}`,
+          kind: continuity.method,
+          detail:
+            `This ticket previously reached a human (${s.ticket_status.department ?? "a team"}${s.ticket_status.assignee_name ? `, ${s.ticket_status.assignee_name}` : ""}). ` +
+            `Judged the new message ${continuity.is_continuation ? "a CONTINUATION of that same problem" : "a NEW issue"}: ${continuity.reason} ` +
+            (continuity.is_continuation
+              ? "→ it will go back to the same owner, who already has the context."
+              : "→ a fresh case will be opened and assigned to the most available agent (load-balanced)."),
         }
-      ),
-    ],
-  };
+      )
+    );
+  }
+
+  return { classification, ...(continuity ? { continuity } : {}), audit_trail: events };
 }
 
 export async function sentimentNode(s: PipelineState): Promise<Partial<PipelineState>> {

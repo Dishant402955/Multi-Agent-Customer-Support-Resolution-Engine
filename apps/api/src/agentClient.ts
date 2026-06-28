@@ -28,6 +28,28 @@ export type PipelineProgressEvent = {
   state?: unknown;
 };
 
+export interface HelpAnswer {
+  answer: string;
+  answered: boolean;
+  source: "faq" | "kb" | "none";
+  sources: { title: string; file: string }[];
+  suggestEscalation: boolean;
+}
+
+/** Ask the agent's self-service Help Center (read-only; never creates a ticket). */
+export async function askAgentHelp(message: string, runId: string): Promise<HelpAnswer> {
+  const res = await fetch(`${ENV.AGENT_URL}/help/ask`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, run_id: runId }),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`agent help returned ${res.status}: ${detail}`);
+  }
+  return res.json();
+}
+
 export async function runAgentPipeline(req: RunRequest): Promise<any> {
   const res = await fetch(`${ENV.AGENT_URL}/run`, {
     method: "POST",

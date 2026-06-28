@@ -9,6 +9,7 @@ import {
   Headset,
   Inbox,
   Loader2,
+  RefreshCw,
   Search,
   StickyNote,
   Workflow,
@@ -27,11 +28,14 @@ import {
   listEscalations,
   postAgentReply,
   postCaseNote,
+  reassignEscalation,
   resolveEscalation,
   sendHeartbeat,
+  type EscalationScope,
+  type EscalationViewer,
 } from "@/lib/api";
 import { useRequireRole } from "@/lib/auth";
-import type { CaseNote, EscalationRecord, Message, TicketDashboardDetail } from "@/lib/types";
+import type { CaseNote, EscalationRecord, HumanAgent, Message, TicketDashboardDetail } from "@/lib/types";
 
 type Filter = "open" | "resolved" | "all";
 type SortKey = "recent" | "oldest" | "urgency";
@@ -45,6 +49,43 @@ function urgencyVariant(u: string | null) {
   return "secondary" as const;
 }
 
+const SOURCE_LABEL: Record<string, string> = {
+  auto: "Auto-routed",
+  agent: "Handed up",
+  sla: "SLA escalation",
+  manager: "Delegated",
+  admin: "Admin",
+};
+
+// Compact "time left / overdue" string from an ISO deadline.
+function dueLabel(dueAt: string | null | undefined): { text: string; overdue: boolean } | null {
+  if (!dueAt) return null;
+  const ms = new Date(dueAt).getTime() - Date.now();
+  const overdue = ms < 0;
+  const abs = Math.abs(ms);
+  const h = Math.floor(abs / 3_600_000);
+  const m = Math.floor((abs % 3_600_000) / 60_000);
+  const d = Math.floor(h / 24);
+  const short = d >= 1 ? `${d}d ${h % 24}h` : h >= 1 ? `${h}h ${m}m` : `${m}m`;
+  return { text: overdue ? `${short} overdue` : `${short} left`, overdue };
+}
+
+// SLA pill: reflects sla_state, with a live countdown for open cases.
+function SlaBadge({ e }: { e: EscalationRecord }) {
+  if (e.status !== "open") return null;
+  const state = e.sla_state ?? "on_track";
+  const due = dueLabel(e.sla_due_at);
+  if (state === "breached") return <Badge variant="destructive">SLA breached</Badge>;
+  if (state === "warning")
+    return <Badge variant="warning">Due soon{due ? ` · ${due.text}` : ""}</Badge>;
+  if (due?.overdue) return <Badge variant="destructive">Overdue · {due.text}</Badge>;
+  return (
+    <span className="inline-flex items-center rounded-full border border-border px-1.5 py-0.5 text-[11px] text-muted-foreground">
+      {due ? due.text : "On track"}
+    </span>
+  );
+}
+
 export default function EscalationsPage() {
   const account = useRequireRole("admin", "agent");
   const [escalations, setEscalations] = useState<EscalationRecord[]>([]);
@@ -55,13 +96,22 @@ export default function EscalationsPage() {
   const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [scope, setScope] = useState<EscalationScope>("agent");
+  const [me, setMe] = useState<EscalationViewer | null>(null);
+  const [agents, setAgents] = useState<HumanAgent[]>([]);
 
-  const isAgent = account?.role === "agent";
+  // Front-line agent view (own cases only) vs. team view (admin/manager).
+  const isManager = scope === "manager";
+  const teamView = scope === "admin" || scope === "manager";
+  const isAgent = scope === "agent";
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     const data = await listEscalations();
     setEscalations(data.escalations);
+    setAgents(data.agents ?? []);
+    if (data.scope) setScope(data.scope);
+    if (data.me) setMe(data.me);
     setLoading(false);
   }, []);
 
@@ -96,6 +146,11 @@ export default function EscalationsPage() {
 
   async function onHandoff(id: string, note: string) {
     await handoffEscalation(id, note);
+    await load(true);
+  }
+
+  async function onReassign(id: string, assigneeId: string, disposition: "handling" | "delegated") {
+    await reassignEscalation(id, assigneeId, disposition);
     await load(true);
   }
 
@@ -138,6 +193,27 @@ export default function EscalationsPage() {
     return [...m.entries()].sort((a, b) => b[1] - a[1]);
   }, [open]);
 
+  // Manager: how many open cases are with ME right now, broken down by how they
+  // reached me (handed up by an agent, SLA-escalated, delegated, or by admin).
+  const myAgentId = me?.agent_id ?? null;
+  const passedToMe = useMemo(() => {
+    if (!isManager || !myAgentId) return null;
+    const mine = open.filter((e) => e.assignee_id === myAgentId);
+    const bySource: Record<string, number> = {};
+    for (const e of mine) {
+      const s = e.escalation_source ?? "auto";
+      bySource[s] = (bySource[s] ?? 0) + 1;
+    }
+    return { total: mine.length, bySource };
+  }, [isManager, myAgentId, open]);
+
+  // Count of cases the team has let breach (SLA-missed), for a quick health read.
+  // Only true SLA misses — not cases a manager deliberately reassigned.
+  const missedCount = useMemo(
+    () => (teamView ? open.filter((e) => !!e.missed_by_id && e.escalation_source === "sla").length : 0),
+    [teamView, open],
+  );
+
   const hasFilters = filter !== "open" || !!query || deptFilter !== "all";
   const selected = escalations.find((e) => e.id === selectedId) ?? null;
 
@@ -152,8 +228,14 @@ export default function EscalationsPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <AdminHeader
-        title={isAgent ? "My cases" : "Escalations"}
-        subtitle={isAgent ? `Signed in as ${account.name} — cases routed to you` : "Human handoffs across departments"}
+        title={isManager ? "Team queue" : isAgent ? "My cases" : "Escalations"}
+        subtitle={
+          isManager
+            ? `${me?.department ?? "Your"} team — every case assigned to your team`
+            : isAgent
+            ? `Signed in as ${account.name} — cases routed to you`
+            : "Human handoffs across departments"
+        }
         role={account.role as "admin" | "agent"}
         onRefresh={() => void load()}
         refreshing={loading}
@@ -162,17 +244,32 @@ export default function EscalationsPage() {
       <main className="mx-auto max-w-6xl px-6 py-6">
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
-          <Stat label={isAgent ? "My open cases" : "Open cases"} value={open.length} tone="amber" />
+          <Stat
+            label={isAgent ? "My open cases" : "Open cases"}
+            value={isAgent ? open.filter((e) => e.assignee_id === me?.agent_id).length : open.length}
+            tone="amber"
+          />
           <Stat label="Resolved" value={escalations.length - open.length} tone="green" />
           <Stat label="Total" value={escalations.length} tone="neutral" />
         </div>
 
         {/* Load by department (admin view only) */}
-        {!isAgent && byDept.length > 0 && (
+        {scope === "admin" && byDept.length > 0 && (
           <div className="mt-4 flex flex-wrap gap-2">
             {byDept.map(([dept, n]) => (
               <Badge key={dept} variant="outline">{dept}: {n}</Badge>
             ))}
+          </div>
+        )}
+
+        {/* Manager insights: what's currently on my plate + how it got here. */}
+        {isManager && passedToMe && (
+          <div className="mt-4 flex flex-wrap items-center gap-2 text-xs">
+            <span className="text-muted-foreground">With me now: <span className="font-medium text-foreground">{passedToMe.total}</span></span>
+            {Object.entries(passedToMe.bySource).map(([src, n]) => (
+              <Badge key={src} variant="outline">{SOURCE_LABEL[src] ?? src}: {n}</Badge>
+            ))}
+            {missedCount > 0 && <Badge variant="destructive">Missed by team: {missedCount}</Badge>}
           </div>
         )}
 
@@ -252,8 +349,9 @@ export default function EscalationsPage() {
               <tr className="border-b border-border bg-card/60 text-left text-[11px] uppercase tracking-wider text-muted-foreground">
                 <th className="px-4 py-2.5 font-medium">Subject</th>
                 <th className="hidden px-4 py-2.5 font-medium md:table-cell">Department</th>
-                <th className="px-4 py-2.5 font-medium">{isAgent ? "Reason" : "Assignee"}</th>
+                <th className="px-4 py-2.5 font-medium">{teamView ? "Handling" : "Reason"}</th>
                 <th className="px-4 py-2.5 font-medium">Urgency</th>
+                <th className="hidden px-4 py-2.5 font-medium lg:table-cell">SLA</th>
                 <th className="px-4 py-2.5 font-medium">Status</th>
                 <th className="hidden px-4 py-2.5 text-right font-medium sm:table-cell">Created</th>
               </tr>
@@ -269,13 +367,14 @@ export default function EscalationsPage() {
                     <td className="hidden px-4 py-3 md:table-cell"><Skeleton className="h-3.5 w-20" /></td>
                     <td className="px-4 py-3"><Skeleton className="h-3.5 w-28" /></td>
                     <td className="px-4 py-3"><Skeleton className="h-5 w-16 rounded-full" /></td>
+                    <td className="hidden px-4 py-3 lg:table-cell"><Skeleton className="h-5 w-16 rounded-full" /></td>
                     <td className="px-4 py-3"><Skeleton className="h-5 w-16 rounded-full" /></td>
                     <td className="hidden px-4 py-3 sm:table-cell"><Skeleton className="ml-auto h-3.5 w-14" /></td>
                   </tr>
                 ))
               ) : paged.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-16 text-center">
+                  <td colSpan={7} className="px-4 py-16 text-center">
                     <div className="flex flex-col items-center gap-2 text-sm text-muted-foreground">
                       <Inbox className="size-6 opacity-40" />
                       No cases match your filters.
@@ -285,6 +384,12 @@ export default function EscalationsPage() {
               ) : (
                 paged.map((e) => {
                   const atManager = (e.assignee_level ?? "agent") === "manager";
+                  // A case moved off this front-line agent (SLA breach, or a manager
+                  // reassigned it). Source tells us how to label it.
+                  const movedAway = !!e.missed_by_id && e.missed_by_id === me?.agent_id && e.assignee_id !== me?.agent_id;
+                  const missedByMe = isAgent && movedAway;
+                  const bySla = e.escalation_source === "sla";
+                  const teamMissed = teamView && !!e.missed_by_id;
                   return (
                     <tr
                       key={e.id}
@@ -292,18 +397,33 @@ export default function EscalationsPage() {
                       className="cursor-pointer border-b border-border/60 transition-colors last:border-0 hover:bg-secondary/40"
                     >
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="max-w-[280px] truncate font-medium">{e.subject || "(no subject)"}</span>
+                          {missedByMe && (
+                            bySla
+                              ? <Badge variant="destructive">Missed</Badge>
+                              : <Badge variant="warning">Reassigned away</Badge>
+                          )}
+                          {teamMissed && !missedByMe && (
+                            bySla
+                              ? <Badge variant="destructive">Missed by {e.missed_by_name}</Badge>
+                              : <Badge variant="warning">Reassigned from {e.missed_by_name}</Badge>
+                          )}
                           {e.status === "open" && atManager && <Badge variant="warning">with manager</Badge>}
                         </div>
                         <p className="mt-0.5 text-xs text-muted-foreground">{e.customer_name}</p>
                       </td>
                       <td className="hidden px-4 py-3 text-muted-foreground md:table-cell">{e.department}</td>
                       <td className="px-4 py-3">
-                        {!isAgent ? (
+                        {teamView ? (
                           <>
                             <div className="text-sm">{e.assignee_name}</div>
-                            <div className="text-xs text-muted-foreground">{e.assignee_title}</div>
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <span>{e.assignee_title}</span>
+                              {e.escalation_source && e.escalation_source !== "auto" && (
+                                <span className="rounded bg-secondary px-1 py-px text-[10px] text-muted-foreground">{SOURCE_LABEL[e.escalation_source] ?? e.escalation_source}</span>
+                              )}
+                            </div>
                           </>
                         ) : (
                           <span className="line-clamp-2 max-w-[260px] text-xs text-muted-foreground">{e.reason}</span>
@@ -311,6 +431,9 @@ export default function EscalationsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <Badge variant={urgencyVariant(e.urgency)}>{e.urgency || "—"}</Badge>
+                      </td>
+                      <td className="hidden px-4 py-3 lg:table-cell">
+                        <SlaBadge e={e} />
                       </td>
                       <td className="px-4 py-3">
                         <Badge variant={e.status === "open" ? "warning" : "success"}>{e.status}</Badge>
@@ -347,12 +470,26 @@ export default function EscalationsPage() {
         {selected && (
           <CaseDetail
             e={selected}
+            canManage={teamView}
+            viewerRole={scope}
+            myAgentId={me?.agent_id ?? null}
+            teamAgents={
+              scope === "manager" && me?.department
+                ? agents.filter((a) => a.department === me.department)
+                : scope === "admin"
+                ? agents.filter((a) => a.department === selected.department)
+                : []
+            }
             onResolve={async () => {
               await onResolve(selected.id);
               setSelectedId(null);
             }}
             onHandoff={async (note) => {
               await onHandoff(selected.id, note);
+              setSelectedId(null);
+            }}
+            onReassign={async (assigneeId, disposition) => {
+              await onReassign(selected.id, assigneeId, disposition);
               setSelectedId(null);
             }}
           />
@@ -364,12 +501,22 @@ export default function EscalationsPage() {
 
 function CaseDetail({
   e,
+  canManage,
+  viewerRole,
+  myAgentId,
+  teamAgents,
   onResolve,
   onHandoff,
+  onReassign,
 }: {
   e: EscalationRecord;
+  canManage: boolean;
+  viewerRole: EscalationScope;
+  myAgentId: string | null;
+  teamAgents: HumanAgent[];
   onResolve: () => Promise<void>;
   onHandoff: (note: string) => Promise<void>;
+  onReassign: (assigneeId: string, disposition: "handling" | "delegated") => Promise<void>;
 }) {
   const [detail, setDetail] = useState<TicketDashboardDetail | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -377,6 +524,9 @@ function CaseDetail({
   const [handoffOpen, setHandoffOpen] = useState(false);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [delegateOpen, setDelegateOpen] = useState(false);
+  const [delegateTo, setDelegateTo] = useState("");
+  const [reassigning, setReassigning] = useState(false);
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [replyError, setReplyError] = useState("");
@@ -386,6 +536,17 @@ function CaseDetail({
   const convoRef = useRef<HTMLDivElement>(null);
   const sendingRef = useRef(false);
   const atManager = (e.assignee_level ?? "agent") === "manager";
+  const isHandler = myAgentId != null && e.assignee_id === myAgentId;
+  // Who may actually work this case: the current handler, or a manager/admin
+  // overseeing the team. A front-line agent looking at a case they MISSED (now
+  // owned by someone else) is read-only — they can see it, not act on it.
+  const canAct = isHandler || canManage;
+  // Resolve is only for the person actually working the case: a front-line agent
+  // on their own case, or a manager who has taken it themselves. Admins never
+  // resolve from here; a manager who isn't the handler can't either.
+  const canResolve = e.status === "open" && isHandler && viewerRole !== "admin";
+  // A front-line agent viewing a case that slipped past its SLA to someone else.
+  const missedByViewer = viewerRole === "agent" && !isHandler;
 
   // Load internal team notes for this case, then poll so teammates' notes appear.
   useEffect(() => {
@@ -472,36 +633,127 @@ function CaseDetail({
   const lastRun = detail && detail.runs.length > 0 ? detail.runs[detail.runs.length - 1].state : null;
   const suggested = lastRun?.resolution?.summary ?? null;
   const mood = lastRun?.sentiment ?? null;
-  const canReply = e.status === "open";
+  const canReply = e.status === "open" && canAct;
 
   return (
     <>
       <SheetHeader>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Badge variant={e.status === "open" ? "warning" : "success"}>{e.status}</Badge>
           <Badge variant={urgencyVariant(e.urgency)}>{e.urgency || "—"}</Badge>
+          <SlaBadge e={e} />
           {e.status === "open" && atManager && <Badge variant="outline">with manager</Badge>}
+          {e.status === "open" && e.escalation_source && e.escalation_source !== "auto" && (
+            <Badge variant="outline">{SOURCE_LABEL[e.escalation_source] ?? e.escalation_source}</Badge>
+          )}
         </div>
         <h2 className="mt-2 text-lg font-semibold leading-snug">{e.subject || "(no subject)"}</h2>
         <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
           {e.customer_name} · {e.department} · routed to {e.assignee_name}
           {e.assignee_title ? ` (${e.assignee_title})` : ""} · {new Date(e.created_at).toLocaleString()}
         </p>
+        {e.missed_by_name && e.missed_by_id !== e.assignee_id && (
+          e.escalation_source === "sla" ? (
+            <p className="mt-1 text-[11px] font-medium text-destructive">
+              Missed by {e.missed_by_name} — escalated past the SLA deadline.
+            </p>
+          ) : (
+            <p className="mt-1 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+              Reassigned from {e.missed_by_name}.
+            </p>
+          )
+        )}
         {e.reason && <p className="mt-2 text-sm text-muted-foreground">{e.reason}</p>}
 
         {/* Actions */}
         <div className="mt-3 flex flex-wrap gap-2">
-          {e.status === "open" ? (
-            <Button size="sm" onClick={() => void onResolve()}>Resolve case</Button>
-          ) : (
+          {e.status !== "open" ? (
             <Button size="sm" variant="ghost" disabled>Closed</Button>
-          )}
-          {e.status === "open" && !atManager && (
-            <Button variant="outline" size="sm" onClick={() => setHandoffOpen((v) => !v)}>
-              Pass to manager
-            </Button>
+          ) : (
+            <>
+              {canResolve && <Button size="sm" onClick={() => void onResolve()}>Resolve case</Button>}
+              {/* Front-line agents can escalate up to their manager — but only on
+                  a case they actually own (not one they've already missed). */}
+              {viewerRole === "agent" && isHandler && !atManager && (
+                <Button variant="outline" size="sm" onClick={() => setHandoffOpen((v) => !v)}>
+                  Pass to manager
+                </Button>
+              )}
+              {/* Managers/admins re-route the case. A manager can assign it to
+                  themselves here, which is the only way they can then resolve it. */}
+              {canManage && teamAgents.length > 0 && (
+                <Button variant="outline" size="sm" onClick={() => setDelegateOpen((v) => !v)}>
+                  Change assignee
+                </Button>
+              )}
+            </>
           )}
         </div>
+        {/* Tell a manager who isn't the handler why they can't resolve. */}
+        {viewerRole === "manager" && e.status === "open" && !isHandler && (
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            {e.assignee_name} is handling this. Use <span className="font-medium text-foreground">Change assignee</span> to take it
+            yourself before you can resolve it.
+          </p>
+        )}
+        {/* Front-line agent looking at a case that left them — view only. */}
+        {missedByViewer && (
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            {e.escalation_source === "sla"
+              ? "This case moved to "
+              : "This case was reassigned to "}
+            <span className="font-medium text-foreground">{e.assignee_name}</span>
+            {e.escalation_source === "sla" ? " after its SLA deadline." : "."}
+            {" "}You can view it for reference, but you can no longer reply or act on it.
+          </p>
+        )}
+
+        {canManage && delegateOpen && e.status === "open" && (
+          <div className="mt-3 rounded-xl border border-border bg-card/60 p-3">
+            <p className="mb-1 text-sm font-medium">Change who&apos;s handling this case</p>
+            <p className="mb-2 text-xs text-muted-foreground">
+              The new owner can reply and resolve it, the SLA clock restarts for them, and the customer is told who&apos;s now handling it.
+              {viewerRole === "manager" && " Assign it to yourself if you want to resolve it."}
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={delegateTo}
+                onChange={(ev) => setDelegateTo(ev.target.value)}
+                className="rounded-lg border border-border bg-background px-2 py-1.5 text-sm outline-none focus:border-ring/60"
+              >
+                <option value="">Choose a team member…</option>
+                {viewerRole === "manager" && myAgentId && (
+                  <option value={myAgentId}>
+                    Assign to me (I&apos;ll handle it){e.assignee_id === myAgentId ? " (current)" : ""}
+                  </option>
+                )}
+                {teamAgents
+                  .filter((a) => !(viewerRole === "manager" && a.id === myAgentId))
+                  .map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} — {a.title}
+                      {a.id === e.assignee_id ? " (current)" : ""}
+                    </option>
+                  ))}
+              </select>
+              <Button
+                size="sm"
+                disabled={!delegateTo || reassigning || delegateTo === e.assignee_id}
+                onClick={async () => {
+                  if (!delegateTo) return;
+                  setReassigning(true);
+                  await onReassign(delegateTo, delegateTo === myAgentId ? "handling" : "delegated");
+                  setReassigning(false);
+                }}
+              >
+                {reassigning ? "Assigning…" : "Assign"}
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setDelegateOpen(false)} disabled={reassigning}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
 
         {handoffOpen && (
           <div className="mt-3 rounded-xl border border-border bg-card/60 p-3">
@@ -634,27 +886,33 @@ function CaseDetail({
               ))}
             </div>
           )}
-          <div className="flex items-end gap-2 rounded-2xl border border-border bg-card p-2 transition-colors focus-within:border-foreground/30">
-            <textarea
-              value={noteText}
-              onChange={(ev) => setNoteText(ev.target.value)}
-              onKeyDown={(ev) => {
-                if (ev.key === "Enter" && !ev.shiftKey) {
-                  ev.preventDefault();
-                  void addNote();
-                }
-              }}
-              rows={1}
-              placeholder="Add an internal note for the team…"
-              className="max-h-28 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
-            />
-            <Button size="icon" variant="outline" className="size-8 shrink-0 rounded-xl" onClick={() => void addNote()} disabled={savingNote || !noteText.trim()}>
-              {savingNote ? <Loader2 className="size-3.5 animate-spin" /> : <StickyNote className="size-3.5" />}
-            </Button>
-          </div>
-          <p className="mt-1 px-0.5 text-[10px] text-muted-foreground/50">
-            Visible to the team on the Team dashboard. The customer never sees these.
-          </p>
+          {canAct ? (
+            <>
+              <div className="flex items-end gap-2 rounded-2xl border border-border bg-card p-2 transition-colors focus-within:border-foreground/30">
+                <textarea
+                  value={noteText}
+                  onChange={(ev) => setNoteText(ev.target.value)}
+                  onKeyDown={(ev) => {
+                    if (ev.key === "Enter" && !ev.shiftKey) {
+                      ev.preventDefault();
+                      void addNote();
+                    }
+                  }}
+                  rows={1}
+                  placeholder="Add an internal note for the team…"
+                  className="max-h-28 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm outline-none placeholder:text-muted-foreground"
+                />
+                <Button size="icon" variant="outline" className="size-8 shrink-0 rounded-xl" onClick={() => void addNote()} disabled={savingNote || !noteText.trim()}>
+                  {savingNote ? <Loader2 className="size-3.5 animate-spin" /> : <StickyNote className="size-3.5" />}
+                </Button>
+              </div>
+              <p className="mt-1 px-0.5 text-[10px] text-muted-foreground/50">
+                Visible to the team on the Team dashboard. The customer never sees these.
+              </p>
+            </>
+          ) : (
+            notes.length === 0 && <p className="text-xs text-muted-foreground">No notes on this case.</p>
+          )}
         </div>
 
         {/* Full pipeline trace — opens the dedicated trace viewer in a new tab */}
@@ -687,6 +945,19 @@ function CaseMessage({ m, agentName }: { m: Message; agentName: string }) {
     );
   }
   if (m.role === "agent") {
+    const UPDATE = "[[case-update]] ";
+    if (m.text.startsWith(UPDATE)) {
+      return (
+        <div className="flex justify-center">
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-[11px] text-amber-600 dark:text-amber-400">
+            <RefreshCw className="size-3" />
+            <span className="font-semibold uppercase tracking-wide">Update</span>
+            <span className="opacity-50">·</span>
+            {m.text.slice(UPDATE.length)}
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/[0.07] px-3.5 py-2.5 text-sm">
         <span className="mb-0.5 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-emerald-500/80">

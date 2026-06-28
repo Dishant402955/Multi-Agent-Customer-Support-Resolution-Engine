@@ -103,6 +103,42 @@ export async function notifyAgentReply(
 }
 
 /**
+ * Tell the customer that the person handling their case has changed (e.g. a
+ * manager reassigned it or took it over). In-app notification + email.
+ */
+export async function notifyCaseReassigned(
+  customerId: string | null,
+  ticketId: string,
+  newAgentName: string
+): Promise<void> {
+  if (!customerId) return;
+  const account = getAccountByCustomerId(customerId);
+  if (!account) return;
+
+  const displayId = getTicketDisplayId(ticketId);
+  const title = `Your case is now with ${newAgentName}`;
+  const body = `${newAgentName} is now handling your case (${displayId}) and will follow up with you.`;
+
+  createNotification({
+    account_id: account.id,
+    kind: "case_reassigned",
+    title,
+    body,
+    ticket_id: ticketId,
+  });
+
+  void sendEmail(
+    account.email,
+    `[Support] ${title} · ${displayId}`,
+    `<div style="font-family:system-ui,sans-serif;line-height:1.5">
+       <h2 style="margin:0 0 8px">${title}</h2>
+       <p>${body}</p>
+       <p style="color:#666;font-size:13px">Reference: ${displayId}</p>
+     </div>`
+  );
+}
+
+/**
  * Tell the assigned human agent that the customer replied on a live case.
  * In-app notification only (agents work the dashboard, not email).
  */

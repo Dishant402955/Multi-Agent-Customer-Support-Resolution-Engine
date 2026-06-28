@@ -8,6 +8,7 @@ import { AdminHeader } from "@/components/admin-nav";
 import { listFeedback } from "@/lib/api";
 import { useRequireRole } from "@/lib/auth";
 import type { FeedbackRow } from "@/lib/types";
+import { SearchSelect } from "../platform/ui";
 
 type RatingFilter = "all" | "up" | "down";
 
@@ -17,6 +18,7 @@ export default function FeedbackPage() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<RatingFilter>("all");
+  const [deptFilter, setDeptFilter] = useState("all");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -34,10 +36,17 @@ export default function FeedbackPage() {
     return { total: rows.length, up, down, pct };
   }, [rows]);
 
+  const departments = useMemo(() => {
+    const s = new Set<string>();
+    for (const r of rows) if (r.department) s.add(r.department);
+    return [...s].sort();
+  }, [rows]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter((r) => {
       if (filter !== "all" && r.rating !== filter) return false;
+      if (deptFilter !== "all" && r.department !== deptFilter) return false;
       if (!q) return true;
       return (
         r.customer_name?.toLowerCase().includes(q) ||
@@ -47,7 +56,7 @@ export default function FeedbackPage() {
         r.comment?.toLowerCase().includes(q)
       );
     });
-  }, [rows, query, filter]);
+  }, [rows, query, filter, deptFilter]);
 
   if (!account) {
     return (
@@ -68,12 +77,14 @@ export default function FeedbackPage() {
       />
 
       <div className="mx-auto max-w-6xl px-6 py-6">
-        {/* KPIs */}
+        {/* KPIs — the first three pills double as rating filters. */}
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <StatPill label="Total ratings" value={stats.total} />
-          <StatPill label="Helpful" value={stats.up} tone="up" />
-          <StatPill label="Not helpful" value={stats.down} tone="down" />
-          <StatPill label="Satisfaction" value={`${stats.pct}%`} />
+          <StatPill label="Total ratings" value={stats.total} active={filter === "all"} onClick={() => setFilter("all")} />
+          <StatPill label="Helpful" value={stats.up} tone="up" active={filter === "up"} onClick={() => setFilter("up")} />
+          <StatPill label="Not helpful" value={stats.down} tone="down" active={filter === "down"} onClick={() => setFilter("down")} />
+          <div className="flex items-center justify-center rounded-xl border border-border bg-card px-4 py-2">
+            <SatisfactionGauge pct={stats.pct} />
+          </div>
         </div>
 
         {/* Controls */}
@@ -84,21 +95,15 @@ export default function FeedbackPage() {
             placeholder="Search by customer, ticket, question, answer…"
             className="input max-w-sm flex-1"
           />
-          <div className="flex items-center gap-1 rounded-lg border border-border p-0.5">
-            {(["all", "up", "down"] as RatingFilter[]).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={
-                  "rounded-md px-3 py-1.5 text-xs font-medium transition-colors " +
-                  (filter === f
-                    ? "bg-secondary text-foreground"
-                    : "text-muted-foreground hover:text-foreground")
-                }
-              >
-                {f === "all" ? "All" : f === "up" ? "Helpful" : "Not helpful"}
-              </button>
-            ))}
+          <div className="w-56">
+            <SearchSelect
+              options={[{ value: "all", label: "All departments" }, ...departments.map((d) => ({ value: d, label: d }))]}
+              value={deptFilter}
+              onSelect={(v) => setDeptFilter(v)}
+              placeholder="All departments"
+              searchPlaceholder="Search departments…"
+              emptyText="No departments"
+            />
           </div>
         </div>
 
@@ -110,6 +115,7 @@ export default function FeedbackPage() {
                 <th className="px-3 py-2 font-medium">Rating</th>
                 <th className="px-3 py-2 font-medium">Ticket</th>
                 <th className="px-3 py-2 font-medium">Customer</th>
+                <th className="px-3 py-2 font-medium">Department</th>
                 <th className="px-3 py-2 font-medium">Question</th>
                 <th className="px-3 py-2 font-medium">AI answer</th>
                 <th className="px-3 py-2 font-medium">When</th>
@@ -133,6 +139,9 @@ export default function FeedbackPage() {
                     <Badge variant="outline">{r.display_id || "—"}</Badge>
                   </td>
                   <td className="px-3 py-3 whitespace-nowrap">{r.customer_name}</td>
+                  <td className="px-3 py-3 whitespace-nowrap">
+                    {r.department ? <Badge variant="outline">{r.department}</Badge> : <span className="text-muted-foreground">—</span>}
+                  </td>
                   <td className="max-w-[260px] px-3 py-3 text-muted-foreground">
                     <p className="line-clamp-3">{r.question || "—"}</p>
                   </td>
@@ -149,7 +158,7 @@ export default function FeedbackPage() {
               ))}
               {!loading && filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-3 py-12 text-center text-sm text-muted-foreground">
+                  <td colSpan={7} className="px-3 py-12 text-center text-sm text-muted-foreground">
                     No feedback yet. Ratings appear here as customers thumb replies up or down.
                   </td>
                 </tr>
@@ -166,17 +175,73 @@ function StatPill({
   label,
   value,
   tone,
+  active,
+  onClick,
 }: {
   label: string;
   value: string | number;
   tone?: "up" | "down";
+  active?: boolean;
+  onClick?: () => void;
 }) {
   const color =
     tone === "up" ? "text-emerald-500" : tone === "down" ? "text-destructive" : "text-foreground";
-  return (
-    <div className="rounded-xl border border-border bg-card px-4 py-3">
+  const ring = active ? "border-ring/70 ring-1 ring-ring/30" : "border-border hover:border-foreground/30";
+  const body = (
+    <>
       <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</p>
       <p className={"mt-1 text-2xl font-semibold tabular-nums " + color}>{value}</p>
+    </>
+  );
+  if (!onClick) {
+    return <div className="rounded-xl border border-border bg-card px-4 py-3">{body}</div>;
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={"rounded-xl border bg-card px-4 py-3 text-left transition-colors " + ring}
+    >
+      {body}
+    </button>
+  );
+}
+
+// Half-wheel gauge with a needle ("hand") pointing to the satisfaction %.
+// 0% sits at the left, 100% at the right; the arc and needle are colored by score.
+function SatisfactionGauge({ pct }: { pct: number }) {
+  const clamped = Math.max(0, Math.min(100, pct));
+  const cx = 100;
+  const cy = 100;
+  const r = 78;
+  const color = clamped >= 75 ? "#10b981" : clamped >= 50 ? "#f59e0b" : "#ef4444";
+  // Angle: 180° (left) at 0% → 0° (right) at 100%.
+  const deg = 180 - (clamped / 100) * 180;
+  const rad = (deg * Math.PI) / 180;
+  const pt = (radius: number) => ({
+    x: cx + radius * Math.cos(rad),
+    y: cy - radius * Math.sin(rad),
+  });
+  const arcEnd = pt(r);
+  const needle = pt(r * 0.74);
+
+  return (
+    <div className="flex flex-col items-center">
+      <svg viewBox="0 0 200 116" className="w-full max-w-[170px]" role="img" aria-label={`Satisfaction ${clamped}%`}>
+        {/* Track */}
+        <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="currentColor" className="text-secondary" strokeWidth={12} strokeLinecap="round" />
+        {/* Value arc */}
+        {clamped > 0 && (
+          <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${arcEnd.x.toFixed(2)} ${arcEnd.y.toFixed(2)}`} fill="none" stroke={color} strokeWidth={12} strokeLinecap="round" />
+        )}
+        {/* Needle */}
+        <line x1={cx} y1={cy} x2={needle.x.toFixed(2)} y2={needle.y.toFixed(2)} stroke={color} strokeWidth={3} strokeLinecap="round" />
+        <circle cx={cx} cy={cy} r={6} fill={color} />
+        {/* Value */}
+        <text x={cx} y={cy - 16} textAnchor="middle" className="fill-foreground" fontSize="26" fontWeight={700}>{clamped}%</text>
+      </svg>
+      <p className="-mt-1 text-[11px] uppercase tracking-wider text-muted-foreground">Satisfaction</p>
     </div>
   );
 }

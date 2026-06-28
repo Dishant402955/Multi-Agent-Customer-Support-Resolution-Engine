@@ -6,6 +6,8 @@ import type {
   EscalationRecord,
   FaqEntry,
   FeedbackRow,
+  HelpAnswer,
+  HelpArticle,
   HttpToolSpec,
   HumanAgent,
   HumanAgentAdmin,
@@ -17,6 +19,7 @@ import type {
   PolicyConfig,
   RunSessionDetail,
   RunSessionRow,
+  SlaConfig,
   SpecialistAgentRecord,
   StoredUseCase,
   TicketDashboardDetail,
@@ -253,16 +256,48 @@ export async function deleteTicket(ticketId: string): Promise<void> {
 
 // ---- Escalation dashboard --------------------------------------------------
 
+export type EscalationScope = "admin" | "manager" | "agent";
+export interface EscalationViewer {
+  id: string; name: string; email: string; role: string;
+  agent_id?: string | null;
+  level?: string | null; department?: string | null;
+}
+
 export async function listEscalations(): Promise<{
   escalations: EscalationRecord[];
   agents: HumanAgent[];
+  scope?: EscalationScope;
+  me?: EscalationViewer;
 }> {
   try {
     const res = await fetch(`${API}/api/escalations`, { headers: authHeaders() });
     if (!res.ok) return { escalations: [], agents: [] };
-    return (await res.json()) as { escalations: EscalationRecord[]; agents: HumanAgent[] };
+    return (await res.json()) as {
+      escalations: EscalationRecord[]; agents: HumanAgent[];
+      scope?: EscalationScope; me?: EscalationViewer;
+    };
   } catch {
     return { escalations: [], agents: [] };
+  }
+}
+
+// Manager/admin reassigns (or self-claims) a case, declaring a disposition.
+export async function reassignEscalation(
+  id: string,
+  assigneeId: string,
+  disposition: "handling" | "delegated",
+  note = ""
+): Promise<{ error?: string }> {
+  try {
+    const res = await fetch(`${API}/api/escalations/${encodeURIComponent(id)}/reassign`, {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ assignee_id: assigneeId, disposition, note }),
+    });
+    if (!res.ok) return { error: ((await res.json().catch(() => ({}))) as any)?.error || "Reassign failed" };
+    return {};
+  } catch {
+    return { error: "Network error" };
   }
 }
 
@@ -432,6 +467,14 @@ export const platform = {
   putPolicies: (policies: PolicyConfig) =>
     pf("PUT", "/policies", policies) as Promise<{ policies: PolicyConfig }>,
 
+  getSla: () => pf("GET", "/sla") as Promise<SlaConfig>,
+  putSla: (cfg: SlaConfig) => pf("PUT", "/sla", cfg) as Promise<SlaConfig>,
+
+  listHelp: () => pf("GET", "/helpcenter") as Promise<{ articles: HelpArticle[] }>,
+  putHelp: (file: string, content: string) =>
+    pf("PUT", `/helpcenter/${encodeURIComponent(file)}`, { content }) as Promise<{ article: HelpArticle }>,
+  deleteHelp: (file: string) => pf("DELETE", `/helpcenter/${encodeURIComponent(file)}`),
+
   listSpecialists: () =>
     pf("GET", "/specialists") as Promise<{ agents: SpecialistAgentRecord[] }>,
   putSpecialist: (name: string, body: Omit<SpecialistAgentRecord, "builtin">) =>
@@ -445,6 +488,19 @@ export const platform = {
     pf("PUT", `/faq/${encodeURIComponent(id)}`, body) as Promise<{ faq: FaqEntry }>,
   deleteFaq: (id: string) => pf("DELETE", `/faq/${encodeURIComponent(id)}`),
 };
+
+// ---- Help Center: customer self-service (signed-in users) ------------------
+
+export async function askHelp(message: string): Promise<HelpAnswer> {
+  const res = await fetch(`${API}/api/help/ask`, {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify({ message }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || "Help is unavailable");
+  return data as HelpAnswer;
+}
 
 // ---- Admin: human-agent management -----------------------------------------
 

@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Activity, LayoutGrid, LogOut, RefreshCw, ShieldAlert, SlidersHorizontal, ThumbsUp, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/notification-bell";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/lib/auth";
 
 type Role = "admin" | "agent" | "user" | undefined;
@@ -83,6 +84,7 @@ export function AdminHeader({
             <RefreshCw className={"size-3.5 " + (refreshing ? "animate-spin" : "")} /> Refresh
           </Button>
         )}
+        <ThemeToggle />
         <NotificationBell />
         <Button
           variant="ghost"

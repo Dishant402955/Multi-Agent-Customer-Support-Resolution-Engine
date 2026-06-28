@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { SentimentBadge } from "@/components/sentiment-badge";
 import { getDashboardTicket } from "@/lib/api";
 import { useRequireRole } from "@/lib/auth";
@@ -115,6 +116,7 @@ function TraceView() {
               <MessageSquare className="size-3.5" /> Conversation
             </Button>
           </Link>
+          <ThemeToggle />
         </div>
       </header>
 

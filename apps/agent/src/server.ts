@@ -6,6 +6,7 @@ import { ENV } from "./env";
 import { buildInput, runPipeline } from "./run";
 import { runPipelineLinearWithProgress } from "./pipeline-events";
 import { adminRouter } from "./admin";
+import { helpAnswer } from "./shared/help/answer";
 
 const app = express();
 app.use(cors());
@@ -15,6 +16,20 @@ app.get("/health", (_req, res) => res.json({ ok: true, service: "agent" }));
 
 // Live config store (KB / use cases / HTTP tools) — secret-gated, API-only.
 app.use("/admin", adminRouter);
+
+// Self-service Help Center answer (read-only, no ticket). Called by the API on
+// behalf of a signed-in customer; deflects common questions before escalation.
+app.post("/help/ask", async (req, res) => {
+  try {
+    const message = String((req.body ?? {}).message ?? "").trim();
+    if (!message) return res.status(400).json({ error: "message is required" });
+    const result = await helpAnswer(message, String((req.body ?? {}).run_id ?? "help"));
+    res.json(result);
+  } catch (err) {
+    console.error("[agent] /help/ask failed:", err);
+    res.status(500).json({ error: "help failed", detail: (err as Error).message });
+  }
+});
 
 function parseRunBody(body: Record<string, unknown> | null | undefined) {
   const { ticket_id, run_id, message, message_count, customer_id, ticket_status, prior_context, history } = body || {};

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { platform } from "@/lib/api";
 import type { FaqEntry, FaqMatchMode } from "@/lib/types";
-import { ErrorNote, Field, Toggle } from "../ui";
+import { ErrorNote, Field, Pager, Toggle, usePager } from "../ui";
 
 interface FaqForm { id: string | null; label: string; enabled: boolean; match: FaqMatchMode; triggers: string; answer: string; }
 const EMPTY_FAQ: FaqForm = { id: null, label: "", enabled: true, match: "contains", triggers: "", answer: "" };
@@ -45,6 +45,8 @@ export function FaqTab() {
     await load();
   }
 
+  const { pageItems, ...pager } = usePager(faqs, 5);
+
   return (
     <div className="grid gap-6 md:grid-cols-[1fr_380px]">
       <div>
@@ -64,7 +66,7 @@ export function FaqTab() {
           </p>
         )}
         <div className="space-y-2">
-          {faqs.map((f) => (
+          {pageItems.map((f) => (
             <div key={f.id} className="rounded-lg border border-border px-3 py-2.5">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
@@ -88,6 +90,7 @@ export function FaqTab() {
             </div>
           ))}
         </div>
+        <Pager {...pager} />
       </div>
 
       <div className="space-y-3">
