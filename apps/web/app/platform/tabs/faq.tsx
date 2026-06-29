@@ -71,6 +71,7 @@ export function FaqTab() {
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">{f.label}</span>
+                  {f.label.startsWith("Suggested:") && <Badge variant="default">auto-suggested</Badge>}
                   <Badge variant="outline">{f.match}</Badge>
                   {f.enabled ? <Badge variant="success">enabled</Badge> : <Badge variant="secondary">disabled</Badge>}
                 </div>

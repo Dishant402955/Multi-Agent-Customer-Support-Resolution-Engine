@@ -22,7 +22,7 @@ import { analyzeSentiment } from "./steps/sentiment";
 import { availableProviders } from "./shared/gateway/index";
 import { runDecomposer } from "./steps/decomposer";
 import { runOrchestrator } from "./steps/orchestrator";
-import { runSeverity } from "./steps/severity";
+import { assessSeverity } from "./steps/severity";
 import { shouldEscalate, runEscalation } from "./steps/escalation";
 import { runSynthesizer } from "./steps/synthesizer";
 
@@ -354,13 +354,24 @@ export async function investigateNode(
 }
 
 export async function severityNode(s: PipelineState): Promise<Partial<PipelineState>> {
-  const severity = runSeverity(s.agent_reports || [], s.investigation!, s.sentiment!, s.message_count);
+  const severity = await assessSeverity(
+    s.agent_reports || [],
+    s.investigation!,
+    s.sentiment!,
+    s.message_count,
+    s.run_id
+  );
+  const usedLlm = availableProviders().length > 0;
   return {
     severity,
     audit_trail: [
       audit("severity", "Severity assessor", `${severity.level} / ${severity.priority}`, {
-        kind: "heuristic",
-        detail: severity.reasoning,
+        kind: usedLlm ? "llm" : "heuristic",
+        detail:
+          severity.reasoning +
+          (usedLlm
+            ? " (LLM graded impact from the specialists' findings, then weighed the capped priority modifiers; clamped to the severity floor and a deterministic model as fallback.)"
+            : " (Deterministic model — no LLM provider configured.)"),
       }),
     ],
   };

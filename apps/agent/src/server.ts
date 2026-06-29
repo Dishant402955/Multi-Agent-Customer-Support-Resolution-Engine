@@ -7,6 +7,7 @@ import { buildInput, runPipeline } from "./run";
 import { runPipelineLinearWithProgress } from "./pipeline-events";
 import { adminRouter } from "./admin";
 import { helpAnswer } from "./shared/help/answer";
+import { listPublicFaqs } from "./shared/policies/faq";
 
 const app = express();
 app.use(cors());
@@ -28,6 +29,17 @@ app.post("/help/ask", async (req, res) => {
   } catch (err) {
     console.error("[agent] /help/ask failed:", err);
     res.status(500).json({ error: "help failed", detail: (err as Error).message });
+  }
+});
+
+// Browsable, customer-safe FAQ list (enabled entries only). Read-only; the API
+// proxies this for signed-in customers so they can scan answers before asking.
+app.get("/help/faqs", (_req, res) => {
+  try {
+    res.json({ faqs: listPublicFaqs() });
+  } catch (err) {
+    console.error("[agent] /help/faqs failed:", err);
+    res.status(500).json({ error: "faqs failed", detail: (err as Error).message });
   }
 });
 

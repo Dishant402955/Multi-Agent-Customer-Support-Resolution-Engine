@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowUp,
   Check,
+  CheckCircle2,
   Headset,
   LayoutDashboard,
   Loader2,
@@ -13,9 +14,11 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   RefreshCw,
+  Ticket,
   ThumbsDown,
   ThumbsUp,
   Trash2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/components/notification-bell";
@@ -106,6 +109,10 @@ function Home() {
   const [liveSending, setLiveSending] = useState(false);
   // Customer feedback (thumbs) keyed by assistant message id.
   const [feedback, setFeedback] = useState<Record<number, FeedbackRating>>({});
+  // Confirmation toast shown when a brand-new ticket is created.
+  const [ticketToast, setTicketToast] = useState<
+    { displayId: string; status: TicketLifecycleStatus | null; linked: boolean } | null
+  >(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const resizing = useRef(false);
@@ -175,6 +182,13 @@ function Home() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [thread, loading, liveAudit]);
+
+  // Auto-dismiss the "ticket created" toast after a few seconds.
+  useEffect(() => {
+    if (!ticketToast) return;
+    const t = setTimeout(() => setTicketToast(null), 6000);
+    return () => clearTimeout(t);
+  }, [ticketToast]);
 
   // Live human-chat: poll for the agent's replies while an escalation is open.
   useEffect(() => {
@@ -295,6 +309,9 @@ function Home() {
   }
 
   async function doSend(msg: string, opts: { ticketId?: string; linkTo?: string }) {
+    // A brand-new ticket is created whenever we're not continuing an existing one
+    // (a fresh chat, or a new ticket linked from a resolved one).
+    const creatingNewTicket = !opts.ticketId;
     setResolvedChoice(null);
     setError("");
     setInput("");
@@ -335,6 +352,15 @@ function Home() {
       }
       setActiveId(data.ticket_id);
       setMessages(data.messages);
+      // Greeting / FAQ / out-of-scope replies are ephemeral (no ticket_id), so a
+      // toast only fires for a genuinely created ticket.
+      if (creatingNewTicket && data.ticket_id) {
+        setTicketToast({
+          displayId: data.display_id ?? "",
+          status: data.status ?? null,
+          linked: !!opts.linkTo,
+        });
+      }
       // Build a thought and attach the real audit so the thought panel keeps
       // showing the identical events after the reply arrives.
       const thought: TurnThought = {
@@ -623,6 +649,64 @@ function Home() {
           if (t) setInput(t);
         }}
       />
+      {ticketToast && (
+        <TicketCreatedToast
+          displayId={ticketToast.displayId}
+          status={ticketToast.status}
+          linked={ticketToast.linked}
+          onClose={() => setTicketToast(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── "Ticket created" confirmation toast ───────────────────────────────────────
+// A friendly, auto-dismissing card that confirms a new ticket was opened, with
+// its reference id and current status. Reassures the customer their request is
+// being worked on.
+function TicketCreatedToast({
+  displayId,
+  status,
+  linked,
+  onClose,
+}: {
+  displayId: string;
+  status: TicketLifecycleStatus | null;
+  linked: boolean;
+  onClose: () => void;
+}) {
+  const escalated = status === "escalated" || status === "reopened";
+  return (
+    <div className="animate-rise fixed left-1/2 top-4 z-50 w-[22rem] max-w-[calc(100vw-2rem)] -translate-x-1/2">
+      <div className="flex items-start gap-3 rounded-xl border border-emerald-500/30 bg-card/95 p-3.5 shadow-2xl ring-1 ring-emerald-500/10 backdrop-blur-sm">
+        <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-500 ring-1 ring-inset ring-emerald-500/30">
+          <CheckCircle2 className="size-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold">{linked ? "Linked ticket created" : "Ticket created"}</p>
+            {displayId && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+                <Ticket className="size-2.5" />
+                {displayId}
+              </span>
+            )}
+          </div>
+          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+            {escalated
+              ? "Your request has been escalated — a support agent will be with you shortly."
+              : "We're on it. Our AI support team is investigating and will reply right here."}
+          </p>
+        </div>
+        <button
+          onClick={onClose}
+          aria-label="Dismiss"
+          className="shrink-0 rounded-md p-1 text-muted-foreground/60 transition-colors hover:bg-secondary hover:text-foreground"
+        >
+          <X className="size-3.5" />
+        </button>
+      </div>
     </div>
   );
 }

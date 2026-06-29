@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { LifeBuoy, Loader2, Send, Sparkles, X } from "lucide-react";
+import { ChevronDown, LifeBuoy, Loader2, Send, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { askHelp } from "@/lib/api";
-import type { HelpAnswer } from "@/lib/types";
+import { askHelp, listHelpFaqs } from "@/lib/api";
+import type { HelpAnswer, PublicFaq } from "@/lib/types";
 
 interface ChatTurn {
   role: "user" | "assistant";
@@ -27,12 +27,25 @@ export function HelpWidget({ onTalkToSupport }: { onTalkToSupport?: (text: strin
   const [turns, setTurns] = useState<ChatTurn[]>([GREETING]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [faqs, setFaqs] = useState<PublicFaq[]>([]);
+  const [faqsOpen, setFaqsOpen] = useState(true);
+  const [expandedFaq, setExpandedFaq] = useState<string | null>(null);
+  const faqsLoaded = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastQuestion = useRef("");
 
   useEffect(() => {
     if (open) scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [turns, open, loading]);
+
+  // Fetch the browsable FAQ list once, the first time the widget is opened.
+  useEffect(() => {
+    if (!open || faqsLoaded.current) return;
+    faqsLoaded.current = true;
+    listHelpFaqs()
+      .then(({ faqs }) => setFaqs(faqs))
+      .catch(() => setFaqs([]));
+  }, [open]);
 
   async function send() {
     const q = input.trim();
@@ -106,6 +119,45 @@ export function HelpWidget({ onTalkToSupport }: { onTalkToSupport?: (text: strin
 
           {/* Messages */}
           <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+            {/* Browsable FAQ list — scan answers before asking or raising a ticket. */}
+            {faqs.length > 0 && (
+              <div className="rounded-xl border border-border bg-background">
+                <button
+                  onClick={() => setFaqsOpen((v) => !v)}
+                  className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left"
+                >
+                  <span className="flex items-center gap-2 text-xs font-semibold">
+                    <LifeBuoy className="size-3.5 text-primary" />
+                    Browse FAQs ({faqs.length})
+                  </span>
+                  <ChevronDown className={"size-4 text-muted-foreground transition-transform " + (faqsOpen ? "rotate-180" : "")} />
+                </button>
+                {faqsOpen && (
+                  <div className="border-t border-border px-2 pb-2 pt-1">
+                    {faqs.map((f) => {
+                      const expanded = expandedFaq === f.id;
+                      return (
+                        <div key={f.id} className="border-b border-border/60 last:border-0">
+                          <button
+                            onClick={() => setExpandedFaq(expanded ? null : f.id)}
+                            className="flex w-full items-center justify-between gap-2 px-1.5 py-2 text-left text-xs font-medium hover:text-primary"
+                          >
+                            <span>{f.label}</span>
+                            <ChevronDown className={"size-3.5 shrink-0 text-muted-foreground transition-transform " + (expanded ? "rotate-180" : "")} />
+                          </button>
+                          {expanded && (
+                            <p className="whitespace-pre-wrap px-1.5 pb-2.5 text-xs text-muted-foreground">{f.answer}</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                    <p className="px-1.5 pt-2 text-[11px] text-muted-foreground">
+                      Didn&apos;t find your answer? Ask below or talk to support.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
             {turns.map((t, i) => (
               <div key={i} className={t.role === "user" ? "flex justify-end" : "flex justify-start"}>
                 <div

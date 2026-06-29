@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { platform } from "@/lib/api";
 import type { SpecialistAgentRecord, StoredUseCase } from "@/lib/types";
-import { ErrorNote, Field, MultiSearchSelect, Pager, usePager } from "../ui";
+import { ErrorNote, Field, Pager, usePager } from "../ui";
 
 interface SpecialistForm {
   name: string;
@@ -13,59 +13,49 @@ interface SpecialistForm {
   description: string;
   team: string;
   keywords: string;
-  tools: string[];
-  kbFiles: string[];
 }
-const EMPTY: SpecialistForm = { name: "", label: "", description: "", team: "", keywords: "", tools: [], kbFiles: [] };
-
-// The starter use case we seed/sync so that tools + KB picked at creation time
-// actually become capabilities the agent can use.
-const STARTER_USE_CASE = "general";
-
-function toggle(list: string[], value: string): string[] {
-  return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
-}
+const EMPTY: SpecialistForm = { name: "", label: "", description: "", team: "", keywords: "" };
 
 export function SpecialistsTab() {
   const [agents, setAgents] = useState<SpecialistAgentRecord[]>([]);
   const [usecases, setUsecases] = useState<StoredUseCase[]>([]);
-  const [availableTools, setAvailableTools] = useState<string[]>([]);
-  const [availableKb, setAvailableKb] = useState<string[]>([]);
   const [form, setForm] = useState<SpecialistForm>(EMPTY);
   const [editing, setEditing] = useState(false);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const [{ agents }, { usecases }, tools, kb] = await Promise.all([
+    const [{ agents }, { usecases }] = await Promise.all([
       platform.listSpecialists(),
       platform.listUseCases(),
-      platform.listTools(),
-      platform.listKb(),
     ]);
     setAgents(agents);
     setUsecases(usecases);
-    setAvailableTools([...tools.builtins.map((t) => t.name), ...tools.declarative.map((t) => t.name)]);
-    setAvailableKb(kb.docs.map((d) => d.file));
   }, []);
   useEffect(() => void load(), [load]);
 
-  // The starter use case for an agent (if it exists), so tools/KB round-trip on edit.
-  function starterFor(name: string): StoredUseCase | undefined {
-    return usecases.find((u) => u.agent === name && u.def.use_case_id === STARTER_USE_CASE);
+  // Aggregate the tools + KB an agent actually has across ALL its use cases.
+  // Capabilities are defined per use case (Use Cases tab); this just reflects
+  // them read-only on the specialist card.
+  function capsFor(name: string): { tools: string[]; kb: string[] } {
+    const mine = usecases.filter((u) => u.agent === name);
+    const tools = new Set<string>();
+    const kb = new Set<string>();
+    for (const u of mine) {
+      for (const t of u.def.capabilities?.tools ?? []) tools.add(t);
+      for (const k of u.def.capabilities?.knowledge_base ?? []) kb.add(k.knowledge_file);
+    }
+    return { tools: [...tools], kb: [...kb] };
   }
 
   function fresh() { setForm(EMPTY); setEditing(false); setErr(""); }
   function edit(a: SpecialistAgentRecord) {
-    const starter = starterFor(a.name);
     setForm({
       name: a.name,
       label: a.label,
       description: a.description,
       team: a.team,
       keywords: a.keywords.join(", "),
-      tools: starter?.def.capabilities?.tools ?? [],
-      kbFiles: (starter?.def.capabilities?.knowledge_base ?? []).map((k) => k.knowledge_file),
     });
     setEditing(true);
     setErr("");
@@ -78,24 +68,6 @@ export function SpecialistsTab() {
       const label = form.label.trim();
       const keywords = form.keywords.split(/[\n,]/).map((s) => s.trim()).filter(Boolean);
       await platform.putSpecialist(name, { name, label, description: form.description.trim(), team: form.team.trim(), keywords });
-
-      // Seed/sync the starter use case so the picked tools + KB become real
-      // capabilities. Only write it when something is selected or one already
-      // exists (so we don't create empty use cases for meta-only edits).
-      const hasCaps = form.tools.length > 0 || form.kbFiles.length > 0;
-      if (hasCaps || starterFor(name)) {
-        await platform.putUseCase(name, {
-          use_case_id: STARTER_USE_CASE,
-          description: `General ${label || name} requests`,
-          example_utterances: [],
-          prompt: `You are the ${label || name} specialist. Help the customer using the available tools and knowledge.`,
-          capabilities: {
-            tools: form.tools,
-            knowledge_base: form.kbFiles.map((knowledge_file) => ({ knowledge_file })),
-            can_ask_user: true,
-          },
-        });
-      }
       await load();
       fresh();
     } catch (e) { setErr((e as Error).message); }
@@ -117,9 +89,7 @@ export function SpecialistsTab() {
         </p>
         <div className="space-y-2">
           {pageItems.map((a) => {
-            const starter = starterFor(a.name);
-            const tools = starter?.def.capabilities?.tools ?? [];
-            const kb = (starter?.def.capabilities?.knowledge_base ?? []).map((k) => k.knowledge_file);
+            const { tools, kb } = capsFor(a.name);
             return (
               <div key={a.name} className="rounded-lg border border-border px-3 py-2.5">
                 <div className="flex items-center justify-between gap-2">
@@ -177,34 +147,6 @@ export function SpecialistsTab() {
         <Field label="Routing keywords (comma or newline separated)">
           <textarea value={form.keywords} onChange={(e) => setForm({ ...form, keywords: e.target.value })} rows={2} placeholder="shipping, delivery, tracking, package" className="input" />
         </Field>
-        <Field label="Tools this agent can use">
-          {availableTools.length === 0 ? (
-            <span className="text-xs text-muted-foreground">No tools available — add some under HTTP tools.</span>
-          ) : (
-            <MultiSearchSelect
-              options={availableTools.map((t) => ({ value: t, label: t }))}
-              values={form.tools}
-              onToggle={(t) => setForm({ ...form, tools: toggle(form.tools, t) })}
-              placeholder="Choose tools…"
-              searchPlaceholder="Search tools…"
-              emptyText="No tools match"
-            />
-          )}
-        </Field>
-        <Field label="Knowledge base docs">
-          {availableKb.length === 0 ? (
-            <span className="text-xs text-muted-foreground">No KB docs available — add some under Knowledge base.</span>
-          ) : (
-            <MultiSearchSelect
-              options={availableKb.map((f) => ({ value: f, label: f }))}
-              values={form.kbFiles}
-              onToggle={(f) => setForm({ ...form, kbFiles: toggle(form.kbFiles, f) })}
-              placeholder="Choose KB docs…"
-              searchPlaceholder="Search docs…"
-              emptyText="No docs match"
-            />
-          )}
-        </Field>
         <ErrorNote msg={err} />
         <div className="flex gap-2">
           <Button size="sm" className="gap-2" onClick={() => void save()} disabled={busy || !form.name || !form.label || !form.description || !form.team}>
@@ -214,7 +156,8 @@ export function SpecialistsTab() {
           <Button size="sm" variant="outline" onClick={fresh}>Clear</Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Selecting tools or KB seeds a <span className="font-medium text-foreground">{STARTER_USE_CASE}</span> use case so the agent can use them right away.
+          After creating a specialist, add its tools and knowledge base under the{" "}
+          <span className="font-medium text-foreground">Use Cases</span> tab — that&apos;s where each agent&apos;s capabilities live.
         </p>
       </div>
     </div>

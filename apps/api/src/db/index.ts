@@ -5,3 +5,4 @@ export * from "./escalations";
 export * from "./notifications";
 export * from "./collab";
 export * from "./agents";
+export * from "./faqCandidates";
