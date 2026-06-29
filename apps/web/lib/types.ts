@@ -172,6 +172,13 @@ export interface HelpArticle {
   bytes: number;
 }
 
+// A customer-safe FAQ for the browsable Help Center list (no internal triggers).
+export interface PublicFaq {
+  id: string;
+  label: string;
+  answer: string;
+}
+
 // One self-service answer from the Help Center (read-only; no ticket).
 export interface HelpAnswer {
   answer: string;

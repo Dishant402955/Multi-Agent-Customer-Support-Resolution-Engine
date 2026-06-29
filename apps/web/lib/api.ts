@@ -17,6 +17,7 @@ import type {
   NotificationRecord,
   PipelineProgressEvent,
   PolicyConfig,
+  PublicFaq,
   RunSessionDetail,
   RunSessionRow,
   SlaConfig,
@@ -500,6 +501,16 @@ export async function askHelp(message: string): Promise<HelpAnswer> {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error || "Help is unavailable");
   return data as HelpAnswer;
+}
+
+export async function listHelpFaqs(): Promise<{ faqs: PublicFaq[] }> {
+  const res = await fetch(`${API}/api/help/faqs`, {
+    method: "GET",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data?.error || "FAQs are unavailable");
+  return data as { faqs: PublicFaq[] };
 }
 
 // ---- Admin: human-agent management -----------------------------------------

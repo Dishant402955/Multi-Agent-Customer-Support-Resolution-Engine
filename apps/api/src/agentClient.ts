@@ -36,6 +36,25 @@ export interface HelpAnswer {
   suggestEscalation: boolean;
 }
 
+export interface PublicFaq {
+  id: string;
+  label: string;
+  answer: string;
+}
+
+/** List enabled, customer-safe FAQs from the agent's Help Center (read-only). */
+export async function listAgentFaqs(): Promise<{ faqs: PublicFaq[] }> {
+  const res = await fetch(`${ENV.AGENT_URL}/help/faqs`, {
+    method: "GET",
+    headers: { "Content-Type": "application/json" },
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`agent faqs returned ${res.status}: ${detail}`);
+  }
+  return res.json();
+}
+
 /** Ask the agent's self-service Help Center (read-only; never creates a ticket). */
 export async function askAgentHelp(message: string, runId: string): Promise<HelpAnswer> {
   const res = await fetch(`${ENV.AGENT_URL}/help/ask`, {

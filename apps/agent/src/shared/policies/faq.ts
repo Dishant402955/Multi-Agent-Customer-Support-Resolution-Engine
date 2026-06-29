@@ -42,6 +42,79 @@ export interface FaqEntry extends FaqEntryInput {
 
 let cache: FaqEntry[] | null = null;
 
+/**
+ * Dummy/default FAQ entries shipped on first run so the browsable Help Center
+ * isn't empty out of the box. Trigger phrases are drawn from the agents'
+ * declarative use-case `example_utterances`; answers are short, customer-ready
+ * summaries of each topic. Admins can edit or delete these freely afterwards.
+ */
+const DEFAULT_FAQS: Omit<FaqEntry, "id">[] = [
+  {
+    label: "Return policy",
+    enabled: true,
+    match: "contains",
+    triggers: ["what is your return policy", "can i return this item", "how many days do i have to return", "is this item eligible for return"],
+    answer:
+      "You can return most items within 30 days of delivery, as long as they're unused and in their original packaging. Some items (like final-sale or perishable goods) aren't returnable. To start a return, open the order in your account and choose \"Return item\".",
+  },
+  {
+    label: "Refund eligibility",
+    enabled: true,
+    match: "contains",
+    triggers: ["can i get a refund", "am i eligible for a refund", "is this charge refundable", "how do refunds work"],
+    answer:
+      "Refunds are available for eligible returns within the 30-day window and for confirmed duplicate charges. Once approved, refunds are issued to your original payment method and typically take 5-10 business days to appear.",
+  },
+  {
+    label: "Order tracking",
+    enabled: true,
+    match: "contains",
+    triggers: ["where is my order", "track my delivery", "when will my package arrive", "has my order shipped yet"],
+    answer:
+      "You can track your order anytime from the order details page in your account, where you'll find the carrier, tracking number, and estimated delivery date. If your order is delayed, the revised ETA will show there too.",
+  },
+  {
+    label: "Cancel or change an order",
+    enabled: true,
+    match: "contains",
+    triggers: ["can i cancel my order", "how do i cancel my order", "i need to change my order", "cancel my subscription"],
+    answer:
+      "Orders can be changed or cancelled while they're still being prepared. Open the order in your account and choose \"Cancel\" or \"Edit\". Once an order has shipped it can no longer be cancelled, but you can return it after delivery.",
+  },
+  {
+    label: "Product availability",
+    enabled: true,
+    match: "contains",
+    triggers: ["is this in stock", "when will this be back in stock", "do you have this item available", "is the item available"],
+    answer:
+      "Live stock is shown on each product page. If an item is out of stock, you can opt in to a back-in-stock notification from that page and we'll email you as soon as it returns.",
+  },
+  {
+    label: "Payment failed",
+    enabled: true,
+    match: "contains",
+    triggers: ["why did my payment fail", "my payment was declined", "my card was declined", "i can't complete my payment"],
+    answer:
+      "Payments are usually declined due to an incorrect card detail, insufficient funds, or your bank flagging the transaction. Double-check your card number, expiry, and billing address, then try again or use a different payment method. If it keeps failing, contact your bank.",
+  },
+  {
+    label: "Account and login",
+    enabled: true,
+    match: "contains",
+    triggers: ["i can't log in", "i forgot my password", "how do i reset my password", "i'm locked out of my account"],
+    answer:
+      "If you can't sign in, use the \"Forgot password\" link on the login page to reset it via email. If your account is locked after several attempts, wait a few minutes and try again. Make sure you're using the same email you signed up with.",
+  },
+  {
+    label: "Service status",
+    enabled: true,
+    match: "contains",
+    triggers: ["is the site down", "is the website not working", "are you having an outage", "the app isn't working"],
+    answer:
+      "If pages aren't loading, try refreshing or clearing your browser cache first. Most issues are temporary. If the problem continues, let us know what you were doing and any error message you saw so we can investigate.",
+  },
+];
+
 function ensureDir(): void {
   if (!existsSync(CONFIG_DIR)) mkdirSync(CONFIG_DIR, { recursive: true });
 }
@@ -49,8 +122,11 @@ function ensureDir(): void {
 function readAll(): FaqEntry[] {
   if (cache) return cache;
   if (!existsSync(FAQ_FILE)) {
-    cache = [];
-    return cache;
+    // First run: seed dummy FAQs so the browsable Help Center isn't empty. Once
+    // written, the file is the source of truth — admin edits/deletions persist.
+    const seeded: FaqEntry[] = DEFAULT_FAQS.map((e) => ({ ...e, id: randomUUID() }));
+    save(seeded);
+    return cache!;
   }
   try {
     const raw = JSON.parse(readFileSync(FAQ_FILE, "utf8"));
@@ -83,6 +159,23 @@ function save(entries: FaqEntry[]): void {
 /** Every FAQ entry (enabled and disabled), for the admin editor. */
 export function listFaqs(): FaqEntry[] {
   return [...readAll()];
+}
+
+/** A customer-safe FAQ — only what's shown when browsing (no triggers/match config). */
+export interface PublicFaq {
+  id: string;
+  label: string;
+  answer: string;
+}
+
+/**
+ * Enabled FAQs in a customer-safe shape, for the browsable Help Center list.
+ * Internal matching config (triggers, match mode, regex) is intentionally omitted.
+ */
+export function listPublicFaqs(): PublicFaq[] {
+  return readAll()
+    .filter((e) => e.enabled !== false)
+    .map((e) => ({ id: e.id, label: e.label, answer: e.answer }));
 }
 
 export function invalidateFaqCache(): void {

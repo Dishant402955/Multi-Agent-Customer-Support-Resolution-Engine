@@ -22,6 +22,7 @@ import platformRouter from "./routes/platform";
 import escalationRouter from "./routes/escalations";
 import adminRouter from "./routes/admin";
 import helpRouter from "./routes/help";
+import { observeResolvedRun } from "./faqAuto";
 
 seedAccounts();
 seedHumanAgents();
@@ -190,6 +191,9 @@ function finalizeTicketRun(opts: { state: any; ticketId: string; customerId: str
   const reply = nonSupport ? state?.resolution?.summary ?? "Thanks for reaching out!" : composeReply(state, displayId, assignee, escalationRecord, isFollowUp, firstCustomerMessage);
   addMessage(ticketId, "system", reply);
   saveRun(runId, ticketId, state);
+  // Learn from this run: if the same question keeps getting asked, suggest an FAQ
+  // draft for admin review. Best-effort — never blocks or breaks the response.
+  observeResolvedRun(state, message);
   const status = escalationRecord ? (escalationRecord.status === "open" ? "escalated" : "resolved") : state?.investigation?.overall_status === "resolved" ? "resolved" : "active";
   return { ticket_id: ticketId, display_id: displayId, status, summary: state?.resolution?.summary ?? null, run: state, messages: getMessages(ticketId), escalation_id: escalationRecord?.id ?? null, escalation_status: escalationRecord?.status ?? null };
 }
