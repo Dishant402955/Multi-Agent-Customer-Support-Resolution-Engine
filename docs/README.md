@@ -4,7 +4,21 @@ An **e-commerce** customer-support engine that classifies, decomposes, investiga
 
 ---
 
-## System architecture
+## Documentation 
+
+| Doc | Purpose |
+|-----|---------|
+| **[architecture.md](architecture.md)** | System context, deployment, flows, diagrams |
+| **[hld.md](hld.md)** | High-level design — layers, modules, interfaces |
+| **[technical-decisions.md](technical-decisions.md)** | ADRs — what we chose and why |
+| **[lld.md](lld.md)** | Low-level design — schemas, contracts, endpoints, file map |
+| **[user-flow.md](user-flow.md)** | Customer & ops journeys (product view) |
+
+---
+
+## System architecture (summary)
+
+See **[architecture.md](architecture.md)** for full diagrams. Quick view:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -68,22 +82,6 @@ npm run dev:all          # starts all three services
 
 ---
 
-## LLM setup (company endpoint)
-
-Three env vars, matching the company curl exactly:
-
-```bash
-LLM_ENDPOINT=https://openaiqc.gep.com/summerintern/openai/v1   # base URL up to /v1
-LLM_MODEL=gpt-5.2                                               # model in the body
-LLM_API_KEY=your-bearer-token                                   # Authorization: Bearer …
-```
-
-Standard OpenAI, Anthropic, Groq, Gemini, and native Azure are also supported — see `.env.example`.
-
-**No key configured?** Every pipeline step degrades to a deterministic heuristic. Classification uses keyword scoring; agents return KB-grounded template answers; synthesis produces a structured template merge. The system never hard-fails.
-
----
-
 ## Pipeline steps
 
 | # | Step | Kind | What it does |
@@ -129,7 +127,7 @@ Platform admins can **add custom specialist agents at runtime** from the admin c
 - **Context across follow-ups** — `prior_context` passes resolution + history; message count drives repeat-contact logic
 - **Full audit trail** — every step emits a typed `AuditEvent` (timestamp, actor, kind `llm|rule|heuristic`, summary, detail)
 
-### Stretch goals (all implemented)
+### Stretch goals 
 
 | Goal | Where |
 |------|-------|
@@ -285,18 +283,17 @@ techathon/
 
 ## Decision log
 
-| Decision | Chosen | Rejected / why not |
-|----------|--------|--------------------|
-| **Orchestration** | LangGraph `StateGraph` (TS) + identical linear fallback | CrewAI/AutoGen — Python-only; adding TS wrapper would split the codebase |
-| **Database** | `node:sqlite` (built-in, Node 22+) | `better-sqlite3` — requires native compilation; PostgreSQL — overkill for demo |
-| **LLM gateway** | Single `callLLM()` abstraction over OpenAI-compat + adapters | Vendor SDK imports — prevents hot-switching provider; breaks offline mode |
-| **Offline / no-key mode** | Every step has a deterministic heuristic fallback | Hard-fail on missing key — demo-breaking; judges can't test without a key |
-| **Agent definition format** | Declarative JSON use cases (`id`, `description`, `prompt`, `tools`, `knowledge_base`) | Code-only agents — adding a use case would require code change + redeploy |
-| **Knowledge base retrieval** | TF-IDF section scorer (keyword match) | Vector/embedding search — no embedding server dependency; fast to demo offline |
-| **Real-time transport** | SSE (pipeline streaming + collab feed) | WebSocket — SSE is simpler, works through HTTP/2 proxies, sufficient for demo |
-| **Frontend** | Next.js 15 + shadcn/ui dark theme | CRA / Vite — less routing and component infrastructure; shadcn gives polished UI fast |
-| **Sentiment approach** | LLM-first, conversation-aware; heuristic fallback | LLM-only — fails offline; heuristic-only — misses context across turns |
-| **Ticketing integration** | Not integrated (out of scope for demo) | Zendesk/Linear/Jira — see Roadmap; API is channel-agnostic, integration is additive |
+See **[technical-decisions.md](technical-decisions.md)** for full ADRs (20 decisions with context, alternatives, consequences).
+
+| Decision | Chosen |
+|----------|--------|
+| Orchestration | LangGraph + linear fallback |
+| Database | `node:sqlite` |
+| LLM access | Single `callLLM()` gateway |
+| Agents | Declarative JSON use cases |
+| KB retrieval | TF-IDF (vector-ready interface) |
+| Real-time | SSE (pipeline + collab) |
+| Escalation | Policy gate + meaningful HITL |
 
 ---
 

@@ -2,6 +2,8 @@
 
 Multi-Agent Customer Support Resolution Engine
 
+**Docs chain:** [`README.md`](README.md) → [`architecture.md`](architecture.md) → [`hld.md`](hld.md) → [`technical-decisions.md`](technical-decisions.md) → **lld.md**
+
 ---
 
 ## 1. Component map
@@ -274,9 +276,13 @@ Heuristic fallback:
 ### 4.4 Decomposer
 
 ```
-Input:  message, classification
+Input:  message, classification, guard? (force_escalation)
 Output: sub_problems[] — one per domain that needs investigation
 Kind:   LLM → heuristic fallback
+
+Hard-signal shortcut (nodes.ts):
+  if guard.force_escalation → single SP-1 domain=policy, description=message
+  (skips multi-domain split; routes to escalate_to_human use case)
 
 Single-intent: [{ id: "SP-1", domain: primary_intent, description: message }]
 Multi-intent:  one SP per intent above threshold (policies.json intents.*)
@@ -320,16 +326,17 @@ Input:  agent_reports[], investigation, sentiment, message_count
 Output: severity { level, priority, reasoning }
 Kind:   rule (no LLM)
 
-level  from findings keywords:
-  high   = "locked", "data loss", "breach", "security", "outage", ...
-  medium = "refund", "charge", "payment", ...
+level from findings keywords (word-boundary match via blobMatches):
+  high   = "locked", "breach", "security", "outage", "service down", …
+  medium = "refund", "charge", "payment", "duplicate", …
   low    = default
-  override: unresolved investigation + low level → medium
+  override: investigation.overall_status === "unresolved" AND level low → medium
+  NOTE: single agent unresolved on a partial ticket does NOT force high
 
 priority = base[level] + modifiers:
-  +1 angry sentiment
+  +1 angry sentiment (skipped on productive partial)
   +1 repeat contact (message_count > 1)
-  +1 conflicts detected
+  +1 conflicts detected (skipped on productive partial)
   cap at 3 → P1/P2/P3
 ```
 
@@ -340,24 +347,24 @@ Input:  guard, investigation, severity, sentiment, agent_reports, message_count
 Output: escalation { escalate, reasons[], recommended_team, urgency, assigned_agent, internal_actions, reason }
 Kind:   rule gate → LLM handoff plan → deterministic fallback
 
-Gate (shouldEscalate):
-  force_escalation  → always escalate (from guard)
-  high_severity     → severity.level === "high"
-  unresolved        → investigation.overall_status === "unresolved"
-  conflicts         → investigation.conflicts.length > 0
-  specialist_handoff → any agent_report.status === "unresolved"
-  frustration_repeat → sentiment.frustration AND (repeat OR unresolved)
-  (each rule is individually toggled in policies.json)
+Gate (shouldEscalate) — each rule toggled in policies.json:
+  hard_guard         → guard.force_escalation (always)
+  high_severity      → severity.level === "high"
+  unresolved         → investigation.overall_status === "unresolved" (all agents failed)
+  conflicts          → conflicts.length > 0 AND NOT productive partial
+  specialist_handoff → any unresolved agent AND investigation fully unresolved
+  frustration_repeat → (repeat AND frustrated AND not resolved)
+                       OR (first contact AND frustrated AND fully unresolved AND none resolved)
+
+productive partial = overall_status "partial" AND at least one agent_report.status === "resolved"
 
 Team routing: teamByDomain(primary_intent) → department
-P1 priority → "Escalations" department
+API-side: pickAssignee(dept, countOpenByAssignee()) — least-load balancing
 
 LLM handoff plan:
   system = GUARDRAILS_BLOCK + escalation prompt
   user   = all agent reports + severity reasoning + KB: escalation_matrix.md
   output = { recommended_team, urgency, reason, internal_actions[], handoff_summary }
-
-API-side: pickAssignee(dept, countOpenByAssignee()) — least-load balancing
 ```
 
 ### 4.8 Synthesizer
@@ -418,6 +425,31 @@ agents/<domain>/
 5. callLLM({ system, user, json: true, temperature: 0.2 })
 6. Return AgentReport
 ```
+
+---
+
+## 5. API module map (`apps/api/src/`)
+
+| File | Responsibility |
+|------|---------------|
+| `server.ts` | Express bootstrap, auth routes, ticket submit/stream |
+| `routes/middleware.ts` | `authMiddleware`, `requireRole`, `canAccessTicket` |
+| `routes/admin.ts` | Dashboard, observability, feedback, collab |
+| `routes/escalations.ts` | Reply, resolve, handoff, case notes |
+| `routes/platform.ts` | Platform config proxy |
+| `db/schema.ts` | DDL, migrations, SQLite instance |
+| `db/tickets.ts` | Tickets, messages, runs, presence locks |
+| `db/escalations.ts` | Escalation records |
+| `db/collab.ts` | Presence, team activity, case notes |
+| `db/notifications.ts` | Notifications, feedback, config audit |
+| `db/agents.ts` | Human agent rows |
+| `db/index.ts` | Barrel re-exports |
+| `collab.ts` | In-memory SSE broker |
+| `agentClient.ts` | HTTP to agent `/run`, `/run/stream` |
+| `agentAdmin.ts` | Proxy to agent `/admin/*` |
+| `auth.ts` | Sessions, demo accounts |
+| `humans.ts` | Assignee routing, load balancing |
+| `notify.ts` | In-app + email notifications |
 
 ---
 
